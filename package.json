@@ -1,0 +1,55 @@
+{
+  "name": "photounikalizer",
+  "version": "1.0.0",
+  "private": true,
+  "main": "electron/main.js",
+  "author": "YALOKGAR <yalokgar@gmail.com>",
+  "description": "PhotoUnikalizer – unique and anonymize photos with smart drifts and rich fake EXIF/IPTC.",
+  "license": "MIT",
+  "scripts": {
+    "dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
+    "build": "vite build",
+    "start": "electron .",
+    "dist": "npm run build && electron-builder",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "exiftool-vendored": "*",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "sharp": "^0.33.3"
+  },
+  "devDependencies": {
+    "electron": "^30.0.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "autoprefixer": "^10.4.19",
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
+    "electron-builder": "^24.13.3",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.4",
+    "vite": "^5.2.0",
+    "wait-on": "^7.0.1"
+  },
+  "build": {
+    "appId": "com.yalokgar.photounikalizer",
+    "productName": "PhotoUnikalizer",
+    "files": [
+      "dist/**",
+      "electron/**",
+      "node_modules/**",
+      "package.json"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/sharp/**/*",
+      "node_modules/exiftool-vendored/**/*"
+    ],
+    "directories": {
+      "buildResources": "build"
+    },
+    "win": {
+      "target": ["nsis", "portable"]
+    }
+  }
+}

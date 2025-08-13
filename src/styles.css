@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --surface: #0b1020;
+  --panel: #0f172a;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  background: radial-gradient(1200px 600px at 80% -10%, rgba(99,102,241,.15), transparent 60%),
+              radial-gradient(900px 500px at 10% 10%, rgba(2,132,199,.15), transparent 60%),
+              var(--surface);
+}
+
+.glass {
+  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+  backdrop-filter: blur(10px);
+}
+
+.btn {
+  @apply px-3 py-2 rounded;
+}
+
+.neon {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  color: #00ffa2;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  text-shadow: 0 0 2px #00ffa2, 0 0 6px #00ffa2, 0 0 12px #00ffa2, 0 0 24px rgba(0,255,162,.7);
+  filter: drop-shadow(0 0 2px rgba(0,255,162,.6));
+  animation: neonPulse 2.4s ease-in-out infinite;
+}
+
+@keyframes neonPulse {
+  0%, 100% { text-shadow: 0 0 2px #00ffa2, 0 0 6px #00ffa2, 0 0 12px #00ffa2, 0 0 24px rgba(0,255,162,.7) }
+  50% { text-shadow: 0 0 3px #00ffa2, 0 0 10px #00ffa2, 0 0 20px #00ffa2, 0 0 40px rgba(0,255,162,.9) }
+}
