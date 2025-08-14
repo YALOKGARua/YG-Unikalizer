@@ -30,6 +30,9 @@
     "start": "electron .",
     "dist": "npm run build && electron-builder",
     "publish": "npm run build && electron-builder --publish always",
+    "release:patch": "npm version patch -m \"release: %s\" && git push && git push --follow-tags",
+    "release:minor": "npm version minor -m \"release: %s\" && git push && git push --follow-tags",
+    "release:major": "npm version major -m \"release: %s\" && git push && git push --follow-tags",
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
@@ -87,7 +90,10 @@
       {
         "provider": "github",
         "owner": "YALOKGARua",
-        "repo": "PhotoUnikalizer"
+        "repo": "PhotoUnikalizer",
+        "releaseType": "release",
+        "draft": false,
+        "prerelease": false
       }
     ]
   }
