@@ -104,16 +104,6 @@
     },
     "portable": {
       "artifactName": "PhotoUnikalizer-Portable-${version}.exe"
-    },
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "YALOKGARua",
-        "repo": "PhotoUnikalizer",
-        "releaseType": "release",
-        "draft": false,
-        "prerelease": false
-      }
-    ]
+    }
   }
 }
