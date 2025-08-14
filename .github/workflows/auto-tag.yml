@@ -1,0 +1,47 @@
+name: Auto Tag on Version Bump
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create tag if version changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          TAG="v${NEW_VERSION}"
+          echo "New version: ${NEW_VERSION}"
+          git fetch --tags --quiet
+          if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            echo "Tag ${TAG} already exists. Skipping."
+            exit 0
+          fi
+          OLD_JSON=$(git show HEAD^:package.json 2>/dev/null || echo "")
+          if [ -n "${OLD_JSON}" ]; then
+            OLD_VERSION=$(printf "%s" "${OLD_JSON}" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{console.log(JSON.parse(s).version||'')}catch(e){console.log('')}})")
+          else
+            OLD_VERSION=""
+          fi
+          echo "Old version: ${OLD_VERSION}"
+          if [ "${OLD_VERSION}" = "${NEW_VERSION}" ]; then
+            echo "Version not changed. Skipping."
+            exit 0
+          fi
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag -a "${TAG}" -m "release ${TAG}"
+          git push origin "${TAG}"

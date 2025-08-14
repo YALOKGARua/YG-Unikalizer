@@ -1,6 +1,6 @@
 {
   "name": "photounikalizer",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "private": true,
   "main": "electron/main.js",
   "author": "YALOKGAR <yalokgar@gmail.com>",
@@ -30,9 +30,9 @@
     "start": "electron .",
     "dist": "npm run build && electron-builder",
     "publish": "npm run build && electron-builder --publish always",
-    "release:patch": "npm version patch -m \"release: %s\" && git push && git push --follow-tags",
-    "release:minor": "npm version minor -m \"release: %s\" && git push && git push --follow-tags",
-    "release:major": "npm version major -m \"release: %s\" && git push && git push --follow-tags",
+    "release:patch": "npm version patch -m \"release: %s\" && git push",
+    "release:minor": "npm version minor -m \"release: %s\" && git push",
+    "release:major": "npm version major -m \"release: %s\" && git push",
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {

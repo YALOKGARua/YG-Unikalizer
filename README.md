@@ -46,16 +46,12 @@ npm run build
 cmd /c npm run start
 ```
 
-## Package to .exe
+## Release
 
-```bash
-cmd /c npm run dist
-```
-
-Outputs:
-
-- Installer: `dist/photoUniq Setup 1.0.0.exe`
-- Portable: `dist/photoUniq 1.0.0.exe`
+- Bump version in `package.json` (or run `npm run release:patch` / `:minor` / `:major`).
+- Push to `main`.
+- CI auto-tags `vX.Y.Z` and triggers Release workflow.
+- Release will publish NSIS installer and Portable .exe to GitHub Releases.
 
 ## Tech stack
 
