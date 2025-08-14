@@ -54,6 +54,7 @@
   "build": {
     "appId": "com.yalokgar.photounikalizer",
     "productName": "PhotoUnikalizer",
+    "artifactName": "PhotoUnikalizer-${version}-${os}-${arch}.${ext}",
     "files": [
       "dist/**",
       "electron/**",
@@ -69,7 +70,18 @@
       "buildResources": "build"
     },
     "win": {
-      "target": ["nsis", "portable"]
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "artifactName": "PhotoUnikalizer-Setup-${version}.exe"
+    },
+    "portable": {
+      "artifactName": "PhotoUnikalizer-Portable-${version}.exe"
     },
     "publish": [
       {
