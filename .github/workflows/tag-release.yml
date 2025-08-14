@@ -1,0 +1,22 @@
+name: Tag And Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version (semver), e.g. v1.0.3'
+        required: true
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Create tag
+        run: |
+          git tag ${{ github.event.inputs.version }}
+          git push origin ${{ github.event.inputs.version }}
+
+

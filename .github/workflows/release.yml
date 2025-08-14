@@ -4,6 +4,36 @@ on:
   push:
     tags:
       - 'v*'
+
+jobs:
+  build-and-publish:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Build renderer
+        run: npm run build
+
+      - name: Build and publish artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: npx electron-builder --publish always
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 permissions:
