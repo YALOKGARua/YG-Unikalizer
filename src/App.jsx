@@ -66,6 +66,8 @@ export default function App() {
   const [locationPreset, setLocationPreset] = useState('none')
   const renderFakeBelow = false
 
+  const [upd, setUpd] = useState({ available: false, info: null, downloading: false, percent: 0, error: null, downloaded: false })
+
   const GEAR_PRESETS = {
     camera: {
       makes: ['Canon', 'Nikon', 'Sony', 'Fujifilm', 'Panasonic'],
@@ -233,6 +235,22 @@ export default function App() {
     }
   }, [])
 
+  useEffect(() => {
+    const offAvail = window.api.onUpdateAvailable(info => setUpd({ available: true, info, downloading: false, percent: 0, error: null, downloaded: false }))
+    const offNA = window.api.onUpdateNotAvailable(() => setUpd(prev => ({ ...prev, available: false })))
+    const offErr = window.api.onUpdateError(err => setUpd(prev => ({ ...prev, error: String(err) })))
+    const offProg = window.api.onUpdateProgress(p => setUpd(prev => ({ ...prev, downloading: true, percent: p.percent || 0 })))
+    const offDl = window.api.onUpdateDownloaded(info => setUpd(prev => ({ ...prev, downloaded: true, downloading: false, percent: 100, info })))
+    window.api.checkForUpdates().catch(()=>{})
+    return () => {
+      offAvail()
+      offNA()
+      offErr()
+      offProg()
+      offDl()
+    }
+  }, [])
+
   const handleAdd = async () => {
     const paths = await window.api.selectImages()
     if (!paths || !paths.length) return
@@ -326,6 +344,18 @@ export default function App() {
     await window.api.processImages(payload)
   }
 
+  const downloadUpdate = async () => {
+    if (!upd.available || upd.downloading) return
+    setUpd(prev => ({ ...prev, downloading: true, error: null }))
+    const r = await window.api.downloadUpdate()
+    if (!r || !r.ok) setUpd(prev => ({ ...prev, error: (r && r.error) || 'Ошибка загрузки' }))
+  }
+
+  const installUpdate = async () => {
+    if (!upd.downloaded) return
+    await window.api.quitAndInstall()
+  }
+
   const fillMyData = () => {
     setAuthor('YALOKGAR')
     setContactName('YALOKGAR')
@@ -343,6 +373,36 @@ export default function App() {
         <div className="text-2xl font-semibold tracking-tight">PhotoUnikalizer</div>
         <div className="text-xs neon">by YALOKGAR</div>
       </header>
+
+      {upd.available && (
+        <div className="mx-6 mb-4 p-3 rounded bg-amber-900/40 border border-amber-600/40 text-amber-200 flex items-center justify-between gap-3">
+          {!upd.downloading && !upd.downloaded && (
+            <>
+              <div className="text-sm">Доступно обновление {upd.info && upd.info.version ? `v${upd.info.version}` : ''}</div>
+              <div className="flex gap-2">
+                <button onClick={downloadUpdate} className="px-3 py-1 rounded bg-amber-600 hover:bg-amber-500 text-xs">Скачать</button>
+              </div>
+            </>
+          )}
+          {upd.downloading && !upd.downloaded && (
+            <div className="w-full flex items-center gap-3">
+              <div className="text-xs whitespace-nowrap">Скачивание… {Math.round(upd.percent)}%</div>
+              <div className="flex-1 h-2 bg-black/30 rounded overflow-hidden">
+                <div className="h-2 bg-amber-500" style={{ width: `${Math.max(0, Math.min(100, Math.round(upd.percent)))}%` }} />
+              </div>
+            </div>
+          )}
+          {upd.downloaded && (
+            <>
+              <div className="text-sm">Обновление скачано. Установить и перезапустить?</div>
+              <div className="flex gap-2">
+                <button onClick={installUpdate} className="px-3 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-xs">Установить</button>
+              </div>
+            </>
+          )}
+          {upd.error && <div className="text-xs opacity-80">{upd.error}</div>}
+        </div>
+      )}
 
       <main className="px-6 pb-6 grid grid-cols-12 gap-6">
         <section className="col-span-4 glass rounded-xl p-5 border border-white/10">

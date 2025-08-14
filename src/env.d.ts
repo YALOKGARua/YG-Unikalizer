@@ -5,5 +5,13 @@ interface Window {
     processImages: (payload: any) => Promise<{ ok: boolean }>
     onProgress: (cb: (data: any) => void) => () => void
     onComplete: (cb: () => void) => () => void
+    checkForUpdates: () => Promise<{ ok: boolean; info?: any; error?: string }>
+    downloadUpdate: () => Promise<{ ok: boolean; error?: string }>
+    quitAndInstall: () => Promise<{ ok: boolean; error?: string }>
+    onUpdateAvailable: (cb: (info: any) => void) => () => void
+    onUpdateNotAvailable: (cb: (info: any) => void) => () => void
+    onUpdateError: (cb: (err: string) => void) => () => void
+    onUpdateProgress: (cb: (p: { percent?: number }) => void) => () => void
+    onUpdateDownloaded: (cb: (info: any) => void) => () => void
   }
 }

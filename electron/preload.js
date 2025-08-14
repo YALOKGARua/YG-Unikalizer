@@ -13,5 +13,33 @@ contextBridge.exposeInMainWorld('api', {
     const listener = () => cb()
     ipcRenderer.on('process-complete', listener)
     return () => ipcRenderer.removeListener('process-complete', listener)
+  },
+  checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+  downloadUpdate: () => ipcRenderer.invoke('download-update'),
+  quitAndInstall: () => ipcRenderer.invoke('quit-and-install'),
+  onUpdateAvailable: cb => {
+    const listener = (_, info) => cb(info)
+    ipcRenderer.on('update-available', listener)
+    return () => ipcRenderer.removeListener('update-available', listener)
+  },
+  onUpdateNotAvailable: cb => {
+    const listener = (_, info) => cb(info)
+    ipcRenderer.on('update-not-available', listener)
+    return () => ipcRenderer.removeListener('update-not-available', listener)
+  },
+  onUpdateError: cb => {
+    const listener = (_, err) => cb(err)
+    ipcRenderer.on('update-error', listener)
+    return () => ipcRenderer.removeListener('update-error', listener)
+  },
+  onUpdateProgress: cb => {
+    const listener = (_, p) => cb(p)
+    ipcRenderer.on('update-download-progress', listener)
+    return () => ipcRenderer.removeListener('update-download-progress', listener)
+  },
+  onUpdateDownloaded: cb => {
+    const listener = (_, info) => cb(info)
+    ipcRenderer.on('update-downloaded', listener)
+    return () => ipcRenderer.removeListener('update-downloaded', listener)
   }
 })

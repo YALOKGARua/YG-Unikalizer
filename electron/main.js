@@ -5,8 +5,10 @@ const os = require('os')
 const sharp = require('sharp')
 const { exiftool } = require('exiftool-vendored')
 const { randomUUID } = require('crypto')
+const { autoUpdater } = require('electron-updater')
 
 let mainWindow
+let didInitUpdater = false
 
 function resolveHtmlPath() {
   const devUrl = process.env.VITE_DEV_SERVER_URL
@@ -33,6 +35,34 @@ function createWindow() {
   const url = resolveHtmlPath()
   if (url.startsWith('http')) mainWindow.loadURL(url)
   else mainWindow.loadFile(path.join(__dirname, '..', 'dist', 'index.html'))
+}
+
+function initAutoUpdater() {
+  if (didInitUpdater) return
+  didInitUpdater = true
+  autoUpdater.autoDownload = false
+  autoUpdater.autoInstallOnAppQuit = true
+
+  autoUpdater.on('update-available', info => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('update-available', info)
+  })
+  autoUpdater.on('update-not-available', info => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('update-not-available', info)
+  })
+  autoUpdater.on('error', err => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('update-error', String(err && err.message ? err.message : err))
+  })
+  autoUpdater.on('download-progress', p => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('update-download-progress', {
+      percent: p.percent,
+      bytesPerSecond: p.bytesPerSecond,
+      transferred: p.transferred,
+      total: p.total
+    })
+  })
+  autoUpdater.on('update-downloaded', info => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('update-downloaded', info)
+  })
 }
 
 function toDateString(d) {
@@ -260,8 +290,16 @@ async function processBatch(inputFiles, options) {
 }
 
 app.whenReady().then(() => {
-  app.setAppUserModelId('com.yalokgar.photouniq')
+  app.setAppUserModelId('com.yalokgar.photounikalizer')
   createWindow()
+  initAutoUpdater()
+
+  const devUrl = process.env.VITE_DEV_SERVER_URL
+  if (!devUrl) {
+    setTimeout(() => {
+      autoUpdater.checkForUpdates().catch(() => {})
+    }, 1500)
+  }
 
   ipcMain.handle('select-images', async () => {
     const res = await dialog.showOpenDialog(mainWindow, { properties: ['openFile', 'multiSelections'], filters: [{ name: 'Изображения', extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tif', 'tiff'] }] })
@@ -285,6 +323,36 @@ app.whenReady().then(() => {
     payload.onlineDefaults = onlineDefaults || {}
     processBatch(payload.inputFiles, payload)
     return { ok: true }
+  })
+
+  ipcMain.handle('check-for-updates', async () => {
+    try {
+      initAutoUpdater()
+      const res = await autoUpdater.checkForUpdates()
+      return { ok: true, info: res && res.updateInfo ? res.updateInfo : null }
+    } catch (e) {
+      return { ok: false, error: String(e && e.message ? e.message : e) }
+    }
+  })
+
+  ipcMain.handle('download-update', async () => {
+    try {
+      initAutoUpdater()
+      await autoUpdater.downloadUpdate()
+      return { ok: true }
+    } catch (e) {
+      return { ok: false, error: String(e && e.message ? e.message : e) }
+    }
+  })
+
+  ipcMain.handle('quit-and-install', async () => {
+    try {
+      initAutoUpdater()
+      setImmediate(() => autoUpdater.quitAndInstall())
+      return { ok: true }
+    } catch (e) {
+      return { ok: false, error: String(e && e.message ? e.message : e) }
+    }
   })
 })
 
