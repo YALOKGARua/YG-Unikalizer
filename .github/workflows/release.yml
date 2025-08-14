@@ -25,12 +25,27 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-      - name: Set npm registry
-        run: npm config set registry https://registry.npmjs.org/
-      - name: Clean npm cache
-        run: npm cache clean --force
-      - name: Install deps
-        run: npm install --no-fund --no-audit
+      - name: Configure npm
+        run: |
+          npm config set registry https://registry.npmjs.org/
+          npm config set fetch-retries 5
+          npm config set fetch-retry-maxtimeout 120000
+          npm cache clean --force
+      - name: Install deps (retry with mirror fallback)
+        shell: bash
+        run: |
+          set -e
+          for i in 1 2 3; do
+            if npm install --no-fund --no-audit; then
+              exit 0
+            fi
+            echo "npm install attempt ${i} failed; retrying..."
+            sleep 5
+          done
+          echo "primary registry failed; switching to mirror"
+          npm config set registry https://registry.npmmirror.com
+          npm cache clean --force
+          npm install --no-fund --no-audit
       - name: Build renderer
         run: npm run build
       - name: Build and publish
