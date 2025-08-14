@@ -4,13 +4,14 @@ const fs = require('fs')
 const os = require('os')
 const sharp = require('sharp')
 const { exiftool } = require('exiftool-vendored')
-const { randomUUID } = require('crypto')
+const { randomUUID, createHash } = require('crypto')
 const { autoUpdater } = require('electron-updater')
 
 let mainWindow
 let didInitUpdater = false
 let currentBatchId = 0
 let cancelRequested = false
+const PRESET_FILE = path.join(app.getPath('userData'), 'preset.json')
 
 function resolveHtmlPath() {
   const devUrl = process.env.VITE_DEV_SERVER_URL
@@ -153,9 +154,13 @@ async function processOne(inputPath, index, total, options) {
   const meta = await sharp(inputPath).metadata()
   const width = meta.width || undefined
   const scale = options.resizeDrift > 0 ? 1 + (Math.random() * 2 - 1) * (options.resizeDrift / 100) : 1
-  const targetWidth = width ? Math.max(1, Math.round(width * scale)) : undefined
+  let targetWidth = width ? Math.max(1, Math.round(width * scale)) : undefined
+  if (typeof options.resizeMaxW === 'number' && options.resizeMaxW > 0 && width) {
+    targetWidth = Math.min(targetWidth || width, options.resizeMaxW)
+  }
 
   let pipeline = sharp(inputPath, { failOn: 'none' })
+  pipeline = pipeline.withMetadata(false)
   if (targetWidth) pipeline = pipeline.resize({ width: targetWidth, withoutEnlargement: true, fit: 'inside' })
 
   if (options.format === 'jpg' && (meta.hasAlpha || meta.channels === 4)) {
@@ -170,12 +175,15 @@ async function processOne(inputPath, index, total, options) {
     pipeline = pipeline.modulate({ brightness, saturation, hue })
   }
 
-  if (options.format === 'jpg') pipeline = pipeline.jpeg({ quality: options.quality, mozjpeg: true })
+  if (options.gray) pipeline = pipeline.grayscale()
+  if (options.normalize) pipeline = pipeline.normalize()
+
+  if (options.format === 'jpg') pipeline = pipeline.jpeg({ quality: options.quality, mozjpeg: true, progressive: true })
   else if (options.format === 'png') {
     const level = Math.max(0, Math.min(9, Math.round((100 - options.quality) / 10)))
-    pipeline = pipeline.png({ compressionLevel: level })
-  } else if (options.format === 'webp') pipeline = pipeline.webp({ quality: options.quality })
-  else if (options.format === 'avif') pipeline = pipeline.avif({ quality: options.quality })
+    pipeline = pipeline.png({ compressionLevel: level, palette: true })
+  } else if (options.format === 'webp') pipeline = pipeline.webp({ quality: options.quality, effort: 6 })
+  else if (options.format === 'avif') pipeline = pipeline.avif({ quality: options.quality, effort: 6 })
 
   await fs.promises.mkdir(options.outputDir, { recursive: true })
   await pipeline.toFile(outPath)
@@ -280,7 +288,7 @@ async function processOne(inputPath, index, total, options) {
   }
 
   if (options.meta && options.meta.removeAll) {
-    await exiftool.write(outPath, {}, ['-all=', '-overwrite_original'])
+    await exiftool.write(outPath, {}, ['-overwrite_original', '-all='])
   }
   if (Object.keys(tags).length) await exiftool.write(outPath, tags, ['-overwrite_original'])
 
@@ -291,7 +299,8 @@ async function processBatch(inputFiles, options) {
   cancelRequested = false
   const thisBatchId = ++currentBatchId
   const total = inputFiles.length
-  const concurrency = Math.max(1, Math.min(4, (os.cpus() || []).length - 1 || 1))
+  const cpuBased = Math.max(1, Math.min(4, (os.cpus() || []).length - 1 || 1))
+  const concurrency = Math.max(1, Math.min(Number(options.maxConcurrency || cpuBased), 8))
   let nextIndex = 0
   async function worker() {
     while (true) {
@@ -417,6 +426,25 @@ app.whenReady().then(() => {
     payload.onlineDefaults = onlineDefaults || {}
     processBatch(payload.inputFiles, payload)
     return { ok: true }
+  })
+
+  ipcMain.handle('save-preset', async (_e, payload) => {
+    try {
+      await fs.promises.mkdir(path.dirname(PRESET_FILE), { recursive: true })
+      await fs.promises.writeFile(PRESET_FILE, JSON.stringify(payload || {}, null, 2), 'utf-8')
+      return { ok: true }
+    } catch (e) {
+      return { ok: false, error: String(e && e.message ? e.message : e) }
+    }
+  })
+
+  ipcMain.handle('load-preset', async () => {
+    try {
+      const buf = await fs.promises.readFile(PRESET_FILE, 'utf-8')
+      return { ok: true, data: JSON.parse(buf) }
+    } catch (e) {
+      return { ok: false }
+    }
   })
 
   ipcMain.handle('cancel-process', async () => {

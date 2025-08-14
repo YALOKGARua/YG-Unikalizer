@@ -1,6 +1,6 @@
 {
   "name": "photounikalizer",
-  "version": "1.0.9",
+  "version": "1.10.0",
   "private": true,
   "main": "electron/main.js",
   "author": "YALOKGAR <yalokgar@gmail.com>",
@@ -36,7 +36,7 @@
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
-    "exiftool-vendored": "*",
+    "exiftool-vendored": "^25.4.0",
     "electron-updater": "^6.1.8",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -71,8 +71,12 @@
       "dist/**",
       "electron/**",
       "node_modules/**",
-      "package.json"
+      "package.json",
+      "!**/.vscode/**",
+      "!**/.github/**",
+      "!**/test/**"
     ],
+    "compression": "maximum",
     "asar": true,
     "asarUnpack": [
       "node_modules/sharp/**/*",

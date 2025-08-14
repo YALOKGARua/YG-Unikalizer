@@ -5,6 +5,8 @@ contextBridge.exposeInMainWorld('api', {
   selectImageDir: () => ipcRenderer.invoke('select-image-dir'),
   selectOutputDir: () => ipcRenderer.invoke('select-output-dir'),
   processImages: payload => ipcRenderer.invoke('process-images', payload),
+  savePreset: payload => ipcRenderer.invoke('save-preset', payload),
+  loadPreset: () => ipcRenderer.invoke('load-preset'),
   cancel: () => ipcRenderer.invoke('cancel-process'),
   expandPaths: paths => ipcRenderer.invoke('expand-paths', paths),
   openPath: p => ipcRenderer.invoke('open-path', p),
