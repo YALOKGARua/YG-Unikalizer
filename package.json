@@ -43,7 +43,7 @@
     "sharp": "^0.33.3"
   },
   "devDependencies": {
-    "electron": "^30.0.0",
+    "electron": "^33.2.1",
     "@vitejs/plugin-react": "^4.3.0",
     "autoprefixer": "^10.4.19",
     "concurrently": "^8.2.2",
@@ -53,6 +53,15 @@
     "tailwindcss": "^3.4.4",
     "vite": "^5.2.0",
     "wait-on": "^7.0.1"
+  },
+  "overrides": {
+    "wrappy": "1.0.2",
+    "once": {
+      "wrappy": "1.0.2"
+    },
+    "inflight": {
+      "wrappy": "1.0.2"
+    }
   },
   "build": {
     "appId": "com.yalokgar.photounikalizer",
