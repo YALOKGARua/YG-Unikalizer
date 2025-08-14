@@ -126,7 +126,7 @@ export default function App() {
     }
   }
 
-  const SOFTWARE_PRESETS = ['Adobe Photoshop', 'Adobe Lightroom', 'Affinity Photo', 'GIMP', 'Capture One', 'Luminar Neo', 'Darktable', 'DxO PhotoLab', 'photoUniq by YALOKGAR']
+  const SOFTWARE_PRESETS = ['Adobe Photoshop', 'Adobe Lightroom', 'Affinity Photo', 'GIMP', 'Capture One', 'Luminar Neo', 'Darktable', 'DxO PhotoLab', 'PhotoUnikalizer by YALOKGAR']
   const SERIAL_PRESETS = ['SN-001', 'SN-002', 'SN-AF21', 'SN-X9Z7', 'SN-77AA', 'SN-2024', 'SN-ULTRA', 'SN-PRO', 'SN-PRIME', 'SN-ELITE', 'SN-ALPHA', 'SN-OMEGA', 'SN-GOLD', 'SN-ZETA', 'SN-GAMMA']
   const ISO_PRESETS = [50, 64, 80, 100, 125, 160, 200, 250, 320, 400, 500, 640, 800, 1000, 1250, 1600, 2000, 2500, 3200, 4000, 5000, 6400]
   const EXPOSURE_TIMES = ['1/8000', '1/4000', '1/2000', '1/1000', '1/500', '1/250', '1/200', '1/160', '1/125', '1/80', '1/60', '1/30', '1/15', '1/8', '1/4', '1/2', '1', '2', '5', '10']
@@ -268,6 +268,7 @@ export default function App() {
   }
 
   const canStart = useMemo(() => files.length > 0 && outputDir && !busy, [files, outputDir, busy])
+  const canCancel = useMemo(() => busy, [busy])
 
   useEffect(() => {
     if (profile === 'soft') {
@@ -344,6 +345,30 @@ export default function App() {
     await window.api.processImages(payload)
   }
 
+  const cancel = async () => {
+    if (!canCancel) return
+    await window.api.cancel()
+  }
+
+  const addFolder = async () => {
+    const paths = await window.api.selectImageDir()
+    if (!paths || !paths.length) return
+    setFiles(prev => Array.from(new Set([...prev, ...paths])))
+  }
+
+  const onDrop = async e => {
+    e.preventDefault()
+    const items = Array.from(e.dataTransfer.files || [])
+    if (!items.length) return
+    const paths = items.map(f => f.path)
+    const expanded = await window.api.expandPaths(paths)
+    if (expanded && expanded.length) setFiles(prev => Array.from(new Set([...prev, ...expanded])))
+  }
+
+  const onDragOver = e => {
+    e.preventDefault()
+  }
+
   const downloadUpdate = async () => {
     if (!upd.available || upd.downloading) return
     setUpd(prev => ({ ...prev, downloading: true, error: null }))
@@ -362,9 +387,9 @@ export default function App() {
     setContactEmail('yalokgar@gmail.com')
     setWebsite('https://github.com/YALOKGARua')
     setOwner('YALOKGAR')
-    setCreatorTool('photoUniq by YALOKGAR')
+    setCreatorTool('PhotoUnikalizer by YALOKGAR')
     setCopyright('© YALOKGAR')
-    setKeywords('YALOKGAR, YALOKGARua, photoUniq')
+    setKeywords('YALOKGAR, YALOKGARua, PhotoUnikalizer')
   }
 
   return (
@@ -404,12 +429,13 @@ export default function App() {
         </div>
       )}
 
-      <main className="px-6 pb-6 grid grid-cols-12 gap-6">
+      <main className="px-6 pb-6 grid grid-cols-12 gap-6" onDrop={onDrop} onDragOver={onDragOver}>
         <section className="col-span-4 glass rounded-xl p-5 border border-white/10">
           <div className="text-sm font-semibold mb-4">Вывод</div>
           <div className="flex gap-2">
             <button onClick={handleOutput} className="px-3 py-2 rounded bg-brand-600 hover:bg-brand-500 text-white">Выбрать папку</button>
             <div className="text-xs truncate opacity-80 self-center max-w-[260px]" title={outputDir}>{outputDir || 'Не выбрана'}</div>
+            {!!outputDir && <button onClick={()=>window.api.openPath(outputDir)} className="px-2 py-2 rounded bg-slate-800 hover:bg-slate-700 text-xs">Открыть</button>}
           </div>
 
           <div className="h-px bg-white/10 my-5" />
@@ -469,7 +495,7 @@ export default function App() {
             <div className="col-span-2">
               <div className="text-xs mb-1">Схема имени</div>
               <input className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={naming} onChange={e => setNaming(e.target.value)} />
-              <div className="text-[10px] opacity-60 mt-1">Токены: {'{name}'} {'{index}'} {'{ext}'} {'{date}'}</div>
+              <div className="text-[10px] opacity-60 mt-1">Токены: {'{name}'} {'{index}'} {'{ext}'} {'{date}'} {'{uuid}'} {'{rand}'}</div>
             </div>
 
             <div className="col-span-2 h-px bg-white/10 my-5" />
@@ -713,9 +739,11 @@ export default function App() {
               <button className={`text-sm ${activeTab==='ready' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('ready')}>Готовое</button>
             </div>
             <div className="flex gap-2">
-              <button onClick={handleAdd} className="px-3 py-2 rounded bg-brand-600 hover:bg-brand-500">Добавить</button>
+              <button onClick={handleAdd} className="px-3 py-2 rounded bg-brand-600 hover:bg-brand-500">Добавить файлы</button>
+              <button onClick={addFolder} className="px-3 py-2 rounded bg-brand-700 hover:bg-brand-600">Добавить папку</button>
               <button onClick={handleClear} className="px-3 py-2 rounded bg-slate-800 hover:bg-slate-700">Очистить</button>
-              <button disabled={!canStart} onClick={start} className={`px-3 py-2 rounded ${canStart ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-emerald-900 opacity-50 cursor-not-allowed'}`}>Старт</button>
+              {!busy && <button disabled={!canStart} onClick={start} className={`px-3 py-2 rounded ${canStart ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-emerald-900 opacity-50 cursor-not-allowed'}`}>Старт</button>}
+              {busy && <button onClick={cancel} className="px-3 py-2 rounded bg-rose-600 hover:bg-rose-500">Отмена</button>}
             </div>
           </div>
 
@@ -745,7 +773,10 @@ export default function App() {
                   <div className="h-40 bg-slate-900 flex items-center justify-center overflow-hidden">
                     <img className="max-h-40" src={toFileUrl(r.out)} />
                   </div>
-                  <div className="text-[10px] p-2 truncate opacity-80" title={r.out}>{r.out}</div>
+                  <div className="text-[10px] p-2 truncate opacity-80 flex items-center gap-2" title={r.out}>
+                    <span className="flex-1 truncate">{r.out}</span>
+                    <button className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700" onClick={() => window.api.showInFolder(r.out)}>Папка</button>
+                  </div>
                 </div>
               ))}
               {results.length === 0 && (

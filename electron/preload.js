@@ -2,8 +2,13 @@ const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('api', {
   selectImages: () => ipcRenderer.invoke('select-images'),
+  selectImageDir: () => ipcRenderer.invoke('select-image-dir'),
   selectOutputDir: () => ipcRenderer.invoke('select-output-dir'),
   processImages: payload => ipcRenderer.invoke('process-images', payload),
+  cancel: () => ipcRenderer.invoke('cancel-process'),
+  expandPaths: paths => ipcRenderer.invoke('expand-paths', paths),
+  openPath: p => ipcRenderer.invoke('open-path', p),
+  showInFolder: p => ipcRenderer.invoke('show-item-in-folder', p),
   onProgress: cb => {
     const listener = (_, data) => cb(data)
     ipcRenderer.on('process-progress', listener)

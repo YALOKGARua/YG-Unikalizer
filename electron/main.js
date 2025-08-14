@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron')
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron')
 const path = require('path')
 const fs = require('fs')
 const os = require('os')
@@ -9,6 +9,8 @@ const { autoUpdater } = require('electron-updater')
 
 let mainWindow
 let didInitUpdater = false
+let currentBatchId = 0
+let cancelRequested = false
 
 function resolveHtmlPath() {
   const devUrl = process.env.VITE_DEV_SERVER_URL
@@ -79,7 +81,9 @@ function nameFromTemplate(template, info) {
     '{name}': info.baseName,
     '{index}': String(info.index + 1),
     '{ext}': info.ext,
-    '{date}': info.dateStr
+    '{date}': info.dateStr,
+    '{uuid}': info.uuid,
+    '{rand}': info.rand
   }
   let out = template
   Object.entries(tokens).forEach(([k, v]) => {
@@ -128,7 +132,7 @@ async function getOnlineDefaults() {
       out.email = u.email
       out.url = `https://${u.login.username}.example.com`
       out.owner = out.author
-      out.creatorTool = 'photoUniq'
+      out.creatorTool = 'PhotoUnikalizer'
     }
     return out
   } catch (_) {
@@ -141,7 +145,9 @@ async function processOne(inputPath, index, total, options) {
   const baseName = srcBase.replace(/\.[^.]+$/, '')
   const ext = options.format === 'jpg' ? 'jpg' : options.format
   const dateStr = toDateString(new Date())
-  const fileName = nameFromTemplate(options.naming, { baseName, index, ext, dateStr })
+  const uuid = randomUUID()
+  const rand = Math.random().toString(36).slice(2, 8)
+  const fileName = nameFromTemplate(options.naming, { baseName, index, ext, dateStr, uuid, rand })
   const outPath = path.join(options.outputDir, fileName)
 
   const meta = await sharp(inputPath).metadata()
@@ -151,6 +157,10 @@ async function processOne(inputPath, index, total, options) {
 
   let pipeline = sharp(inputPath, { failOn: 'none' })
   if (targetWidth) pipeline = pipeline.resize({ width: targetWidth, withoutEnlargement: true, fit: 'inside' })
+
+  if (options.format === 'jpg' && (meta.hasAlpha || meta.channels === 4)) {
+    pipeline = pipeline.flatten({ background: '#ffffff' })
+  }
 
   if (options.colorDrift > 0) {
     const amount = options.colorDrift / 100
@@ -278,19 +288,47 @@ async function processOne(inputPath, index, total, options) {
 }
 
 async function processBatch(inputFiles, options) {
-  for (let i = 0; i < inputFiles.length; i += 1) {
-    const p = inputFiles[i]
-    try {
-      await processOne(p, i, inputFiles.length, options)
-    } catch (e) {
-      mainWindow.webContents.send('process-progress', { index: i, total: inputFiles.length, file: path.basename(p), status: 'error', message: String(e && e.message ? e.message : e) })
+  cancelRequested = false
+  const thisBatchId = ++currentBatchId
+  const total = inputFiles.length
+  const concurrency = Math.max(1, Math.min(4, (os.cpus() || []).length - 1 || 1))
+  let nextIndex = 0
+  async function worker() {
+    while (true) {
+      if (cancelRequested || thisBatchId !== currentBatchId) return
+      const i = nextIndex
+      if (i >= total) return
+      nextIndex += 1
+      const p = inputFiles[i]
+      try {
+        await processOne(p, i, total, options)
+      } catch (e) {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('process-progress', { index: i, total, file: path.basename(p), status: 'error', message: String(e && e.message ? e.message : e) })
+        }
+      }
     }
   }
-  mainWindow.webContents.send('process-complete', {})
+  const workers = new Array(concurrency).fill(0).map(() => worker())
+  await Promise.all(workers)
+  if (thisBatchId === currentBatchId) {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('process-complete', { canceled: cancelRequested })
+  }
 }
 
 app.whenReady().then(() => {
   app.setAppUserModelId('com.yalokgar.photounikalizer')
+  if (!app.requestSingleInstanceLock()) {
+    app.quit()
+    return
+  } else {
+    app.on('second-instance', () => {
+      if (mainWindow) {
+        if (mainWindow.isMinimized()) mainWindow.restore()
+        mainWindow.focus()
+      }
+    })
+  }
   createWindow()
   initAutoUpdater()
 
@@ -302,9 +340,65 @@ app.whenReady().then(() => {
   }
 
   ipcMain.handle('select-images', async () => {
-    const res = await dialog.showOpenDialog(mainWindow, { properties: ['openFile', 'multiSelections'], filters: [{ name: 'Изображения', extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tif', 'tiff'] }] })
+    const res = await dialog.showOpenDialog(mainWindow, { properties: ['openFile', 'multiSelections'], filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tif', 'tiff'] }] })
     if (res.canceled) return []
     return res.filePaths
+  })
+
+  async function collectAllowedFromDir(dir) {
+    const allowed = new Set(['.jpg', '.jpeg', '.png', '.webp', '.avif', '.tif', '.tiff'])
+    async function walk(d) {
+      const out = []
+      const items = await fs.promises.readdir(d, { withFileTypes: true })
+      for (const it of items) {
+        const p = path.join(d, it.name)
+        if (it.isDirectory()) {
+          const nested = await walk(p)
+          out.push(...nested)
+        } else {
+          const ext = path.extname(it.name).toLowerCase()
+          if (allowed.has(ext)) out.push(p)
+        }
+      }
+      return out
+    }
+    return walk(dir)
+  }
+
+  async function collectAllowedFromPaths(paths) {
+    const out = []
+    const stats = await Promise.all(paths.map(p => fs.promises.stat(p).then(s => ({ p, s })).catch(() => null)))
+    for (const it of stats) {
+      if (!it) continue
+      if (it.s.isDirectory()) {
+        const nested = await collectAllowedFromDir(it.p)
+        out.push(...nested)
+      } else {
+        const ext = path.extname(it.p).toLowerCase()
+        if (['.jpg', '.jpeg', '.png', '.webp', '.avif', '.tif', '.tiff'].includes(ext)) out.push(it.p)
+      }
+    }
+    return out
+  }
+
+  ipcMain.handle('select-image-dir', async () => {
+    const res = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory', 'createDirectory'] })
+    if (res.canceled) return []
+    const dir = res.filePaths[0]
+    try {
+      return await collectAllowedFromDir(dir)
+    } catch (_) {
+      return []
+    }
+  })
+
+  ipcMain.handle('expand-paths', async (_e, inputs) => {
+    try {
+      if (!Array.isArray(inputs) || !inputs.length) return []
+      return await collectAllowedFromPaths(inputs)
+    } catch (_) {
+      return []
+    }
   })
 
   ipcMain.handle('select-output-dir', async () => {
@@ -323,6 +417,30 @@ app.whenReady().then(() => {
     payload.onlineDefaults = onlineDefaults || {}
     processBatch(payload.inputFiles, payload)
     return { ok: true }
+  })
+
+  ipcMain.handle('cancel-process', async () => {
+    cancelRequested = true
+    return { ok: true }
+  })
+
+  ipcMain.handle('open-path', async (_e, p) => {
+    if (!p) return { ok: false }
+    try {
+      await shell.openPath(p)
+      return { ok: true }
+    } catch (e) {
+      return { ok: false, error: String(e && e.message ? e.message : e) }
+    }
+  })
+
+  ipcMain.handle('show-item-in-folder', async (_e, p) => {
+    try {
+      shell.showItemInFolder(p)
+      return { ok: true }
+    } catch (e) {
+      return { ok: false, error: String(e && e.message ? e.message : e) }
+    }
   })
 
   ipcMain.handle('check-for-updates', async () => {

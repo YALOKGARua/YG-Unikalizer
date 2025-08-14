@@ -1,8 +1,13 @@
 interface Window {
   api: {
     selectImages: () => Promise<string[]>
+    selectImageDir: () => Promise<string[]>
     selectOutputDir: () => Promise<string>
     processImages: (payload: any) => Promise<{ ok: boolean }>
+    cancel: () => Promise<{ ok: boolean }>
+    expandPaths: (paths: string[]) => Promise<string[]>
+    openPath: (p: string) => Promise<{ ok: boolean; error?: string }>
+    showInFolder: (p: string) => Promise<{ ok: boolean; error?: string }>
     onProgress: (cb: (data: any) => void) => () => void
     onComplete: (cb: () => void) => () => void
     checkForUpdates: () => Promise<{ ok: boolean; info?: any; error?: string }>
