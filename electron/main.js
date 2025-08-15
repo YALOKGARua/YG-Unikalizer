@@ -12,6 +12,7 @@ let didInitUpdater = false
 let currentBatchId = 0
 let cancelRequested = false
 const PRESET_FILE = path.join(app.getPath('userData'), 'preset.json')
+let lastUpdateInfo = null
 
 function resolveHtmlPath() {
   const devUrl = process.env.VITE_DEV_SERVER_URL
@@ -47,6 +48,7 @@ function initAutoUpdater() {
   autoUpdater.autoInstallOnAppQuit = true
 
   autoUpdater.on('update-available', info => {
+    lastUpdateInfo = info
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('update-available', info)
   })
   autoUpdater.on('update-not-available', info => {
@@ -64,6 +66,7 @@ function initAutoUpdater() {
     })
   })
   autoUpdater.on('update-downloaded', info => {
+    lastUpdateInfo = info || lastUpdateInfo
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('update-downloaded', info)
   })
 }
@@ -410,6 +413,24 @@ app.whenReady().then(() => {
     }
   })
 
+  ipcMain.handle('select-text-file', async () => {
+    try {
+      const res = await dialog.showOpenDialog(mainWindow, {
+        properties: ['openFile'],
+        filters: [
+          { name: 'Text', extensions: ['txt', 'log'] },
+          { name: 'All Files', extensions: ['*'] }
+        ]
+      })
+      if (res.canceled || !res.filePaths || !res.filePaths[0]) return { ok: false }
+      const filePath = res.filePaths[0]
+      const content = await fs.promises.readFile(filePath, 'utf-8')
+      return { ok: true, path: filePath, content }
+    } catch (e) {
+      return { ok: false, error: String(e && e.message ? e.message : e) }
+    }
+  })
+
   ipcMain.handle('select-output-dir', async () => {
     const res = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory', 'createDirectory'] })
     if (res.canceled) return ''
@@ -496,6 +517,73 @@ app.whenReady().then(() => {
       initAutoUpdater()
       setImmediate(() => autoUpdater.quitAndInstall())
       return { ok: true }
+    } catch (e) {
+      return { ok: false, error: String(e && e.message ? e.message : e) }
+    }
+  })
+
+  ipcMain.handle('save-json', async (_e, payload) => {
+    try {
+      const defPath = (payload && payload.defaultPath) || path.join(app.getPath('documents'), 'data.json')
+      const res = await dialog.showSaveDialog(mainWindow, {
+        defaultPath: defPath,
+        filters: [{ name: 'JSON', extensions: ['json'] }]
+      })
+      if (res.canceled || !res.filePath) return { ok: false }
+      await fs.promises.writeFile(res.filePath, (payload && payload.data) || '', 'utf-8')
+      return { ok: true, path: res.filePath }
+    } catch (e) {
+      return { ok: false, error: String(e && e.message ? e.message : e) }
+    }
+  })
+
+  ipcMain.handle('get-update-changelog', async () => {
+    try {
+      const extract = (info) => {
+        if (!info) return ''
+        const rn = info.releaseNotes
+        if (!rn) return ''
+        if (typeof rn === 'string') return rn
+        if (Array.isArray(rn)) return rn.map(x => (x && (x.note || x.notes || ''))).filter(Boolean).join('\n\n')
+        if (typeof rn === 'object' && (rn.note || rn.notes)) return rn.note || rn.notes
+        return ''
+      }
+      let notes = extract(lastUpdateInfo)
+      if (notes) return { ok: true, notes }
+      const version = (lastUpdateInfo && (lastUpdateInfo.version || lastUpdateInfo.tag)) || app.getVersion()
+      const ownerRepo = 'YALOKGARua/PhotoUnikalizer'
+      let data = null
+      try {
+        data = await fetchJson(`https://api.github.com/repos/${ownerRepo}/releases/tags/v${version}`, 8000)
+      } catch (_) {}
+      if (!data) {
+        try {
+          data = await fetchJson(`https://api.github.com/repos/${ownerRepo}/releases/latest`, 8000)
+        } catch (_) {}
+      }
+      notes = (data && (data.body || data.name || '')) || ''
+      return { ok: true, notes }
+    } catch (e) {
+      return { ok: false, notes: '' }
+    }
+  })
+
+  ipcMain.handle('save-json-batch', async (_e, payload) => {
+    try {
+      const items = (payload && Array.isArray(payload.items)) ? payload.items : []
+      if (!items.length) return { ok: false }
+      const res = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory', 'createDirectory'] })
+      if (res.canceled || !res.filePaths || !res.filePaths[0]) return { ok: false }
+      const dir = res.filePaths[0]
+      await fs.promises.mkdir(dir, { recursive: true })
+      const writes = items.map(async it => {
+        const base = sanitizeName((it && it.name) || 'profile.json')
+        const target = path.join(dir, base.endsWith('.json') ? base : base + '.json')
+        await fs.promises.writeFile(target, (it && it.data) || '', 'utf-8')
+        return target
+      })
+      const paths = await Promise.all(writes)
+      return { ok: true, paths }
     } catch (e) {
       return { ok: false, error: String(e && e.message ? e.message : e) }
     }

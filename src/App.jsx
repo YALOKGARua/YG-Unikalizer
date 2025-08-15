@@ -29,6 +29,14 @@ export default function App() {
   const [progress, setProgress] = useState({ current: 0, total: 0, lastFile: '' })
   const [results, setResults] = useState([])
   const [activeTab, setActiveTab] = useState('files')
+  const [txtPath, setTxtPath] = useState('')
+  const [txtContent, setTxtContent] = useState('')
+  const [jsonPreview, setJsonPreview] = useState('')
+  const [parseInfo, setParseInfo] = useState({ lines: 0, ok: 0, errors: 0 })
+  const [parseError, setParseError] = useState('')
+  const [profiles, setProfiles] = useState([])
+  const [selectedProfiles, setSelectedProfiles] = useState(new Set())
+  const [search, setSearch] = useState('')
   const [contactName, setContactName] = useState('')
   const [contactEmail, setContactEmail] = useState('')
   const [website, setWebsite] = useState('')
@@ -392,6 +400,132 @@ export default function App() {
     setKeywords('YALOKGAR, YALOKGARua, PhotoUnikalizer')
   }
 
+  const chooseTxtFile = async () => {
+    const r = await window.api.selectTextFile()
+    if (!r || !r.ok) return
+    setTxtPath(r.path || '')
+    setTxtContent(r.content || '')
+    setActiveTab('converter')
+  }
+
+  const parseTxt = () => {
+    try {
+      setParseError('')
+      const text = txtContent || ''
+      const segments = []
+      let start = -1
+      let depth = 0
+      for (let i = 0; i < text.length; i += 1) {
+        const ch = text[i]
+        if (ch === '[') {
+          if (depth === 0) start = i
+          depth += 1
+        } else if (ch === ']') {
+          depth -= 1
+          if (depth === 0 && start !== -1) {
+            segments.push({ start, end: i + 1 })
+            start = -1
+          }
+        }
+      }
+      const out = []
+      let ok = 0
+      let errors = 0
+      const processSegment = (seg) => {
+        let cookies
+        let head = ''
+        let jsonStr = ''
+        if (seg) {
+          jsonStr = text.slice(seg.start, seg.end)
+          const lineStart = text.lastIndexOf('\n', seg.start - 1) + 1
+          head = text.slice(lineStart, seg.start).trim()
+        } else {
+          jsonStr = text.trim()
+        }
+        try {
+          cookies = JSON.parse(jsonStr)
+        } catch (_) {
+          errors += 1
+          return
+        }
+        const parts = head ? head.split(' | ').map(s => s.trim()) : []
+        const url = parts[0] || ''
+        const login = parts[1] || ''
+        const password = parts[2] || ''
+        const firstName = parts[3] || ''
+        const lastName = parts[4] || ''
+        const birthday = parts[5] || ''
+        const cUser = Array.isArray(cookies) ? cookies.find(c => c && c.name === 'c_user') : null
+        const idMatch = url.match(/id=(\d+)/)
+        const profileId = (idMatch && idMatch[1]) || (cUser && String(cUser.value)) || ''
+        const important = new Set(['c_user', 'xs', 'datr'])
+        const cookiesMarked = Array.isArray(cookies) ? cookies.map(c => ({ ...c, important: important.has(c.name) })) : []
+        out.push({ profileId, url, account: { login, password, firstName, lastName, birthday }, cookies: cookiesMarked })
+        ok += 1
+      }
+      if (segments.length) {
+        segments.forEach(processSegment)
+      } else if (text.trim()) {
+        processSegment(null)
+      }
+      const filtered = out.filter(it => it && (it.profileId || it.url || (Array.isArray(it.cookies) && it.cookies.length)))
+      filtered.sort((a, b) => {
+        const al = (a.profileId || '').length
+        const bl = (b.profileId || '').length
+        if (al !== bl) return al - bl
+        return (a.profileId || '').localeCompare(b.profileId || '')
+      })
+      const totalLines = (txtContent || '').split(/\r?\n/).filter(l => l.trim()).length
+      setParseInfo({ lines: totalLines, ok: filtered.length, errors })
+      setProfiles(filtered)
+      setSelectedProfiles(new Set(filtered.map((_, i) => i)))
+      setJsonPreview(JSON.stringify(filtered, null, 2))
+    } catch (e) {
+      setParseError(String(e))
+    }
+  }
+
+  const saveJson = async () => {
+    if (!jsonPreview) return
+    const def = txtPath ? txtPath.replace(/\.[^.]+$/, '.json') : 'data.json'
+    await window.api.saveJson({ data: jsonPreview, defaultPath: def })
+  }
+
+  const saveJsonPerProfile = async () => {
+    const list = Array.from(selectedProfiles)
+      .sort((a, b) => a - b)
+      .map(i => {
+        const p = profiles[i]
+        const name = (p && p.profileId ? `profile_${p.profileId}.json` : `profile_${i + 1}.json`)
+        return { name, data: JSON.stringify(p, null, 2) }
+      })
+    if (!list.length) return
+    await window.api.saveJsonBatch({ items: list })
+  }
+
+  const saveCookiesJson = async () => {
+    if (!profiles.length) return
+    const items = Array.from(selectedProfiles).sort((a, b) => a - b).map(i => {
+      const p = profiles[i]
+      return { profileId: p.profileId || String(i + 1), cookies: p.cookies || [] }
+    })
+    const data = JSON.stringify(items, null, 2)
+    const def = txtPath ? txtPath.replace(/\.[^.]+$/, '.cookies.json') : 'cookies.json'
+    await window.api.saveJson({ data, defaultPath: def })
+  }
+
+  const saveCookiesPerProfile = async () => {
+    const list = Array.from(selectedProfiles)
+      .sort((a, b) => a - b)
+      .map(i => {
+        const p = profiles[i]
+        const name = (p && p.profileId ? `cookies_${p.profileId}.json` : `cookies_${i + 1}.json`)
+        return { name, data: JSON.stringify((p && p.cookies) || [], null, 2) }
+      })
+    if (!list.length) return
+    await window.api.saveJsonBatch({ items: list })
+  }
+
   return (
     <div className="h-full text-slate-100">
       <header className="px-6 py-4 flex items-center justify-between">
@@ -406,6 +540,11 @@ export default function App() {
               <div className="text-sm">Доступно обновление {upd.info && upd.info.version ? `v${upd.info.version}` : ''}</div>
               <div className="flex gap-2">
                 <button onClick={downloadUpdate} className="px-3 py-1 rounded bg-amber-600 hover:bg-amber-500 text-xs">Скачать</button>
+                <button onClick={async()=>{
+                  const r = await window.api.getUpdateChangelog().catch(()=>({ok:false}))
+                  const notes = (r && r.ok && r.notes) ? r.notes : 'Нет заметок'
+                  alert(notes)
+                }} className="px-3 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs">Changelog</button>
               </div>
             </>
           )}
@@ -737,6 +876,7 @@ export default function App() {
             <div className="flex items-center gap-4">
               <button className={`text-sm ${activeTab==='files' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('files')}>Файлы</button>
               <button className={`text-sm ${activeTab==='ready' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('ready')}>Готовое</button>
+              <button className={`text-sm ${activeTab==='converter' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('converter')}>Конвертер TXT→JSON</button>
             </div>
             <div className="flex gap-2">
               <button onClick={handleAdd} className="px-3 py-2 rounded bg-brand-600 hover:bg-brand-500">Добавить файлы</button>
@@ -782,6 +922,57 @@ export default function App() {
               {results.length === 0 && (
                 <div className="opacity-60 text-xs">Здесь появятся готовые файлы после обработки</div>
               )}
+            </div>
+          )}
+
+          {activeTab === 'converter' && (
+            <div className="grid grid-cols-12 gap-4">
+              <div className="col-span-12 flex items-center gap-2">
+                <button onClick={chooseTxtFile} className="px-3 py-2 rounded bg-brand-600 hover:bg-brand-500">Выбрать TXT</button>
+                {txtPath && <div className="text-xs opacity-80 truncate" title={txtPath}>{txtPath}</div>}
+                <div className="ml-auto flex items-center gap-2">
+                  <input placeholder="поиск по ID/имени" className="bg-slate-900 border border-white/10 rounded px-2 py-2 text-xs w-56" value={search} onChange={e=>setSearch(e.target.value)} />
+                  <button onClick={parseTxt} className="px-3 py-2 rounded bg-emerald-600 hover:bg-emerald-500">Конвертировать</button>
+                  <button onClick={saveJson} disabled={!jsonPreview} className={`px-3 py-2 rounded ${jsonPreview ? 'bg-sky-600 hover:bg-sky-500' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}>Сохранить общий JSON</button>
+                  <button onClick={saveJsonPerProfile} disabled={!profiles.length} className={`px-3 py-2 rounded ${profiles.length ? 'bg-sky-700 hover:bg-sky-600' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}>Сохранить по профилям</button>
+                  <button onClick={saveCookiesJson} disabled={!profiles.length} className={`px-3 py-2 rounded ${profiles.length ? 'bg-indigo-600 hover:bg-indigo-500' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}>Куки одним JSON</button>
+                  <button onClick={saveCookiesPerProfile} disabled={!profiles.length} className={`px-3 py-2 rounded ${profiles.length ? 'bg-indigo-700 hover:bg-indigo-600' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}>Куки по профилям</button>
+                </div>
+              </div>
+              <div className="col-span-4">
+                <div className="text-xs mb-1">Профили</div>
+                <div className="h-[460px] overflow-auto bg-slate-900 border border-white/10 rounded">
+                  {profiles
+                    .map((p, i) => ({ p, i }))
+                    .filter(({p}) => {
+                      if (!search.trim()) return true
+                      const s = search.trim().toLowerCase()
+                      return (p.profileId||'').toLowerCase().includes(s) || (p.account?.firstName||'').toLowerCase().includes(s) || (p.account?.lastName||'').toLowerCase().includes(s)
+                    })
+                    .map(({p, i}) => (
+                    <label key={i} className="flex items-center gap-2 text-xs px-2 py-2 border-b border-white/5">
+                      <input type="checkbox" checked={selectedProfiles.has(i)} onChange={e=>{
+                        const next = new Set(selectedProfiles)
+                        if (e.target.checked) next.add(i)
+                        else next.delete(i)
+                        setSelectedProfiles(next)
+                        setJsonPreview(JSON.stringify(Array.from(next).sort((a,b)=>a-b).map(idx=>profiles[idx]), null, 2))
+                      }} />
+                      <span className="truncate">{p.profileId || '—'} • {p.account?.firstName || ''} {p.account?.lastName || ''}</span>
+                    </label>
+                  ))}
+                  {!profiles.length && <div className="text-[11px] p-2 opacity-60">Загрузите TXT и нажмите Конвертировать</div>}
+                </div>
+                <div className="text-[11px] opacity-70 mt-2">Строк: {parseInfo.lines} • Профилей: {parseInfo.ok} • Ошибок: {parseInfo.errors} {parseError && `• ${parseError}`}</div>
+              </div>
+              <div className="col-span-4">
+                <div className="text-xs mb-1">Исходный TXT</div>
+                <textarea className="w-full h-[460px] bg-slate-900 border border-white/10 rounded p-2 text-xs" value={txtContent} onChange={e => setTxtContent(e.target.value)} />
+              </div>
+              <div className="col-span-4">
+                <div className="text-xs mb-1">JSON предпросмотр</div>
+                <textarea className="w-full h-[460px] bg-slate-900 border border-white/10 rounded p-2 text-xs" value={jsonPreview} onChange={e => setJsonPreview(e.target.value)} />
+              </div>
             </div>
           )}
         </section>
