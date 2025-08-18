@@ -267,6 +267,33 @@ export default function App() {
     return () => { try { g.shutdown() } catch (_) {} }
   }, [])
 
+  useEffect(() => {
+    const offAvail = window.api.onUpdateAvailable(info => {
+      setUpd(prev => ({ ...prev, available: true, info, error: null, downloaded: false }))
+      ;(async () => {
+        try {
+          const r = await window.api.getUpdateChangelog().catch(() => ({ ok: false }))
+          const notes = (r && r.ok && r.notes) ? r.notes : ''
+          if (notes) setUpd(prev => ({ ...prev, notes }))
+        } catch (_) {}
+      })()
+    })
+    const offNot = window.api.onUpdateNotAvailable(() => {
+      setUpd(prev => ({ ...prev, available: false, info: null }))
+    })
+    const offErr = window.api.onUpdateError(err => {
+      setUpd(prev => ({ ...prev, error: String(err || '') }))
+    })
+    const offProg = window.api.onUpdateProgress(p => {
+      setUpd(prev => ({ ...prev, downloading: true, percent: Number(p && p.percent) || 0 }))
+    })
+    const offDone = window.api.onUpdateDownloaded(info => {
+      setUpd(prev => ({ ...prev, downloading: false, downloaded: true, info }))
+    })
+    window.api.checkForUpdates().catch(() => {})
+    return () => { offAvail(); offNot(); offErr(); offProg(); offDone() }
+  }, [])
+
   const handleAdd = async () => {
     const paths = await window.api.selectImages()
     if (!paths || !paths.length) return
