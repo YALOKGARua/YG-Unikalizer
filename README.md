@@ -1,6 +1,6 @@
 ## PhotoUnikalizer
 
-Elegantly anonymize and uniquely process photos: smart resizing, subtle color drift, flexible renaming, rich metadata editing, and realistic fake EXIF/IPTC generation. Built for Windows with Electron + Vite + React.
+Anonymize and uniquely process photos at scale. Smart resizing, subtle color drift, flexible renaming, rich metadata editing, realistic fake EXIF/IPTC — now with native C++ acceleration.
 
 ### Badges
 
@@ -13,17 +13,20 @@ Elegantly anonymize and uniquely process photos: smart resizing, subtle color dr
 
 ### Highlights
 
-- **Batch processing**: JPG/PNG/WEBP/AVIF with quality control
-- **Human‑like uniqueness**: size drift and color drift with safe limits
-- **Metadata control**: keep, wipe, or write custom EXIF/IPTC/XMP
-- **Fake metadata**: camera/phone/drone presets, serial, lens, ISO, exposure, GPS with presets and randomization
-- **Renaming**: tokens `{name}` `{index}` `{ext}` `{date}`
-- **Progress UI**: live status and a dedicated “Готовое” tab with outputs
+- **Formats**: JPG, PNG, WEBP, AVIF
+- **Uniqueness**: controlled size and color drift
+- **Metadata**: keep/wipe/write EXIF/IPTC/XMP
+- **Fake EXIF**: camera/phone/drone presets, ISO/exposure/GPS, serial/lens/software
+- **Naming**: tokens `{name}` `{index}` `{ext}` `{date}` `{uuid}` `{rand}`
+- **Native acceleration**: C++ addon for fast hashing and scanning, prebuilt in installer
+- **Perceptual similarity**: aHash/dHash/pHash + Hamming distance
+- **Progress**: ETA, speed, live updates, system notifications
+- **Changelog**: GitHub Release notes + local CHANGELOG
 
 ### System requirements
 
 - Windows 10/11 x64
-- Node.js 18+ and npm
+- No build tools required for users (installer ships prebuilt native module)
 
 ## Quick start (dev)
 
@@ -48,25 +51,26 @@ cmd /c npm run start
 
 ## Release
 
-- Bump version in `package.json` (or run `npm run release:patch` / `:minor` / `:major`).
-- Push to `main`.
-- CI auto-tags `vX.Y.Z` and triggers Release workflow.
-- Release will publish NSIS installer and Portable .exe to GitHub Releases.
+1. Update `CHANGELOG.md` and bump version (`npm run release:patch|minor|major`).
+2. Build prebuilds if native code changed: `npm run native:prebuild`.
+3. Build installer: `npm run dist`.
+4. Publish GitHub Release with notes (we display these in-app).
 
 ## Tech stack
 
-- Electron main/preload for secure IPC
-- React + Vite for renderer UI
+- Electron (main/preload) for secure IPC
+- React + Vite for renderer
+- Native addon (N-API) + prebuilds
 - Sharp for image pipeline
-- exiftool‑vendored for precise metadata I/O
+- exiftool‑vendored for metadata
 
-## Project scripts
+## Scripts
 
 ```bash
-npm run dev
-npm run build
-npm run start
-npm run dist 
+npm run dev          
+npm run dist     
+npm run native:build
+npm run native:prebuild  
 ```
 
 ## License

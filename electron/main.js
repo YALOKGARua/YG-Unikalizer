@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron')
+const { app, BrowserWindow, ipcMain, dialog, shell, Notification } = require('electron')
 const path = require('path')
 const fs = require('fs')
 const os = require('os')
@@ -62,7 +62,8 @@ function initAutoUpdater() {
       percent: p.percent,
       bytesPerSecond: p.bytesPerSecond,
       transferred: p.transferred,
-      total: p.total
+      total: p.total,
+      online: true
     })
   })
   autoUpdater.on('update-downloaded', info => {
@@ -144,7 +145,7 @@ async function getOnlineDefaults() {
   }
 }
 
-async function processOne(inputPath, index, total, options) {
+async function processOne(inputPath, index, total, options, progressContext) {
   const srcBase = path.basename(inputPath)
   const baseName = srcBase.replace(/\.[^.]+$/, '')
   const ext = options.format === 'jpg' ? 'jpg' : options.format
@@ -295,7 +296,14 @@ async function processOne(inputPath, index, total, options) {
   }
   if (Object.keys(tags).length) await exiftool.write(outPath, tags, ['-overwrite_original'])
 
-  mainWindow.webContents.send('process-progress', { index, total, file: srcBase, status: 'ok', outPath })
+  if (progressContext && typeof progressContext.onFileDone === 'function') {
+    try { progressContext.onFileDone(inputPath) } catch (_) {}
+  }
+  if (progressContext && typeof progressContext.emitProgress === 'function') {
+    try { progressContext.emitProgress(index + 1, total, srcBase) } catch (_) {}
+  } else if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('process-progress', { index, total, file: srcBase, status: 'ok', outPath })
+  }
 }
 
 async function processBatch(inputFiles, options) {
@@ -304,6 +312,28 @@ async function processBatch(inputFiles, options) {
   const total = inputFiles.length
   const cpuBased = Math.max(1, Math.min(4, (os.cpus() || []).length - 1 || 1))
   const concurrency = Math.max(1, Math.min(Number(options.maxConcurrency || cpuBased), 8))
+  const sizesByPath = (options && options.sizesByPath) || {}
+  const totalBytes = Number(options && options.totalBytes) || inputFiles.reduce((acc, p) => acc + (Number(sizesByPath[p]) || 0), 0)
+  const startedAt = Date.now()
+  let processedBytes = 0
+  let completed = 0
+  function calcProgress() {
+    const elapsedMs = Math.max(1, Date.now() - startedAt)
+    const speedBps = processedBytes * 1000 / elapsedMs
+    const remainBytes = Math.max(0, totalBytes - processedBytes)
+    const etaMs = speedBps > 0 ? Math.round(remainBytes / speedBps * 1000) : 0
+    const percent = totalBytes > 0 ? (processedBytes / totalBytes) * 100 : (completed / Math.max(1, total)) * 100
+    return { speedBps, etaMs, percent }
+  }
+  const progressContext = {
+    onFileDone: (p) => { processedBytes += Number(sizesByPath[p]) || 0; completed += 1 },
+    emitProgress: (idx, tot, fileName) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        const prog = calcProgress()
+        mainWindow.webContents.send('process-progress', { index: idx - 1, total: tot, file: fileName, status: 'ok', speedBps: prog.speedBps, etaMs: prog.etaMs, percent: prog.percent })
+      }
+    }
+  }
   let nextIndex = 0
   async function worker() {
     while (true) {
@@ -313,7 +343,7 @@ async function processBatch(inputFiles, options) {
       nextIndex += 1
       const p = inputFiles[i]
       try {
-        await processOne(p, i, total, options)
+        await processOne(p, i, total, options, progressContext)
       } catch (e) {
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('process-progress', { index: i, total, file: path.basename(p), status: 'error', message: String(e && e.message ? e.message : e) })
@@ -324,7 +354,12 @@ async function processBatch(inputFiles, options) {
   const workers = new Array(concurrency).fill(0).map(() => worker())
   await Promise.all(workers)
   if (thisBatchId === currentBatchId) {
-    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('process-complete', { canceled: cancelRequested })
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('process-complete', { canceled: cancelRequested })
+      try {
+        new Notification({ title: 'PhotoUnikalizer', body: cancelRequested ? 'Обработка отменена' : 'Обработка завершена' }).show()
+      } catch (_) {}
+    }
   }
 }
 
@@ -445,6 +480,18 @@ app.whenReady().then(() => {
       onlineDefaults = await getOnlineDefaults()
     }
     payload.onlineDefaults = onlineDefaults || {}
+    try {
+      const stats = await Promise.all(payload.inputFiles.map(p => fs.promises.stat(p).then(s => ({ p, s })).catch(() => null)))
+      const sizesByPath = {}
+      let totalBytes = 0
+      for (const it of stats) {
+        if (!it || !it.s || !it.s.isFile()) continue
+        sizesByPath[it.p] = Number(it.s.size) || 0
+        totalBytes += Number(it.s.size) || 0
+      }
+      payload.sizesByPath = sizesByPath
+      payload.totalBytes = totalBytes
+    } catch (_) {}
     processBatch(payload.inputFiles, payload)
     return { ok: true }
   })
@@ -548,21 +595,44 @@ app.whenReady().then(() => {
         if (typeof rn === 'object' && (rn.note || rn.notes)) return rn.note || rn.notes
         return ''
       }
-      let notes = extract(lastUpdateInfo)
-      if (notes) return { ok: true, notes }
+      let notesGithub = extract(lastUpdateInfo)
       const version = (lastUpdateInfo && (lastUpdateInfo.version || lastUpdateInfo.tag)) || app.getVersion()
       const ownerRepo = 'YALOKGARua/PhotoUnikalizer'
-      let data = null
-      try {
-        data = await fetchJson(`https://api.github.com/repos/${ownerRepo}/releases/tags/v${version}`, 8000)
-      } catch (_) {}
-      if (!data) {
+      if (!notesGithub) {
+        let data = null
         try {
-          data = await fetchJson(`https://api.github.com/repos/${ownerRepo}/releases/latest`, 8000)
+          data = await fetchJson(`https://api.github.com/repos/${ownerRepo}/releases/tags/v${version}`, 8000)
         } catch (_) {}
+        if (!data) {
+          try {
+            data = await fetchJson(`https://api.github.com/repos/${ownerRepo}/releases/latest`, 8000)
+          } catch (_) {}
+        }
+        notesGithub = (data && (data.body || data.name || '')) || ''
       }
-      notes = (data && (data.body || data.name || '')) || ''
-      return { ok: true, notes }
+      let notesChangelog = ''
+      try {
+        const root = path.join(__dirname, '..')
+        const changelogPath = path.join(root, 'CHANGELOG.md')
+        const md = await fs.promises.readFile(changelogPath, 'utf-8')
+        const ver = `v${version}`
+        const lines = md.split(/\r?\n/)
+        let start = -1
+        let end = lines.length
+        for (let i = 0; i < lines.length; i += 1) {
+          if (lines[i].trim().toLowerCase().startsWith('##') && lines[i].includes(ver)) {
+            start = i + 1
+            for (let j = start; j < lines.length; j += 1) {
+              if (lines[j].trim().toLowerCase().startsWith('##')) { end = j; break }
+            }
+            break
+          }
+        }
+        if (start !== -1) notesChangelog = lines.slice(start, end).join('\n').trim()
+        if (!notesChangelog) notesChangelog = md.trim()
+      } catch (_) {}
+      const combined = [notesGithub, notesChangelog].filter(Boolean).join('\n\n')
+      return { ok: true, notes: combined, github: notesGithub || '', changelog: notesChangelog || '' }
     } catch (e) {
       return { ok: false, notes: '' }
     }

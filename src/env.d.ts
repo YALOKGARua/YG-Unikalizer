@@ -18,5 +18,27 @@ interface Window {
     onUpdateError: (cb: (err: string) => void) => () => void
     onUpdateProgress: (cb: (p: { percent?: number }) => void) => () => void
     onUpdateDownloaded: (cb: (info: any) => void) => () => void
+    getUpdateChangelog: () => Promise<{ ok: boolean; notes?: string }>
+    native: {
+      computeFileHash: (path: string) => Promise<string | number | null>
+      hammingDistance: (a: string | number, b: string | number) => number | null
+      scanDirectory: (dir: string, recursive?: boolean) => string[]
+      scanDirectoryFiltered: (dir: string, recursive?: boolean, excludes?: string[]) => string[]
+      aHashFromGray8: (buf: Uint8Array, w: number, h: number, stride: number) => string | number | null
+      dHashFromGray8: (buf: Uint8Array, w: number, h: number, stride: number) => string | number | null
+      pHashFromGray8: (buf: Uint8Array, w: number, h: number, stride: number) => string | number | null
+      topKHamming: (hashes: Array<string | number>, query: string | number, k: number) => Array<{ index: number; distance: number }>
+      fileAHash: (path: string) => Promise<string | number | null>
+      fileDHash: (path: string) => Promise<string | number | null>
+      filePHash: (path: string) => Promise<string | number | null>
+      gpu: {
+        init: () => void
+        shutdown: () => void
+        setEnabled: (v: boolean) => void
+        isEnabled: () => boolean
+        isSupported: () => boolean
+        adapterName: () => string
+      }
+    }
   }
 }

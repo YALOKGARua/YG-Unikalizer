@@ -1,0 +1,6 @@
+{
+  "name": "photounikalizer-native",
+  "private": true,
+  "main": "index.js",
+  "gypfile": true
+}

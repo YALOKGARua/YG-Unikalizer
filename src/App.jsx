@@ -26,7 +26,7 @@ export default function App() {
   const [removeAllMeta, setRemoveAllMeta] = useState(false)
   const [profile, setProfile] = useState('custom')
   const [busy, setBusy] = useState(false)
-  const [progress, setProgress] = useState({ current: 0, total: 0, lastFile: '' })
+  const [progress, setProgress] = useState({ current: 0, total: 0, lastFile: '', etaMs: 0, speedBps: 0 })
   const [results, setResults] = useState([])
   const [activeTab, setActiveTab] = useState('files')
   const [txtPath, setTxtPath] = useState('')
@@ -74,7 +74,14 @@ export default function App() {
   const [locationPreset, setLocationPreset] = useState('none')
   const renderFakeBelow = false
 
-  const [upd, setUpd] = useState({ available: false, info: null, downloading: false, percent: 0, error: null, downloaded: false })
+  const [upd, setUpd] = useState({ available: false, info: null, downloading: false, percent: 0, error: null, downloaded: false, notes: '' })
+  const [netLost, setNetLost] = useState(false)
+  const [currentNotesOpen, setCurrentNotesOpen] = useState(false)
+  const [currentNotes, setCurrentNotes] = useState('')
+  const [showNotes, setShowNotes] = useState(false)
+  const [gpuSupported, setGpuSupported] = useState(false)
+  const [gpuEnabled, setGpuEnabled] = useState(false)
+  const [gpuName, setGpuName] = useState('')
 
   const GEAR_PRESETS = {
     camera: {
@@ -230,7 +237,7 @@ export default function App() {
 
   useEffect(() => {
     const off = window.api.onProgress(d => {
-      setProgress({ current: d.index + 1, total: d.total, lastFile: d.file })
+      setProgress({ current: d.index + 1, total: d.total, lastFile: d.file, etaMs: Number(d.etaMs||0), speedBps: Number(d.speedBps||0) })
       if (d && d.status === 'ok' && d.outPath) setResults(prev => [...prev, { src: d.file, out: d.outPath }])
     })
     const done = window.api.onComplete(() => {
@@ -244,10 +251,19 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    const offAvail = window.api.onUpdateAvailable(info => setUpd({ available: true, info, downloading: false, percent: 0, error: null, downloaded: false }))
+    const offAvail = window.api.onUpdateAvailable(info => {
+      setUpd({ available: true, info, downloading: false, percent: 0, error: null, downloaded: false, notes: '' })
+      window.api.getUpdateChangelog().then(r => {
+        const notes = (r && r.ok && r.notes) ? r.notes : ''
+        setUpd(prev => ({ ...prev, notes }))
+      }).catch(()=>{})
+    })
     const offNA = window.api.onUpdateNotAvailable(() => setUpd(prev => ({ ...prev, available: false })))
     const offErr = window.api.onUpdateError(err => setUpd(prev => ({ ...prev, error: String(err) })))
-    const offProg = window.api.onUpdateProgress(p => setUpd(prev => ({ ...prev, downloading: true, percent: p.percent || 0 })))
+    const offProg = window.api.onUpdateProgress(p => {
+      setNetLost(false)
+      setUpd(prev => ({ ...prev, downloading: true, percent: p.percent || 0 }))
+    })
     const offDl = window.api.onUpdateDownloaded(info => setUpd(prev => ({ ...prev, downloaded: true, downloading: false, percent: 100, info })))
     window.api.checkForUpdates().catch(()=>{})
     return () => {
@@ -257,6 +273,37 @@ export default function App() {
       offProg()
       offDl()
     }
+  }, [])
+
+  useEffect(() => {
+    let tm
+    function onOffline() {
+      setNetLost(true)
+    }
+    function onOnline() {
+      setNetLost(false)
+    }
+    window.addEventListener('offline', onOffline)
+    window.addEventListener('online', onOnline)
+    return () => {
+      window.removeEventListener('offline', onOffline)
+      window.removeEventListener('online', onOnline)
+      if (tm) clearTimeout(tm)
+    }
+  }, [])
+
+  useEffect(() => {
+    const g = window.api?.native?.gpu
+    if (!g) return
+    g.init()
+    const s = !!g.isSupported()
+    setGpuSupported(s)
+    const e = !!g.isEnabled()
+    const final = s && e
+    if (e !== final) g.setEnabled(final)
+    setGpuEnabled(final)
+    try { setGpuName(String(g.adapterName() || '')) } catch (_) {}
+    return () => { try { g.shutdown() } catch (_) {} }
   }, [])
 
   const handleAdd = async () => {
@@ -290,13 +337,41 @@ export default function App() {
     }
   }, [profile])
 
+  const dedupeByContent = async (paths) => {
+    const nat = window.api?.native
+    if (!nat || typeof nat.computeFileHash !== 'function') return Array.from(new Set(paths))
+    const limit = Math.min(8, Math.max(1, (navigator.hardwareConcurrency || 4)))
+    const seen = new Set()
+    const unique = []
+    let idx = 0
+    const workers = new Array(limit).fill(0).map(async () => {
+      while (true) {
+        const i = idx
+        idx += 1
+        if (i >= paths.length) break
+        const p = paths[i]
+        let h = await nat.computeFileHash(p)
+        if (typeof h === 'number') h = String(h)
+        const key = h ? ('hash:' + h) : ('path:' + p)
+        if (!seen.has(key)) {
+          seen.add(key)
+          unique.push(p)
+        }
+      }
+    })
+    await Promise.all(workers)
+    return unique
+  }
+
   const start = async () => {
     if (!canStart) return
     setBusy(true)
-    setProgress({ current: 0, total: files.length, lastFile: '' })
+    const inputFiles = await dedupeByContent(files)
+    setFiles(inputFiles)
+    setProgress({ current: 0, total: inputFiles.length, lastFile: '', etaMs: 0, speedBps: 0 })
     setResults([])
     const payload = {
-      inputFiles: files,
+      inputFiles,
       outputDir,
       format,
       quality: Number(quality),
@@ -530,41 +605,63 @@ export default function App() {
     <div className="h-full text-slate-100">
       <header className="px-6 py-4 flex items-center justify-between">
         <div className="text-2xl font-semibold tracking-tight">PhotoUnikalizer</div>
-        <div className="text-xs neon">by YALOKGAR</div>
+        <div className="flex items-center gap-3">
+          <div className="text-xs neon">by YALOKGAR</div>
+          <button onClick={async()=>{
+            try {
+              if (!currentNotes) {
+                const r = await window.api.getUpdateChangelog().catch(()=>({ok:false}))
+                const notes = (r && r.ok && r.notes) ? r.notes : 'Нет заметок'
+                setCurrentNotes(notes)
+              }
+              setCurrentNotesOpen(v=>!v)
+            } catch (_) {
+              setCurrentNotesOpen(v=>!v)
+            }
+          }} className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs">Что нового в текущей версии</button>
+        </div>
       </header>
 
+      {currentNotesOpen && (
+        <div className="mx-6 mb-4 p-3 rounded bg-slate-900/60 border border-white/10 text-slate-200">
+          <div className="flex items-start justify-between gap-3">
+            <div className="text-sm">Что нового</div>
+            <button onClick={()=>setCurrentNotesOpen(false)} className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs">Закрыть</button>
+          </div>
+          <div className="mt-2 text-[11px] whitespace-pre-wrap max-h-56 overflow-auto opacity-90">
+            {currentNotes || 'Нет заметок'}
+          </div>
+        </div>
+      )}
+
       {upd.available && (
-        <div className="mx-6 mb-4 p-3 rounded bg-amber-900/40 border border-amber-600/40 text-amber-200 flex items-center justify-between gap-3">
-          {!upd.downloading && !upd.downloaded && (
-            <>
-              <div className="text-sm">Доступно обновление {upd.info && upd.info.version ? `v${upd.info.version}` : ''}</div>
-              <div className="flex gap-2">
+        <div className="mx-6 mb-4 p-3 rounded bg-amber-900/40 border border-amber-600/40 text-amber-200">
+          <div className="flex items-start justify-between gap-3">
+            <div className="text-sm">Доступно обновление {upd.info && upd.info.version ? `v${upd.info.version}` : ''}</div>
+            <div className="flex gap-2">
+              {!upd.downloading && !upd.downloaded && (
                 <button onClick={downloadUpdate} className="px-3 py-1 rounded bg-amber-600 hover:bg-amber-500 text-xs">Скачать</button>
-                <button onClick={async()=>{
-                  const r = await window.api.getUpdateChangelog().catch(()=>({ok:false}))
-                  const notes = (r && r.ok && r.notes) ? r.notes : 'Нет заметок'
-                  alert(notes)
-                }} className="px-3 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs">Changelog</button>
-              </div>
-            </>
+              )}
+              {upd.downloaded && (
+                <button onClick={installUpdate} className="px-3 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-xs">Установить</button>
+              )}
+              <button onClick={()=>setShowNotes(v=>!v)} className="px-3 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs">{showNotes ? 'Скрыть' : 'Что нового?'}</button>
+            </div>
+          </div>
+          {!!upd.notes && showNotes && (
+            <div className="mt-2 text-[11px] whitespace-pre-wrap max-h-48 overflow-auto border-t border-amber-600/20 pt-2 opacity-90">
+              {upd.notes}
+            </div>
           )}
           {upd.downloading && !upd.downloaded && (
-            <div className="w-full flex items-center gap-3">
+            <div className="w-full flex items-center gap-3 mt-2">
               <div className="text-xs whitespace-nowrap">Скачивание… {Math.round(upd.percent)}%</div>
               <div className="flex-1 h-2 bg-black/30 rounded overflow-hidden">
                 <div className="h-2 bg-amber-500" style={{ width: `${Math.max(0, Math.min(100, Math.round(upd.percent)))}%` }} />
               </div>
             </div>
           )}
-          {upd.downloaded && (
-            <>
-              <div className="text-sm">Обновление скачано. Установить и перезапустить?</div>
-              <div className="flex gap-2">
-                <button onClick={installUpdate} className="px-3 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-xs">Установить</button>
-              </div>
-            </>
-          )}
-          {upd.error && <div className="text-xs opacity-80">{upd.error}</div>}
+          {upd.error && <div className="text-xs opacity-80 mt-2">{upd.error}</div>}
         </div>
       )}
 
@@ -638,6 +735,20 @@ export default function App() {
             </div>
 
             <div className="col-span-2 h-px bg-white/10 my-5" />
+
+            <div className="col-span-2 flex items-center justify-between">
+              <div className="text-xs">GPU ускорение (тестируется)</div>
+              <label className="flex items-center gap-2 text-xs">
+                <input type="checkbox" disabled={!gpuSupported} checked={gpuEnabled && gpuSupported} onChange={e => {
+                  const g = window.api?.native?.gpu
+                  if (!g) return
+                  const next = !!e.target.checked
+                  g.setEnabled(next)
+                  setGpuEnabled(next)
+                }} />
+                <span className="opacity-70">{gpuSupported ? (gpuEnabled ? `Включено • ${gpuName||'GPU'}` : 'Выключено') : 'Недоступно'}</span>
+              </label>
+            </div>
 
             <div className="col-span-2">
               <div className="text-sm font-semibold mb-3">Метаданные</div>
@@ -901,7 +1012,15 @@ export default function App() {
               </div>
               <div className="mt-6">
                 <ProgressLine current={progress.current} total={progress.total} />
-                <div className="text-xs opacity-80 mt-1">{busy ? 'Обработка…' : 'Готово'} {progress.lastFile ? `• ${progress.lastFile}` : ''}</div>
+                <div className="text-xs opacity-80 mt-1">
+                  {busy ? 'Обработка…' : 'Готово'} {progress.lastFile ? `• ${progress.lastFile}` : ''}
+                  {busy && (
+                    <>
+                      {' '}• скорость {progress.speedBps ? `${(progress.speedBps/1024/1024).toFixed(2)} MB/s` : '—'}
+                      {' '}• ETA {progress.etaMs ? `${Math.max(0, Math.floor(progress.etaMs/1000))}s` : '—'}
+                    </>
+                  )}
+                </div>
               </div>
             </>
           )}
@@ -965,7 +1084,16 @@ export default function App() {
                 </div>
                 <div className="text-[11px] opacity-70 mt-2">Строк: {parseInfo.lines} • Профилей: {parseInfo.ok} • Ошибок: {parseInfo.errors} {parseError && `• ${parseError}`}</div>
               </div>
-              <div className="col-span-4">
+              <div className="col-span-4" onDrop={async e=>{
+                e.preventDefault()
+                const items = Array.from(e.dataTransfer.files || [])
+                const txt = items.find(f=>String(f.path||'').toLowerCase().endsWith('.txt'))
+                if (txt) {
+                  try {
+                    const r = await window.api.selectTextFile().catch(()=>({ok:false}))
+                  } catch (_) {}
+                }
+              }} onDragOver={e=>e.preventDefault()}>
                 <div className="text-xs mb-1">Исходный TXT</div>
                 <textarea className="w-full h-[460px] bg-slate-900 border border-white/10 rounded p-2 text-xs" value={txtContent} onChange={e => setTxtContent(e.target.value)} />
               </div>
