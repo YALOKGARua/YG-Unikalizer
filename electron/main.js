@@ -535,6 +535,16 @@ app.whenReady().then(() => {
     }
   })
 
+  ipcMain.handle('read-text-file-by-path', async (_e, filePath) => {
+    try {
+      if (!filePath || typeof filePath !== 'string') return { ok: false }
+      const content = await fs.promises.readFile(filePath, 'utf-8')
+      return { ok: true, path: filePath, content }
+    } catch (e) {
+      return { ok: false, error: String(e && e.message ? e.message : e) }
+    }
+  })
+
   ipcMain.handle('select-output-dir', async () => {
     const res = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory', 'createDirectory'] })
     if (res.canceled) return ''

@@ -20,7 +20,10 @@ interface Window {
     onUpdateDownloaded: (cb: (info: any) => void) => () => void
     getUpdateChangelog: () => Promise<{ ok: boolean; notes?: string }>
     getReadme: () => Promise<{ ok: boolean; data?: string; error?: string }>
+    readTextFileByPath: (p: string) => Promise<{ ok: boolean; path?: string; content?: string; error?: string }>
     native: {
+      parseTxtProfiles: (text: string) => { profiles: any[]; errors: number; errorsInvalidJson?: number; errorsUnsupported?: number; segments?: number; parsedSegments?: number } | null
+      parseTxtProfilesFromFile: (path: string) => { profiles: any[]; errors: number; errorsInvalidJson?: number; errorsUnsupported?: number; segments?: number; parsedSegments?: number } | null
       computeFileHash: (path: string) => Promise<string | number | null>
       hammingDistance: (a: string | number, b: string | number) => number | null
       scanDirectory: (dir: string, recursive?: boolean) => string[]

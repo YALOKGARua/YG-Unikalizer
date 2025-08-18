@@ -51,6 +51,7 @@ contextBridge.exposeInMainWorld('api', {
   selectOutputDir: () => ipcRenderer.invoke('select-output-dir'),
   processImages: payload => ipcRenderer.invoke('process-images', payload),
   selectTextFile: () => ipcRenderer.invoke('select-text-file'),
+  readTextFileByPath: (p) => ipcRenderer.invoke('read-text-file-by-path', p),
   saveJson: payload => ipcRenderer.invoke('save-json', payload),
   saveJsonBatch: payload => ipcRenderer.invoke('save-json-batch', payload),
   savePreset: payload => ipcRenderer.invoke('save-preset', payload),
@@ -100,6 +101,7 @@ contextBridge.exposeInMainWorld('api', {
   getUpdateChangelog: () => ipcRenderer.invoke('get-update-changelog'),
   getReadme: () => ipcRenderer.invoke('get-readme'),
   native: {
+    parseTxtProfiles: (text) => { const mod = loadNative(); return mod ? mod.parseTxtProfiles(String(text||'')) : null },
     computeFileHash: async p => {
       const mod = loadNative()
       if (!mod) return null
@@ -182,6 +184,7 @@ contextBridge.exposeInMainWorld('api', {
     queryHammingIndex: (id, query, k, maxDistance) => { const mod = loadNative(); return mod ? mod.queryHammingIndex(id, query, k, maxDistance) : [] },
     freeHammingIndex: (id) => { const mod = loadNative(); if (mod) mod.freeHammingIndex(id) },
     clusterByHamming: (hashes, threshold) => { const mod = loadNative(); return mod ? mod.clusterByHamming(hashes, threshold) : [] },
-    wicDecodeGray8: (filePath) => { const mod = loadNative(); return mod ? mod.wicDecodeGray8(filePath) : null }
+    wicDecodeGray8: (filePath) => { const mod = loadNative(); return mod ? mod.wicDecodeGray8(filePath) : null },
+    parseTxtProfilesFromFile: (filePath) => { const mod = loadNative(); return mod ? mod.parseTxtProfilesFromFile(filePath) : null }
   }
 })

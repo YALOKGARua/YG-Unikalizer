@@ -38,6 +38,7 @@ export default function App() {
   const [profiles, setProfiles] = useState([])
   const [selectedProfiles, setSelectedProfiles] = useState(new Set())
   const [search, setSearch] = useState('')
+  const [autoParse, setAutoParse] = useState(true)
   const [contactName, setContactName] = useState('')
   const [contactEmail, setContactEmail] = useState('')
   const [website, setWebsite] = useState('')
@@ -466,26 +467,87 @@ export default function App() {
     setActiveTab('converter')
   }
 
-  const parseTxt = () => {
-    try {
-      setParseError('')
-      const text = txtContent || ''
-      const segments = []
-      let start = -1
-      let depth = 0
-      for (let i = 0; i < text.length; i += 1) {
-        const ch = text[i]
-        if (ch === '[') {
-          if (depth === 0) start = i
-          depth += 1
-        } else if (ch === ']') {
-          depth -= 1
-          if (depth === 0 && start !== -1) {
-            segments.push({ start, end: i + 1 })
+  const extractJsonSegments = (text) => {
+    const segments = []
+    let start = -1
+    let depth = 0
+    let inString = false
+    let escape = false
+    const stack = []
+    for (let i = 0; i < text.length; i += 1) {
+      const ch = text[i]
+      if (escape) { escape = false; continue }
+      if (inString) {
+        if (ch === '\\') { escape = true; continue }
+        if (ch === '"') { inString = false }
+        continue
+      }
+      if (ch === '"') { inString = true; continue }
+      if (ch === '[' || ch === '{') {
+        if (depth === 0) start = i
+        stack.push(ch)
+        depth += 1
+        continue
+      }
+      if (ch === ']' || ch === '}') {
+        if (depth > 0) {
+          const last = stack[stack.length - 1]
+          const ok = (ch === ']' && last === '[') || (ch === '}' && last === '{')
+          if (!ok) {
+            depth = 0
+            stack.length = 0
             start = -1
+          } else {
+            stack.pop()
+            depth -= 1
+            if (depth === 0 && start !== -1) {
+              segments.push({ start, end: i + 1 })
+              start = -1
+            }
           }
         }
+        continue
       }
+    }
+    return segments
+  }
+
+  const parseTxt = (inputText) => {
+    try {
+      setParseError('')
+      const text = typeof inputText === 'string' ? inputText : (txtContent || '')
+      const nat = window.api?.native
+      let usedNative = false
+      if (nat && typeof nat.parseTxtProfiles === 'function') {
+        try {
+          const res = nat.parseTxtProfiles(text)
+          if (res && res.profiles) {
+            const arr = Array.isArray(res.profiles) ? res.profiles : Array.from(res.profiles)
+            const filtered = (Array.isArray(arr) ? arr : []).filter(it => it && (it.profileId || it.url || (Array.isArray(it.cookies) && it.cookies.length)))
+            const dedup = []
+            const seen = new Set()
+            for (const it of filtered) {
+              const key = `${it.profileId || ''}|${it.account?.login || ''}`
+              if (!seen.has(key)) { seen.add(key); dedup.push(it) }
+            }
+            dedup.sort((a, b) => {
+              const al = (a.profileId || '').length
+              const bl = (b.profileId || '').length
+              if (al !== bl) return al - bl
+              return (a.profileId || '').localeCompare(b.profileId || '')
+            })
+            const totalLines = (text || '').split(/\r?\n/).filter(l => l.trim()).length
+            const errs = (res && typeof res.errors === 'number') ? res.errors : 0
+            setParseInfo({ lines: totalLines, ok: dedup.length, errors: errs })
+            setProfiles(dedup)
+            setSelectedProfiles(new Set(dedup.map((_, i) => i)))
+            setJsonPreview(JSON.stringify(dedup, null, 2))
+            usedNative = true
+          }
+        } catch (_) {}
+      }
+      if (usedNative) return
+      const segments = extractJsonSegments(text)
       const out = []
       let ok = 0
       let errors = 0
@@ -516,7 +578,7 @@ export default function App() {
         const cUser = Array.isArray(cookies) ? cookies.find(c => c && c.name === 'c_user') : null
         const idMatch = url.match(/id=(\d+)/)
         const profileId = (idMatch && idMatch[1]) || (cUser && String(cUser.value)) || ''
-        const important = new Set(['c_user', 'xs', 'datr'])
+        const important = new Set(['c_user', 'xs', 'datr', 'sb', 'fr'])
         const cookiesMarked = Array.isArray(cookies) ? cookies.map(c => ({ ...c, important: important.has(c.name) })) : []
         out.push({ profileId, url, account: { login, password, firstName, lastName, birthday }, cookies: cookiesMarked })
         ok += 1
@@ -527,20 +589,44 @@ export default function App() {
         processSegment(null)
       }
       const filtered = out.filter(it => it && (it.profileId || it.url || (Array.isArray(it.cookies) && it.cookies.length)))
-      filtered.sort((a, b) => {
+      const dedup = []
+      const seen = new Set()
+      for (const it of filtered) {
+        const key = `${it.profileId || ''}|${it.account?.login || ''}`
+        if (!seen.has(key)) { seen.add(key); dedup.push(it) }
+      }
+      dedup.sort((a, b) => {
         const al = (a.profileId || '').length
         const bl = (b.profileId || '').length
         if (al !== bl) return al - bl
         return (a.profileId || '').localeCompare(b.profileId || '')
       })
-      const totalLines = (txtContent || '').split(/\r?\n/).filter(l => l.trim()).length
-      setParseInfo({ lines: totalLines, ok: filtered.length, errors })
-      setProfiles(filtered)
-      setSelectedProfiles(new Set(filtered.map((_, i) => i)))
-      setJsonPreview(JSON.stringify(filtered, null, 2))
+      const totalLines = (text || '').split(/\r?\n/).filter(l => l.trim()).length
+      setParseInfo({ lines: totalLines, ok: dedup.length, errors })
+      setProfiles(dedup)
+      setSelectedProfiles(new Set(dedup.map((_, i) => i)))
+      setJsonPreview(JSON.stringify(dedup, null, 2))
     } catch (e) {
       setParseError(String(e))
     }
+  }
+
+  useEffect(() => {
+    if (!autoParse) return
+    const id = setTimeout(() => { parseTxt(txtContent) }, 250)
+    return () => clearTimeout(id)
+  }, [txtContent, autoParse])
+
+  const selectAllProfiles = () => {
+    const all = new Set(profiles.map((_, i) => i))
+    setSelectedProfiles(all)
+    setJsonPreview(JSON.stringify(profiles, null, 2))
+  }
+
+  const clearAllProfiles = () => {
+    const none = new Set()
+    setSelectedProfiles(none)
+    setJsonPreview(JSON.stringify([], null, 2))
   }
 
   const saveJson = async () => {
@@ -1063,6 +1149,7 @@ export default function App() {
                 {txtPath && <div className="text-xs opacity-80 truncate" title={txtPath}>{txtPath}</div>}
                 <div className="ml-auto flex items-center gap-2">
                   <input placeholder="поиск по ID/имени" className="bg-slate-900 border border-white/10 rounded px-2 py-2 text-xs w-56" value={search} onChange={e=>setSearch(e.target.value)} />
+                  <label className="flex items-center gap-2 text-xs opacity-80"><input type="checkbox" checked={autoParse} onChange={e=>setAutoParse(e.target.checked)} /> Автоконверт</label>
                   <button onClick={parseTxt} className="px-3 py-2 rounded bg-emerald-600 hover:bg-emerald-500">Конвертировать</button>
                   <button onClick={saveJson} disabled={!jsonPreview} className={`px-3 py-2 rounded ${jsonPreview ? 'bg-sky-600 hover:bg-sky-500' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}>Сохранить общий JSON</button>
                   <button onClick={saveJsonPerProfile} disabled={!profiles.length} className={`px-3 py-2 rounded ${profiles.length ? 'bg-sky-700 hover:bg-sky-600' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}>Сохранить по профилям</button>
@@ -1071,7 +1158,15 @@ export default function App() {
                 </div>
               </div>
               <div className="col-span-4">
-                <div className="text-xs mb-1">Профили</div>
+                <div className="text-xs mb-1 flex items-center justify-between">
+                  <span>Профили</span>
+                  {!!profiles.length && (
+                    <span className="flex items-center gap-2">
+                      <button onClick={selectAllProfiles} className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700">Выделить все</button>
+                      <button onClick={clearAllProfiles} className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700">Снять</button>
+                    </span>
+                  )}
+                </div>
                 <div className="h-[460px] overflow-auto bg-slate-900 border border-white/10 rounded">
                   {profiles
                     .map((p, i) => ({ p, i }))
@@ -1099,10 +1194,14 @@ export default function App() {
               <div className="col-span-4" onDrop={async e=>{
                 e.preventDefault()
                 const items = Array.from(e.dataTransfer.files || [])
-                const txt = items.find(f=>String(f.path||'').toLowerCase().endsWith('.txt'))
-                if (txt) {
+                const txt = items.find(f=>{ const p = String(f.path||'').toLowerCase(); return p.endsWith('.txt') || p.endsWith('.log') || p.endsWith('.json') })
+                if (txt && txt.path) {
                   try {
-                    const r = await window.api.selectTextFile().catch(()=>({ok:false}))
+                    const r = await window.api.readTextFileByPath(txt.path).catch(()=>({ok:false}))
+                    if (r && r.ok) {
+                      setTxtPath(r.path || '')
+                      setTxtContent(r.content || '')
+                    }
                   } catch (_) {}
                 }
               }} onDragOver={e=>e.preventDefault()}>

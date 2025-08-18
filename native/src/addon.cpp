@@ -5,6 +5,10 @@
 #include <mutex>
 #include <queue>
 #include <condition_variable>
+#include <cctype>
+#include <unordered_set>
+#include <fstream>
+#include <sstream>
 #include "image_hash.h"
 #include "gpu_hash.h"
 #include "meta_write.h"
@@ -376,6 +380,354 @@ Napi::Value WicDecodeGray8(const Napi::CallbackInfo& info) {
   return o;
 }
 
+static inline std::string trim_copy(const std::string& s) {
+  size_t a = 0, b = s.size();
+  while (a < b && std::isspace(static_cast<unsigned char>(s[a]))) a++;
+  while (b > a && std::isspace(static_cast<unsigned char>(s[b - 1]))) b--;
+  return s.substr(a, b - a);
+}
+
+static inline std::vector<std::string> split_header(const std::string& head) {
+  std::vector<std::string> parts;
+  if (head.empty()) return parts;
+  auto flush = [&](std::string& cur){ if (!cur.empty()) { parts.push_back(trim_copy(cur)); cur.clear(); } };
+  std::string cur;
+  for (size_t i = 0; i < head.size(); ++i) {
+    char c = head[i];
+    if (c == '|' || c == '\t' || c == ';') { flush(cur); }
+    else { cur.push_back(c); }
+  }
+  flush(cur);
+  for (auto& p : parts) p = trim_copy(p);
+  return parts;
+}
+
+static inline bool is_important_cookie(const std::string& name) {
+  return name == "c_user" || name == "xs" || name == "datr" || name == "sb" || name == "fr";
+}
+
+static inline std::string remove_trailing_commas(const std::string& in) {
+  std::string out; out.reserve(in.size());
+  bool in_string = false; bool esc = false;
+  for (size_t i = 0; i < in.size(); ++i) {
+    char c = in[i];
+    if (esc) { out.push_back(c); esc = false; continue; }
+    if (in_string) {
+      if (c == '\\') { out.push_back(c); esc = true; continue; }
+      if (c == '"') { in_string = false; }
+      out.push_back(c);
+      continue;
+    }
+    if (c == '"') { in_string = true; out.push_back(c); continue; }
+    if (c == ',') {
+      size_t j = i + 1; while (j < in.size() && std::isspace(static_cast<unsigned char>(in[j]))) j++;
+      if (j < in.size() && (in[j] == ']' || in[j] == '}')) {
+        continue;
+      }
+    }
+    out.push_back(c);
+  }
+  return out;
+}
+
+static inline void dedupe_sort_cookies(Napi::Env env, Napi::Array& arr) {
+  const uint32_t len = arr.Length();
+  std::unordered_set<std::string> seen;
+  std::vector<Napi::Object> kept;
+  kept.reserve(len);
+  for (int64_t idx = static_cast<int64_t>(len) - 1; idx >= 0; --idx) {
+    Napi::Value v = arr.Get(static_cast<uint32_t>(idx));
+    if (!v.IsObject()) continue;
+    Napi::Object c = v.As<Napi::Object>();
+    std::string name = c.Has("name") ? c.Get("name").ToString().Utf8Value() : std::string();
+    if (name.empty()) continue;
+    if (seen.insert(name).second) {
+      if (c.Has("value") && !c.Get("value").IsString()) {
+        c.Set("value", c.Get("value").ToString());
+      }
+      kept.push_back(c);
+    }
+  }
+  std::reverse(kept.begin(), kept.end());
+  std::stable_sort(kept.begin(), kept.end(), [&](const Napi::Object& a, const Napi::Object& b){
+    std::string na = a.Has("name") ? a.Get("name").ToString().Utf8Value() : std::string();
+    std::string nb = b.Has("name") ? b.Get("name").ToString().Utf8Value() : std::string();
+    bool ia = is_important_cookie(na);
+    bool ib = is_important_cookie(nb);
+    if (ia != ib) return ia && !ib;
+    return na < nb;
+  });
+  Napi::Array out = Napi::Array::New(env, kept.size());
+  for (uint32_t i = 0; i < kept.size(); ++i) out.Set(i, kept[i]);
+  arr = out;
+}
+
+Napi::Value ParseTxtProfiles(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env();
+  if (info.Length() < 1 || !info[0].IsString()) {
+    Napi::TypeError::New(env, "text string required").ThrowAsJavaScriptException();
+    return env.Null();
+  }
+  std::string text = info[0].As<Napi::String>().Utf8Value();
+  struct Seg { size_t start; size_t end; };
+  std::vector<Seg> segments;
+  segments.reserve(64);
+  bool in_string = false;
+  bool esc = false;
+  int depth = 0;
+  std::vector<char> stack;
+  stack.reserve(64);
+  long long start = -1;
+  for (size_t i = 0; i < text.size(); ++i) {
+    char ch = text[i];
+    if (esc) { esc = false; continue; }
+    if (in_string) {
+      if (ch == '\\') { esc = true; continue; }
+      if (ch == '"') { in_string = false; }
+      continue;
+    }
+    if (ch == '"') { in_string = true; continue; }
+    if (ch == '[' || ch == '{') {
+      if (depth == 0) start = static_cast<long long>(i);
+      stack.push_back(ch);
+      depth += 1;
+      continue;
+    }
+    if (ch == ']' || ch == '}') {
+      if (depth > 0) {
+        char last = stack.empty() ? 0 : stack.back();
+        bool ok = (ch == ']' && last == '[') || (ch == '}' && last == '{');
+        if (!ok) {
+          depth = 0; stack.clear(); start = -1;
+        } else {
+          stack.pop_back();
+          depth -= 1;
+          if (depth == 0 && start != -1) {
+            segments.push_back({ static_cast<size_t>(start), i + 1 });
+            start = -1;
+          }
+        }
+      }
+      continue;
+    }
+  }
+
+  Napi::Object JSON = env.Global().Get("JSON").As<Napi::Object>();
+  Napi::Function parse = JSON.Get("parse").As<Napi::Function>();
+  Napi::Array out = Napi::Array::New(env);
+  uint32_t outIndex = 0;
+  int errors = 0;
+  int errorsInvalidJson = 0;
+  int errorsUnsupported = 0;
+  int parsedSegments = 0;
+  int totalSegments = 0;
+  std::unordered_set<std::string> seen;
+  auto extractIdFromUrl = [](const std::string& url)->std::string{
+    size_t idpos = url.find("id=");
+    if (idpos != std::string::npos) {
+      size_t j = idpos + 3; std::string digits; digits.reserve(32);
+      while (j < url.size() && std::isdigit(static_cast<unsigned char>(url[j]))) { digits.push_back(url[j]); j++; }
+      return digits;
+    }
+    return std::string();
+  };
+  auto getStrProp = [&](const Napi::Object& o, const char* k)->std::string{
+    if (o.Has(k)) {
+      Napi::Value v = o.Get(k);
+      if (v.IsString()) return v.ToString().Utf8Value();
+      if (v.IsNumber()) return v.ToString().Utf8Value();
+    }
+    return std::string();
+  };
+  auto extractAccount = [&](const Napi::Object& obj, std::string& login, std::string& password, std::string& firstName, std::string& lastName, std::string& birthday){
+    login = login.empty() ? getStrProp(obj, "login") : login;
+    password = password.empty() ? getStrProp(obj, "password") : password;
+    firstName = firstName.empty() ? getStrProp(obj, "firstName") : firstName;
+    lastName = lastName.empty() ? getStrProp(obj, "lastName") : lastName;
+    birthday = birthday.empty() ? getStrProp(obj, "birthday") : birthday;
+    if (obj.Has("account") && obj.Get("account").IsObject()) {
+      Napi::Object a = obj.Get("account").As<Napi::Object>();
+      if (login.empty()) login = getStrProp(a, "login");
+      if (password.empty()) password = getStrProp(a, "password");
+      if (firstName.empty()) firstName = getStrProp(a, "firstName");
+      if (lastName.empty()) lastName = getStrProp(a, "lastName");
+      if (birthday.empty()) birthday = getStrProp(a, "birthday");
+    }
+  };
+  auto markImportant = [&](Napi::Array& cookiesArr){
+    for (uint32_t i = 0; i < cookiesArr.Length(); ++i) {
+      Napi::Value v = cookiesArr.Get(i);
+      if (!v.IsObject()) continue;
+      Napi::Object c = v.As<Napi::Object>();
+      std::string name = c.Has("name") ? c.Get("name").ToString().Utf8Value() : std::string();
+      c.Set("important", Napi::Boolean::New(env, is_important_cookie(name)));
+    }
+  };
+  auto cUserFromCookies = [&](Napi::Array& cookiesArr)->std::string{
+    for (uint32_t i = 0; i < cookiesArr.Length(); ++i) {
+      Napi::Value v = cookiesArr.Get(i);
+      if (!v.IsObject()) continue;
+      Napi::Object c = v.As<Napi::Object>();
+      std::string name = c.Has("name") ? c.Get("name").ToString().Utf8Value() : std::string();
+      if (name == "c_user") {
+        if (c.Has("value")) return c.Get("value").ToString().Utf8Value();
+      }
+    }
+    return std::string();
+  };
+  auto emitProfile = [&](Napi::Array& cookiesArr, std::string url, std::string login, std::string password, std::string firstName, std::string lastName, std::string birthday, std::string profileId){
+    markImportant(cookiesArr);
+    if (profileId.empty()) profileId = extractIdFromUrl(url);
+    if (profileId.empty()) profileId = cUserFromCookies(cookiesArr);
+    Napi::Object account = Napi::Object::New(env);
+    account.Set("login", Napi::String::New(env, login));
+    account.Set("password", Napi::String::New(env, password));
+    account.Set("firstName", Napi::String::New(env, firstName));
+    account.Set("lastName", Napi::String::New(env, lastName));
+    account.Set("birthday", Napi::String::New(env, birthday));
+    Napi::Object prof = Napi::Object::New(env);
+    prof.Set("profileId", Napi::String::New(env, profileId));
+    prof.Set("url", Napi::String::New(env, url));
+    prof.Set("account", account);
+    prof.Set("cookies", cookiesArr);
+    std::string key = (profileId + "|" + login);
+    if (seen.find(key) == seen.end()) {
+      seen.insert(key);
+      out.Set(outIndex++, prof);
+    }
+  };
+  auto processSegment = [&](const Seg* seg, int segIndex) {
+    std::string jsonStr;
+    std::string head;
+    if (seg) {
+      jsonStr = text.substr(seg->start, seg->end - seg->start);
+      size_t lineStart = text.rfind('\n', seg->start == 0 ? 0 : (seg->start - 1));
+      if (lineStart == std::string::npos) lineStart = 0; else lineStart += 1;
+      head = trim_copy(text.substr(lineStart, seg->start - lineStart));
+    } else {
+      jsonStr = trim_copy(text);
+    }
+    Napi::Value parsed;
+    try {
+      parsed = parse.Call(JSON, { Napi::String::New(env, jsonStr) });
+    } catch (...) {
+      try {
+        std::string fixed = remove_trailing_commas(jsonStr);
+        if (fixed != jsonStr) parsed = parse.Call(JSON, { Napi::String::New(env, fixed) });
+        else { errors += 1; errorsInvalidJson += 1; return; }
+      } catch (...) { errors += 1; errorsInvalidJson += 1; return; }
+    }
+    parsedSegments += 1;
+    std::vector<std::string> parts = split_header(head);
+    std::string url = parts.size() > 0 ? parts[0] : std::string();
+    std::string login = parts.size() > 1 ? parts[1] : std::string();
+    std::string password = parts.size() > 2 ? parts[2] : std::string();
+    std::string firstName = parts.size() > 3 ? parts[3] : std::string();
+    std::string lastName = parts.size() > 4 ? parts[4] : std::string();
+    std::string birthday = parts.size() > 5 ? parts[5] : std::string();
+
+    if (parsed.IsArray()) {
+      Napi::Array arr = parsed.As<Napi::Array>();
+      bool looksLikeCookies = false;
+      if (arr.Length() > 0) {
+        Napi::Value v0 = arr.Get(static_cast<uint32_t>(0));
+        if (v0.IsObject()) {
+          Napi::Object o0 = v0.As<Napi::Object>();
+          looksLikeCookies = o0.Has("name") && o0.Has("value");
+        }
+      }
+      if (looksLikeCookies) {
+        Napi::Array cookiesArr = arr;
+        dedupe_sort_cookies(env, cookiesArr);
+        std::string pid;
+        emitProfile(cookiesArr, url, login, password, firstName, lastName, birthday, pid);
+        return;
+      }
+      for (uint32_t i = 0; i < arr.Length(); ++i) {
+        Napi::Value v = arr.Get(i);
+        if (!v.IsObject()) continue;
+        Napi::Object obj = v.As<Napi::Object>();
+        if (!(obj.Has("cookies") && obj.Get("cookies").IsArray())) continue;
+        Napi::Array cookiesArr = obj.Get("cookies").As<Napi::Array>();
+        dedupe_sort_cookies(env, cookiesArr);
+        std::string u = url, pid, lg = login, pw = password, fn = firstName, ln = lastName, bd = birthday;
+        std::string url2 = getStrProp(obj, "url"); if (!url2.empty()) u = url2;
+        std::string pid2 = getStrProp(obj, "profileId"); if (pid2.empty()) pid2 = getStrProp(obj, "id"); if (!pid2.empty()) pid = pid2;
+        extractAccount(obj, lg, pw, fn, ln, bd);
+        emitProfile(cookiesArr, u, lg, pw, fn, ln, bd, pid);
+      }
+      return;
+    }
+
+    if (parsed.IsObject()) {
+      Napi::Object obj = parsed.As<Napi::Object>();
+      if (obj.Has("profiles") && obj.Get("profiles").IsArray()) {
+        Napi::Array parr = obj.Get("profiles").As<Napi::Array>();
+        for (uint32_t i = 0; i < parr.Length(); ++i) {
+          Napi::Value pv = parr.Get(i); if (!pv.IsObject()) continue;
+          Napi::Object po = pv.As<Napi::Object>();
+          if (!(po.Has("cookies") && po.Get("cookies").IsArray())) continue;
+          Napi::Array cookiesArr = po.Get("cookies").As<Napi::Array>();
+          dedupe_sort_cookies(env, cookiesArr);
+          std::string u = url, pid, lg = login, pw = password, fn = firstName, ln = lastName, bd = birthday;
+          std::string url2 = getStrProp(po, "url"); if (!url2.empty()) u = url2;
+          std::string pid2 = getStrProp(po, "profileId"); if (pid2.empty()) pid2 = getStrProp(po, "id"); if (!pid2.empty()) pid = pid2;
+          extractAccount(po, lg, pw, fn, ln, bd);
+          emitProfile(cookiesArr, u, lg, pw, fn, ln, bd, pid);
+        }
+        return;
+      }
+      if (obj.Has("cookies") && obj.Get("cookies").IsArray()) {
+        Napi::Array cookiesArr = obj.Get("cookies").As<Napi::Array>();
+        dedupe_sort_cookies(env, cookiesArr);
+        std::string u = url, pid, lg = login, pw = password, fn = firstName, ln = lastName, bd = birthday;
+        std::string url2 = getStrProp(obj, "url"); if (!url2.empty()) u = url2;
+        std::string pid2 = getStrProp(obj, "profileId"); if (pid2.empty()) pid2 = getStrProp(obj, "id"); if (!pid2.empty()) pid = pid2;
+        extractAccount(obj, lg, pw, fn, ln, bd);
+        emitProfile(cookiesArr, u, lg, pw, fn, ln, bd, pid);
+        return;
+      }
+    }
+
+    errors += 1;
+    return;
+  };
+
+  totalSegments = static_cast<int>(segments.size());
+  if (!segments.empty()) {
+    for (size_t i = 0; i < segments.size(); ++i) processSegment(&segments[i], static_cast<int>(i));
+  } else if (!trim_copy(text).empty()) {
+    processSegment(nullptr, -1);
+  }
+
+  Napi::Object res = Napi::Object::New(env);
+  res.Set("profiles", out);
+  res.Set("errors", Napi::Number::New(env, errors));
+  res.Set("errorsInvalidJson", Napi::Number::New(env, errorsInvalidJson));
+  res.Set("errorsUnsupported", Napi::Number::New(env, errorsUnsupported));
+  res.Set("segments", Napi::Number::New(env, static_cast<double>(totalSegments)));
+  res.Set("parsedSegments", Napi::Number::New(env, parsedSegments));
+  return res;
+}
+
+Napi::Value ParseTxtProfilesFromFile(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env();
+  if (info.Length() < 1 || !info[0].IsString()) {
+    Napi::TypeError::New(env, "path string required").ThrowAsJavaScriptException();
+    return env.Null();
+  }
+  std::string path = info[0].As<Napi::String>().Utf8Value();
+  std::ifstream f(path, std::ios::binary);
+  if (!f) return env.Null();
+  std::ostringstream ss; ss << f.rdbuf();
+  std::string data = ss.str();
+  if (data.size() >= 3 && (unsigned char)data[0] == 0xEF && (unsigned char)data[1] == 0xBB && (unsigned char)data[2] == 0xBF) {
+    data.erase(0, 3);
+  }
+  Napi::Function self = Napi::Function::New(env, ParseTxtProfiles);
+  return self.Call(env.Global(), { Napi::String::New(env, data) });
+}
+
 Napi::Object Init(Napi::Env env, Napi::Object exports) {
   exports.Set("computeFileHash", Napi::Function::New(env, ComputeFileHash));
   exports.Set("hammingDistance", Napi::Function::New(env, HammingDistance));
@@ -400,6 +752,8 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
   exports.Set("freeHammingIndex", Napi::Function::New(env, FreeHammingIndex));
   exports.Set("wicDecodeGray8", Napi::Function::New(env, WicDecodeGray8));
   exports.Set("clusterByHamming", Napi::Function::New(env, ClusterByHamming));
+  exports.Set("parseTxtProfiles", Napi::Function::New(env, ParseTxtProfiles));
+  exports.Set("parseTxtProfilesFromFile", Napi::Function::New(env, ParseTxtProfilesFromFile));
   return exports;
 }
 
