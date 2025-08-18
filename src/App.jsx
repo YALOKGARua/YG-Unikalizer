@@ -78,6 +78,8 @@ export default function App() {
   const [netLost, setNetLost] = useState(false)
   const [currentNotesOpen, setCurrentNotesOpen] = useState(false)
   const [currentNotes, setCurrentNotes] = useState('')
+  const [aboutOpen, setAboutOpen] = useState(false)
+  const [aboutMd, setAboutMd] = useState('')
   const [showNotes, setShowNotes] = useState(false)
   const [gpuSupported, setGpuSupported] = useState(false)
   const [gpuEnabled, setGpuEnabled] = useState(false)
@@ -619,6 +621,18 @@ export default function App() {
               setCurrentNotesOpen(v=>!v)
             }
           }} className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs">Что нового в текущей версии</button>
+          <button onClick={async()=>{
+            try {
+              if (!aboutMd) {
+                const r = await window.api.getReadme().catch(()=>({ok:false}))
+                const data = (r && r.ok && r.data) ? r.data : 'README not found'
+                setAboutMd(data)
+              }
+              setAboutOpen(v=>!v)
+            } catch (_) {
+              setAboutOpen(v=>!v)
+            }
+          }} className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs">О программе</button>
         </div>
       </header>
 
@@ -631,6 +645,16 @@ export default function App() {
           <div className="mt-2 text-[11px] whitespace-pre-wrap max-h-56 overflow-auto opacity-90">
             {currentNotes || 'Нет заметок'}
           </div>
+        </div>
+      )}
+
+      {aboutOpen && (
+        <div className="mx-6 mb-4 p-3 rounded bg-slate-900/60 border border-white/10 text-slate-200">
+          <div className="flex items-start justify-between gap-3">
+            <div className="text-sm">О программе</div>
+            <button onClick={()=>setAboutOpen(false)} className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs">Закрыть</button>
+          </div>
+          <pre className="mt-2 text-[11px] whitespace-pre-wrap max-h-72 overflow-auto opacity-90">{aboutMd || 'README not found'}</pre>
         </div>
       )}
 
@@ -988,7 +1012,6 @@ export default function App() {
               <button className={`text-sm ${activeTab==='files' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('files')}>Файлы</button>
               <button className={`text-sm ${activeTab==='ready' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('ready')}>Готовое</button>
               <button className={`text-sm ${activeTab==='converter' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('converter')}>Конвертер TXT→JSON</button>
-              <button className={`text-sm ${activeTab==='about' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('about')}>О программе</button>
             </div>
             <div className="flex gap-2">
               <button onClick={handleAdd} className="px-3 py-2 rounded bg-brand-600 hover:bg-brand-500">Добавить файлы</button>
@@ -1105,14 +1128,6 @@ export default function App() {
             </div>
           )}
 
-          {activeTab === 'about' && (
-            <div className="grid grid-cols-12 gap-4">
-              <div className="col-span-12">
-                <div className="text-xs mb-1">README</div>
-                <AboutReadme />
-              </div>
-            </div>
-          )}
         </section>
       </main>
     </div>

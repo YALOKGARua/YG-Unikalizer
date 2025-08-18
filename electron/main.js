@@ -384,6 +384,9 @@ app.whenReady().then(() => {
     setTimeout(() => {
       autoUpdater.checkForUpdates().catch(() => {})
     }, 1500)
+    setInterval(() => {
+      try { initAutoUpdater(); autoUpdater.checkForUpdates().catch(()=>{}) } catch (_) {}
+    }, 10 * 60 * 1000)
   }
 
   ipcMain.handle('select-images', async () => {
