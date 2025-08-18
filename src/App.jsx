@@ -988,6 +988,7 @@ export default function App() {
               <button className={`text-sm ${activeTab==='files' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('files')}>Файлы</button>
               <button className={`text-sm ${activeTab==='ready' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('ready')}>Готовое</button>
               <button className={`text-sm ${activeTab==='converter' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('converter')}>Конвертер TXT→JSON</button>
+              <button className={`text-sm ${activeTab==='about' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('about')}>О программе</button>
             </div>
             <div className="flex gap-2">
               <button onClick={handleAdd} className="px-3 py-2 rounded bg-brand-600 hover:bg-brand-500">Добавить файлы</button>
@@ -1100,6 +1101,15 @@ export default function App() {
               <div className="col-span-4">
                 <div className="text-xs mb-1">JSON предпросмотр</div>
                 <textarea className="w-full h-[460px] bg-slate-900 border border-white/10 rounded p-2 text-xs" value={jsonPreview} onChange={e => setJsonPreview(e.target.value)} />
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'about' && (
+            <div className="grid grid-cols-12 gap-4">
+              <div className="col-span-12">
+                <div className="text-xs mb-1">README</div>
+                <AboutReadme />
               </div>
             </div>
           )}

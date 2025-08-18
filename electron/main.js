@@ -638,6 +638,17 @@ app.whenReady().then(() => {
     }
   })
 
+  ipcMain.handle('get-readme', async () => {
+    try {
+      const root = path.join(__dirname, '..')
+      const p = path.join(root, 'README.md')
+      const data = await fs.promises.readFile(p, 'utf-8')
+      return { ok: true, data }
+    } catch (e) {
+      return { ok: false, error: String(e && e.message ? e.message : e) }
+    }
+  })
+
   ipcMain.handle('save-json-batch', async (_e, payload) => {
     try {
       const items = (payload && Array.isArray(payload.items)) ? payload.items : []

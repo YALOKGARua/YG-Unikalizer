@@ -1,3 +1,11 @@
+## v1.11.1
+
+## Add
+- Readme (О программе)
+
+## Fix
+- Fixed integrated changelog
+
 ## v1.11.0
 
 ### Добавлено

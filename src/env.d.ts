@@ -19,6 +19,7 @@ interface Window {
     onUpdateProgress: (cb: (p: { percent?: number }) => void) => () => void
     onUpdateDownloaded: (cb: (info: any) => void) => () => void
     getUpdateChangelog: () => Promise<{ ok: boolean; notes?: string }>
+    getReadme: () => Promise<{ ok: boolean; data?: string; error?: string }>
     native: {
       computeFileHash: (path: string) => Promise<string | number | null>
       hammingDistance: (a: string | number, b: string | number) => number | null

@@ -98,6 +98,7 @@ contextBridge.exposeInMainWorld('api', {
     return () => ipcRenderer.removeListener('update-downloaded', listener)
   },
   getUpdateChangelog: () => ipcRenderer.invoke('get-update-changelog'),
+  getReadme: () => ipcRenderer.invoke('get-readme'),
   native: {
     computeFileHash: async p => {
       const mod = loadNative()

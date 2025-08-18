@@ -1,6 +1,6 @@
 {
   "name": "photounikalizer",
-  "version": "1.11.0",
+  "version": "1.11.1",
   "private": true,
   "main": "electron/main.js",
   "author": "YALOKGAR <yalokgar@gmail.com>",
@@ -79,6 +79,8 @@
       "node_modules/**",
       "native/prebuilds/**",
       "native/build/Release/*.node",
+      "CHANGELOG.md",
+      "README.md",
       "package.json",
       "!**/.vscode/**",
       "!**/.github/**",
