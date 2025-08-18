@@ -427,7 +427,7 @@
     "v8_use_siphash": 1,
     "want_separate_host_toolset": 1,
     "nodedir": "C:\\Users\\YALOKGAR\\AppData\\Local\\node-gyp\\Cache\\33.2.1",
-    "python": "C:\\Python313\\python.exe",
+    "python": "C:\\Users\\YALOKGAR\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
     "standalone_static_library": 1,
     "msbuild_path": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Current\\Bin\\MSBuild.exe",
     "target": "33.2.1",
