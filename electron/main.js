@@ -300,7 +300,7 @@ async function processOne(inputPath, index, total, options, progressContext) {
     try { progressContext.onFileDone(inputPath) } catch (_) {}
   }
   if (progressContext && typeof progressContext.emitProgress === 'function') {
-    try { progressContext.emitProgress(index + 1, total, srcBase) } catch (_) {}
+    try { progressContext.emitProgress(index + 1, total, srcBase, outPath) } catch (_) {}
   } else if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('process-progress', { index, total, file: srcBase, status: 'ok', outPath })
   }
@@ -327,10 +327,10 @@ async function processBatch(inputFiles, options) {
   }
   const progressContext = {
     onFileDone: (p) => { processedBytes += Number(sizesByPath[p]) || 0; completed += 1 },
-    emitProgress: (idx, tot, fileName) => {
+    emitProgress: (idx, tot, fileName, outPath) => {
       if (mainWindow && !mainWindow.isDestroyed()) {
         const prog = calcProgress()
-        mainWindow.webContents.send('process-progress', { index: idx - 1, total: tot, file: fileName, status: 'ok', speedBps: prog.speedBps, etaMs: prog.etaMs, percent: prog.percent })
+        mainWindow.webContents.send('process-progress', { index: idx - 1, total: tot, file: fileName, status: 'ok', speedBps: prog.speedBps, etaMs: prog.etaMs, percent: prog.percent, outPath })
       }
     }
   }

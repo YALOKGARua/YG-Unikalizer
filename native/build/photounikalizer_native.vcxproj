@@ -11,7 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{9B5F0906-5F06-D43D-99B7-2DE817F8648C}</ProjectGuid>
+    <ProjectGuid>{45132E3B-2398-C817-9B05-A2DF38F41311}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>photounikalizer_native</RootNamespace>
     <IgnoreWarnCompileDuplicatedFilename>true</IgnoreWarnCompileDuplicatedFilename>
@@ -48,7 +48,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\include\node;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\src;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\openssl\config;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\openssl\openssl\include;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\uv\include;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\zlib;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\v8\include;C:\Users\YALOKGAR\PhotoUnikalizer\node_modules\node-addon-api;..\third_party;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\include\node;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\src;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\openssl\config;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\openssl\openssl\include;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\uv\include;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\zlib;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\v8\include;C:\Users\YALOKGAR\Desktop\PhotoUnikalizer\node_modules\node-addon-api;..\third_party;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/Zc:__cplusplus -std:c++20 /std:c++17 /EHsc %(AdditionalOptions)</AdditionalOptions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <BufferSecurityCheck>true</BufferSecurityCheck>
@@ -84,13 +84,13 @@
       <TargetMachine>MachineX64</TargetMachine>
     </Link>
     <ResourceCompile>
-      <AdditionalIncludeDirectories>C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\include\node;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\src;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\openssl\config;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\openssl\openssl\include;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\uv\include;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\zlib;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\v8\include;C:\Users\YALOKGAR\PhotoUnikalizer\node_modules\node-addon-api;..\third_party;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\include\node;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\src;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\openssl\config;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\openssl\openssl\include;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\uv\include;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\zlib;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\v8\include;C:\Users\YALOKGAR\Desktop\PhotoUnikalizer\node_modules\node-addon-api;..\third_party;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>NODE_GYP_MODULE_NAME=photounikalizer_native;USING_UV_SHARED=1;USING_V8_SHARED=1;V8_DEPRECATION_WARNINGS=1;_GLIBCXX_USE_CXX11_ABI=1;ELECTRON_ENSURE_CONFIG_GYPI;USING_ELECTRON_CONFIG_GYPI;V8_COMPRESS_POINTERS;V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE;V8_31BIT_SMIS_ON_64BIT_ARCH;V8_ENABLE_SANDBOX;WIN32;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;_HAS_EXCEPTIONS=0;OPENSSL_NO_PINSHARED;OPENSSL_THREADS;OPENSSL_NO_ASM;NAPI_VERSION=8;NAPI_CPP_EXCEPTIONS;BUILDING_NODE_EXTENSION;HOST_BINARY=&quot;node.exe&quot;;DEBUG;_DEBUG;%(PreprocessorDefinitions);%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\include\node;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\src;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\openssl\config;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\openssl\openssl\include;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\uv\include;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\zlib;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\v8\include;C:\Users\YALOKGAR\PhotoUnikalizer\node_modules\node-addon-api;..\third_party;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\include\node;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\src;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\openssl\config;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\openssl\openssl\include;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\uv\include;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\zlib;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\v8\include;C:\Users\YALOKGAR\Desktop\PhotoUnikalizer\node_modules\node-addon-api;..\third_party;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/Zc:__cplusplus -std:c++20 /std:c++17 /EHsc %(AdditionalOptions)</AdditionalOptions>
       <BufferSecurityCheck>true</BufferSecurityCheck>
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
@@ -129,7 +129,7 @@
       <TargetMachine>MachineX64</TargetMachine>
     </Link>
     <ResourceCompile>
-      <AdditionalIncludeDirectories>C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\include\node;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\src;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\openssl\config;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\openssl\openssl\include;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\uv\include;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\zlib;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\v8\include;C:\Users\YALOKGAR\PhotoUnikalizer\node_modules\node-addon-api;..\third_party;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\include\node;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\src;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\openssl\config;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\openssl\openssl\include;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\uv\include;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\zlib;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\v8\include;C:\Users\YALOKGAR\Desktop\PhotoUnikalizer\node_modules\node-addon-api;..\third_party;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>NODE_GYP_MODULE_NAME=photounikalizer_native;USING_UV_SHARED=1;USING_V8_SHARED=1;V8_DEPRECATION_WARNINGS=1;_GLIBCXX_USE_CXX11_ABI=1;ELECTRON_ENSURE_CONFIG_GYPI;USING_ELECTRON_CONFIG_GYPI;V8_COMPRESS_POINTERS;V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE;V8_31BIT_SMIS_ON_64BIT_ARCH;V8_ENABLE_SANDBOX;WIN32;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;_HAS_EXCEPTIONS=0;OPENSSL_NO_PINSHARED;OPENSSL_THREADS;OPENSSL_NO_ASM;NAPI_VERSION=8;NAPI_CPP_EXCEPTIONS;BUILDING_NODE_EXTENSION;HOST_BINARY=&quot;node.exe&quot;;%(PreprocessorDefinitions);%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
   </ItemDefinitionGroup>
@@ -146,7 +146,7 @@
     <ClCompile Include="..\src\gpu_hash.cpp">
       <ObjectFileName>$(IntDir)\src\gpu_hash.obj</ObjectFileName>
     </ClCompile>
-    <ClCompile Include="C:\Users\YALOKGAR\PhotoUnikalizer\node_modules\node-gyp\src\win_delay_load_hook.cc"/>
+    <ClCompile Include="C:\Users\YALOKGAR\Desktop\PhotoUnikalizer\node_modules\node-gyp\src\win_delay_load_hook.cc"/>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets"/>
   <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.targets"/>

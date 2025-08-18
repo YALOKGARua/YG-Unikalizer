@@ -435,7 +435,7 @@
     "globalconfig": "C:\\Users\\YALOKGAR\\AppData\\Roaming\\npm\\etc\\npmrc",
     "global_prefix": "C:\\Users\\YALOKGAR\\AppData\\Roaming\\npm",
     "init_module": "C:\\Users\\YALOKGAR\\.npm-init.js",
-    "local_prefix": "C:\\Users\\YALOKGAR\\PhotoUnikalizer",
+    "local_prefix": "C:\\Users\\YALOKGAR\\Desktop\\PhotoUnikalizer",
     "node_gyp": "C:\\Program Files\\nodejs\\node_modules\\npm\\node_modules\\node-gyp\\bin\\node-gyp.js",
     "npm_version": "11.5.1",
     "prefix": "C:\\Users\\YALOKGAR\\AppData\\Roaming\\npm",
