@@ -49,7 +49,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <AdditionalIncludeDirectories>C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\include\node;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\src;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\openssl\config;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\openssl\openssl\include;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\uv\include;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\zlib;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\v8\include;C:\Users\YALOKGAR\Desktop\PhotoUnikalizer\node_modules\node-addon-api;..\third_party;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <AdditionalOptions>/Zc:__cplusplus -std:c++20 /std:c++17 /EHsc %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/Zc:__cplusplus -std:c++20 /std:c++latest /EHsc %(AdditionalOptions)</AdditionalOptions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <BufferSecurityCheck>true</BufferSecurityCheck>
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
@@ -91,7 +91,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
       <AdditionalIncludeDirectories>C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\include\node;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\src;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\openssl\config;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\openssl\openssl\include;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\uv\include;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\zlib;C:\Users\YALOKGAR\AppData\Local\node-gyp\Cache\33.2.1\deps\v8\include;C:\Users\YALOKGAR\Desktop\PhotoUnikalizer\node_modules\node-addon-api;..\third_party;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <AdditionalOptions>/Zc:__cplusplus -std:c++20 /std:c++17 /EHsc %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/Zc:__cplusplus -std:c++20 /std:c++latest /EHsc %(AdditionalOptions)</AdditionalOptions>
       <BufferSecurityCheck>true</BufferSecurityCheck>
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
       <DisableSpecificWarnings>4351;4355;4800;4251;4275;4244;4267;%(DisableSpecificWarnings)</DisableSpecificWarnings>
@@ -145,6 +145,18 @@
     </ClCompile>
     <ClCompile Include="..\src\gpu_hash.cpp">
       <ObjectFileName>$(IntDir)\src\gpu_hash.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\src\meta_write.cpp">
+      <ObjectFileName>$(IntDir)\src\meta_write.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\src\xxhash.cpp">
+      <ObjectFileName>$(IntDir)\src\xxhash.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\src\hamming_index.cpp">
+      <ObjectFileName>$(IntDir)\src\hamming_index.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\src\wic_decode.cpp">
+      <ObjectFileName>$(IntDir)\src\wic_decode.obj</ObjectFileName>
     </ClCompile>
     <ClCompile Include="C:\Users\YALOKGAR\Desktop\PhotoUnikalizer\node_modules\node-gyp\src\win_delay_load_hook.cc"/>
   </ItemGroup>

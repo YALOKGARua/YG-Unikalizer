@@ -3,7 +3,6 @@ const path = require('path')
 const fs = require('fs')
 const os = require('os')
 const sharp = require('sharp')
-const { exiftool } = require('exiftool-vendored')
 const { randomUUID, createHash } = require('crypto')
 const { autoUpdater } = require('electron-updater')
 
@@ -13,6 +12,36 @@ let currentBatchId = 0
 let cancelRequested = false
 const PRESET_FILE = path.join(app.getPath('userData'), 'preset.json')
 let lastUpdateInfo = null
+
+let nativeMod = null
+function loadNative() {
+  if (nativeMod) return nativeMod
+  try {
+    const ngb = require('node-gyp-build')
+    nativeMod = ngb(path.join(__dirname, '..', 'native'))
+    if (nativeMod) return nativeMod
+  } catch (_) {}
+  try {
+    const candidate = path.join(process.cwd(), 'native', 'build', 'Release', 'photounikalizer_native.node')
+    if (fs.existsSync(candidate)) {
+      nativeMod = require(candidate)
+      return nativeMod
+    }
+  } catch (_) {}
+  try {
+    const asarUnpacked = path.join(process.resourcesPath || '', 'app.asar.unpacked', 'native', 'build', 'Release', 'photounikalizer_native.node')
+    if (asarUnpacked && fs.existsSync(asarUnpacked)) {
+      nativeMod = require(asarUnpacked)
+      return nativeMod
+    }
+  } catch (_) {}
+  try {
+    nativeMod = require('photounikalizer_native')
+  } catch (_) {
+    nativeMod = null
+  }
+  return nativeMod
+}
 
 function resolveHtmlPath() {
   const devUrl = process.env.VITE_DEV_SERVER_URL
@@ -165,6 +194,7 @@ async function processOne(inputPath, index, total, options, progressContext) {
 
   let pipeline = sharp(inputPath, { failOn: 'none' })
   pipeline = pipeline.withMetadata(false)
+  try { pipeline = pipeline.toColourspace('srgb') } catch (_) {}
   if (targetWidth) pipeline = pipeline.resize({ width: targetWidth, withoutEnlargement: true, fit: 'inside' })
 
   if (options.format === 'jpg' && (meta.hasAlpha || meta.channels === 4)) {
@@ -292,9 +322,45 @@ async function processOne(inputPath, index, total, options, progressContext) {
   }
 
   if (options.meta && options.meta.removeAll) {
-    await exiftool.write(outPath, {}, ['-overwrite_original', '-all='])
+    try { const nat = loadNative(); if (nat && typeof nat.stripMetadata==='function') nat.stripMetadata(outPath) } catch (_) {}
   }
-  if (Object.keys(tags).length) await exiftool.write(outPath, tags, ['-overwrite_original'])
+  if (!options.meta || options.meta.removeAll !== true) {
+    try {
+      const meta = {
+        artist: tags.Artist || '',
+        description: tags.ImageDescription || '',
+        copyright: tags.Copyright || '',
+        keywords: tags.Keywords || [],
+        contact: tags.Contact || '',
+        email: tags.Email || '',
+        url: tags.URL || '',
+        owner: tags.OwnerName || '',
+        creatorTool: tags.CreatorTool || '',
+        title: tags.ObjectName || '',
+        label: tags.Label || '',
+        rating: typeof tags.Rating === 'number' ? tags.Rating : -1,
+        make: tags.Make || '',
+        model: tags.Model || '',
+        lensModel: tags.LensModel || '',
+        bodySerial: tags.BodySerialNumber || '',
+        exposureTime: tags.ExposureTime || '',
+        fNumber: typeof tags.FNumber === 'number' ? tags.FNumber : -1,
+        iso: typeof tags.ISO === 'number' ? tags.ISO : -1,
+        focalLength: typeof tags.FocalLength === 'number' ? tags.FocalLength : -1,
+        exposureProgram: typeof tags.ExposureProgram === 'number' ? tags.ExposureProgram : -1,
+        meteringMode: typeof tags.MeteringMode === 'number' ? tags.MeteringMode : -1,
+        flash: typeof tags.Flash === 'number' ? tags.Flash : -1,
+        whiteBalance: typeof tags.WhiteBalance === 'number' ? tags.WhiteBalance : -1,
+        colorSpace: tags.ColorSpace || '',
+        gps: (typeof tags.GPSLatitude === 'number' && typeof tags.GPSLongitude === 'number') ? { lat: tags.GPSLatitude, lon: tags.GPSLongitude, alt: typeof tags.GPSAltitude==='number'?tags.GPSAltitude:0 } : undefined,
+        city: tags.City || '',
+        state: tags.State || '',
+        country: tags.Country || '',
+        dateCreated: tags.AllDates || ''
+      }
+      const nat = loadNative(); if (nat && typeof nat.writeMetadata==='function') nat.writeMetadata(outPath, meta)
+    } catch (_) {}
+  }
 
   if (progressContext && typeof progressContext.onFileDone === 'function') {
     try { progressContext.onFileDone(inputPath) } catch (_) {}
@@ -678,6 +744,4 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })
 
-app.on('before-quit', () => {
-  exiftool.end()
-})
+app.on('before-quit', () => {})

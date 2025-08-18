@@ -14,6 +14,7 @@ export default function App() {
   const [quality, setQuality] = useState(85)
   const [colorDrift, setColorDrift] = useState(2)
   const [resizeDrift, setResizeDrift] = useState(2)
+  const [resizeMaxW, setResizeMaxW] = useState(0)
   const [author, setAuthor] = useState('')
   const [description, setDescription] = useState('')
   const [copyright, setCopyright] = useState('')
@@ -73,7 +74,6 @@ export default function App() {
   const [fakeCountry, setFakeCountry] = useState('')
   const [locationPreset, setLocationPreset] = useState('none')
   const renderFakeBelow = false
-
   const [upd, setUpd] = useState({ available: false, info: null, downloading: false, percent: 0, error: null, downloaded: false, notes: '' })
   const [netLost, setNetLost] = useState(false)
   const [currentNotesOpen, setCurrentNotesOpen] = useState(false)
@@ -84,6 +84,9 @@ export default function App() {
   const [gpuSupported, setGpuSupported] = useState(false)
   const [gpuEnabled, setGpuEnabled] = useState(false)
   const [gpuName, setGpuName] = useState('')
+  const [dupIndex, setDupIndex] = useState(-1)
+  const [dupGroups, setDupGroups] = useState([])
+  const [dupTargets, setDupTargets] = useState([])
 
   const GEAR_PRESETS = {
     camera: {
@@ -246,52 +249,7 @@ export default function App() {
       setBusy(false)
       setActiveTab('ready')
     })
-    return () => {
-      off()
-      done()
-    }
-  }, [])
-
-  useEffect(() => {
-    const offAvail = window.api.onUpdateAvailable(info => {
-      setUpd({ available: true, info, downloading: false, percent: 0, error: null, downloaded: false, notes: '' })
-      window.api.getUpdateChangelog().then(r => {
-        const notes = (r && r.ok && r.notes) ? r.notes : ''
-        setUpd(prev => ({ ...prev, notes }))
-      }).catch(()=>{})
-    })
-    const offNA = window.api.onUpdateNotAvailable(() => setUpd(prev => ({ ...prev, available: false })))
-    const offErr = window.api.onUpdateError(err => setUpd(prev => ({ ...prev, error: String(err) })))
-    const offProg = window.api.onUpdateProgress(p => {
-      setNetLost(false)
-      setUpd(prev => ({ ...prev, downloading: true, percent: p.percent || 0 }))
-    })
-    const offDl = window.api.onUpdateDownloaded(info => setUpd(prev => ({ ...prev, downloaded: true, downloading: false, percent: 100, info })))
-    window.api.checkForUpdates().catch(()=>{})
-    return () => {
-      offAvail()
-      offNA()
-      offErr()
-      offProg()
-      offDl()
-    }
-  }, [])
-
-  useEffect(() => {
-    let tm
-    function onOffline() {
-      setNetLost(true)
-    }
-    function onOnline() {
-      setNetLost(false)
-    }
-    window.addEventListener('offline', onOffline)
-    window.addEventListener('online', onOnline)
-    return () => {
-      window.removeEventListener('offline', onOffline)
-      window.removeEventListener('online', onOnline)
-      if (tm) clearTimeout(tm)
-    }
+    return () => { off(); done() }
   }, [])
 
   useEffect(() => {
@@ -314,6 +272,19 @@ export default function App() {
     setFiles(prev => Array.from(new Set([...prev, ...paths])))
   }
 
+  const buildDupIndex = async () => {
+    const nat = window.api.native
+    const targets = results.length ? results.map(r => r.out) : files
+    setDupTargets(targets)
+    const hashes = (await Promise.all(targets.map(p => nat.fileAHash(p)))).filter(Boolean)
+    const id = nat.createHammingIndex(hashes)
+    setDupIndex(id)
+    const groupsRaw = nat.clusterByHamming(hashes, 5) || []
+    const groups = groupsRaw.filter(g => Array.isArray(g) && g.length > 1).sort((a,b)=>b.length-a.length)
+    setDupGroups(groups)
+    setActiveTab('duplicates')
+  }
+
   const handleOutput = async () => {
     const dir = await window.api.selectOutputDir()
     if (dir) setOutputDir(dir)
@@ -332,10 +303,19 @@ export default function App() {
       setQuality(90)
       setColorDrift(1)
       setResizeDrift(1)
+      setResizeMaxW(0)
     } else if (profile === 'strong') {
       setQuality(80)
       setColorDrift(3)
       setResizeDrift(3)
+      setResizeMaxW(0)
+    } else if (profile === 'facebook') {
+      setFormat('jpg')
+      setQuality(85)
+      setColorDrift(0)
+      setResizeDrift(0)
+      setRemoveGps(true)
+      setResizeMaxW(2048)
     }
   }, [profile])
 
@@ -379,6 +359,7 @@ export default function App() {
       quality: Number(quality),
       colorDrift: Number(colorDrift),
       resizeDrift: Number(resizeDrift),
+      resizeMaxW: Number(resizeMaxW),
       naming,
       meta: {
         author,
@@ -707,6 +688,7 @@ export default function App() {
                 <option value="custom">Свои настройки</option>
                 <option value="soft">Мягкая уникализация</option>
                 <option value="strong">Сильная уникализация</option>
+                <option value="facebook">Facebook</option>
               </select>
             </div>
             <div>
@@ -751,6 +733,10 @@ export default function App() {
                 <option value={4}>4</option>
                 <option value={5}>5</option>
               </select>
+            </div>
+            <div>
+              <div className="text-xs mb-1">Макс. ширина</div>
+              <input type="number" className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={resizeMaxW} onChange={e=>setResizeMaxW(Number(e.target.value))} placeholder="0 = без ограничения (FB 2048)" />
             </div>
             <div className="col-span-2">
               <div className="text-xs mb-1">Схема имени</div>
@@ -1012,6 +998,7 @@ export default function App() {
               <button className={`text-sm ${activeTab==='files' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('files')}>Файлы</button>
               <button className={`text-sm ${activeTab==='ready' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('ready')}>Готовое</button>
               <button className={`text-sm ${activeTab==='converter' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('converter')}>Конвертер TXT→JSON</button>
+              <button className={`text-sm ${activeTab==='duplicates' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('duplicates')}>Дубли</button>
             </div>
             <div className="flex gap-2">
               <button onClick={handleAdd} className="px-3 py-2 rounded bg-brand-600 hover:bg-brand-500">Добавить файлы</button>
@@ -1019,6 +1006,7 @@ export default function App() {
               <button onClick={handleClear} className="px-3 py-2 rounded bg-slate-800 hover:bg-slate-700">Очистить</button>
               {!busy && <button disabled={!canStart} onClick={start} className={`px-3 py-2 rounded ${canStart ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-emerald-900 opacity-50 cursor-not-allowed'}`}>Старт</button>}
               {busy && <button onClick={cancel} className="px-3 py-2 rounded bg-rose-600 hover:bg-rose-500">Отмена</button>}
+              <button onClick={buildDupIndex} className="px-3 py-2 rounded bg-indigo-700 hover:bg-indigo-600">Поиск дублей</button>
             </div>
           </div>
 
@@ -1125,6 +1113,28 @@ export default function App() {
                 <div className="text-xs mb-1">JSON предпросмотр</div>
                 <textarea className="w-full h-[460px] bg-slate-900 border border-white/10 rounded p-2 text-xs" value={jsonPreview} onChange={e => setJsonPreview(e.target.value)} />
               </div>
+            </div>
+          )}
+
+          {activeTab === 'duplicates' && (
+            <div className="grid grid-cols-3 gap-3 max-h-[600px] overflow-auto pr-2">
+              {dupGroups.map((grp, gi)=> (
+                <div key={gi} className="bg-slate-900/60 rounded-md overflow-hidden border border-white/5 p-2">
+                  <div className="text-xs mb-2 opacity-80">Группа {gi+1} • {grp.length}</div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {grp.map(idx => {
+                      const p = dupTargets[idx] || ''
+                      return (
+                        <div key={p+idx} className="bg-slate-900 rounded overflow-hidden">
+                          <div className="h-20 flex items-center justify-center overflow-hidden"><img className="max-h-20" src={toFileUrl(p)} /></div>
+                          <div className="text-[10px] p-1 truncate opacity-80" title={p}>{p}</div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+              {!dupGroups.length && <div className="opacity-60 text-xs">Нет групп дублей</div>}
             </div>
           )}
 

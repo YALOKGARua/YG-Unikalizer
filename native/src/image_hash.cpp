@@ -4,6 +4,7 @@
 #include <fstream>
 #include <algorithm>
 #include <vector>
+#include <immintrin.h>
 #include <cmath>
 
 namespace fs = std::filesystem;
@@ -66,7 +67,7 @@ std::vector<std::string> list_files(const std::string& root, bool recursive) {
             if (ec) break;
             const fs::directory_entry& de = *it;
             if (!de.is_regular_file()) continue;
-            std::string p = de.path().u8string();
+            std::string p = de.path().string();
             if (is_allowed_image_extension(p)) out.push_back(p);
         }
     } else {
@@ -74,7 +75,7 @@ std::vector<std::string> list_files(const std::string& root, bool recursive) {
             if (ec) break;
             const fs::directory_entry& de = *it;
             if (!de.is_regular_file()) continue;
-            std::string p = de.path().u8string();
+            std::string p = de.path().string();
             if (is_allowed_image_extension(p)) out.push_back(p);
         }
     }
@@ -83,12 +84,13 @@ std::vector<std::string> list_files(const std::string& root, bool recursive) {
 
 int hamming_distance_uint64(uint64_t a, uint64_t b) {
     uint64_t x = a ^ b;
+#if defined(__POPCNT__) || defined(_MSC_VER)
+    return static_cast<int>(__popcnt64(x));
+#else
     int c = 0;
-    while (x) {
-        x &= (x - 1);
-        ++c;
-    }
+    while (x) { x &= (x - 1); ++c; }
     return c;
+#endif
 }
 
 static inline uint8_t clamp_u8(int v) {
@@ -111,13 +113,15 @@ static std::vector<uint8_t> resize_bilinear_gray8(const uint8_t* src, int sw, in
             int x0 = static_cast<int>(sx);
             int x1 = std::min(x0 + 1, sw - 1);
             double fx = sx - x0;
-            int p00 = src[static_cast<size_t>(y0) * sstride + x0];
-            int p01 = src[static_cast<size_t>(y0) * sstride + x1];
-            int p10 = src[static_cast<size_t>(y1) * sstride + x0];
-            int p11 = src[static_cast<size_t>(y1) * sstride + x1];
+            const uint8_t* row0 = src + static_cast<size_t>(y0) * sstride;
+            const uint8_t* row1 = src + static_cast<size_t>(y1) * sstride;
+            int p00 = row0[x0];
+            int p01 = row0[x1];
+            int p10 = row1[x0];
+            int p11 = row1[x1];
             double top = p00 + (p01 - p00) * fx;
             double bot = p10 + (p11 - p10) * fx;
-            int val = static_cast<int>(std::round(top + (bot - top) * fy));
+            int val = static_cast<int>(top + (bot - top) * fy + 0.5);
             out[static_cast<size_t>(y) * dw + x] = clamp_u8(val);
         }
     }

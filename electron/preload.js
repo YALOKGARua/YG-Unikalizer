@@ -175,6 +175,13 @@ contextBridge.exposeInMainWorld('api', {
       isEnabled: () => { const mod = loadNative(); return mod ? !!mod.gpuIsEnabled() : false },
       isSupported: () => { const mod = loadNative(); return mod ? !!mod.gpuSupported() : false },
       adapterName: () => { const mod = loadNative(); return mod && mod.gpuAdapterName ? String(mod.gpuAdapterName()) : '' }
-    }
+    },
+    writeMetadata: (p, meta) => { const mod = loadNative(); return mod ? !!mod.writeMetadata(p, meta) : false },
+    stripMetadata: (p) => { const mod = loadNative(); return mod ? !!mod.stripMetadata(p) : false },
+    createHammingIndex: (hashes) => { const mod = loadNative(); return mod ? mod.createHammingIndex(hashes) : -1 },
+    queryHammingIndex: (id, query, k, maxDistance) => { const mod = loadNative(); return mod ? mod.queryHammingIndex(id, query, k, maxDistance) : [] },
+    freeHammingIndex: (id) => { const mod = loadNative(); if (mod) mod.freeHammingIndex(id) },
+    clusterByHamming: (hashes, threshold) => { const mod = loadNative(); return mod ? mod.clusterByHamming(hashes, threshold) : [] },
+    wicDecodeGray8: (filePath) => { const mod = loadNative(); return mod ? mod.wicDecodeGray8(filePath) : null }
   }
 })

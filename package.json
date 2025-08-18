@@ -1,6 +1,6 @@
 {
   "name": "photounikalizer",
-  "version": "1.11.3",
+  "version": "1.20.0",
   "private": true,
   "main": "electron/main.js",
   "author": "YALOKGAR <yalokgar@gmail.com>",
@@ -39,7 +39,6 @@
   },
   "dependencies": {
     "electron-updater": "^6.1.8",
-    "exiftool-vendored": "^27.0.0",
     "node-addon-api": "^7.1.0",
     "node-gyp-build": "^4.8.4",
     "react": "^18.2.0",
@@ -90,7 +89,7 @@
     "asar": true,
     "asarUnpack": [
       "node_modules/sharp/**/*",
-      "node_modules/exiftool-vendored/**/*",
+      
       "native/build/Release/*.node",
       "native/prebuilds/**"
     ],
