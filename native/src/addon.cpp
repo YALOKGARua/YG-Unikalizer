@@ -9,6 +9,8 @@
 #include <unordered_set>
 #include <fstream>
 #include <sstream>
+#include <cstring>
+#include <algorithm>
 #include "image_hash.h"
 #include "gpu_hash.h"
 #include "meta_write.h"

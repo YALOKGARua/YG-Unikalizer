@@ -23,13 +23,13 @@
         [ "OS=='win'", {
           "msvs_settings": {
             "VCCLCompilerTool": {
-              "AdditionalOptions": [ "/std:c++latest", "/EHsc" ],
+              "AdditionalOptions": [ "/std:c++20", "/EHsc" ],
               "ExceptionHandling": 1
             }
           },
           "libraries": [ "d3d11.lib", "dxgi.lib" ]
         }, {
-          "cflags_cc": [ "-std=c++23", "-fexceptions" ]
+          "cflags_cc": [ "-std=c++20", "-fexceptions" ]
         } ]
       ]
     }

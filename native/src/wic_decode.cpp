@@ -8,6 +8,8 @@ namespace photounikalizer_native {
 static bool init_wic(IWICImagingFactory** pp) {
   static IWICImagingFactory* g = nullptr;
   if (g) { *pp = g; return true; }
+  HRESULT hrInit = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+  (void)hrInit;
   HRESULT hr = CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&g));
   if (FAILED(hr)) return false;
   *pp = g; return true;

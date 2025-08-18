@@ -36,6 +36,27 @@ function loadNative() {
     }
   } catch (_) {}
   try {
+    const platArch = `${process.platform}-${process.arch}`
+    const prebuildA = path.join(__dirname, '..', 'native', 'prebuilds', platArch, 'node.napi.node')
+    if (fs.existsSync(prebuildA)) {
+      nativeMod = require(prebuildA)
+      return nativeMod
+    }
+    const prebuildB = path.join(__dirname, '..', 'native', 'prebuilds', platArch, 'photounikalizer-native.node')
+    if (fs.existsSync(prebuildB)) {
+      nativeMod = require(prebuildB)
+      return nativeMod
+    }
+  } catch (_) {}
+  try {
+    const platArch = `${process.platform}-${process.arch}`
+    const base = path.join(process.resourcesPath || '', 'app.asar.unpacked', 'native', 'prebuilds', platArch)
+    const prebuildA = path.join(base, 'node.napi.node')
+    const prebuildB = path.join(base, 'photounikalizer-native.node')
+    if (fs.existsSync(prebuildA)) { nativeMod = require(prebuildA); return nativeMod }
+    if (fs.existsSync(prebuildB)) { nativeMod = require(prebuildB); return nativeMod }
+  } catch (_) {}
+  try {
     nativeMod = require('photounikalizer_native')
   } catch (_) {
     nativeMod = null
