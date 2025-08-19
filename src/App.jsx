@@ -699,9 +699,9 @@ export default function App() {
 
   return (
     <div className="h-full text-slate-100">
-      <header className="px-6 py-4 flex items-center justify-between">
+      <header className="px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-2">
         <div className="text-2xl font-semibold tracking-tight">PhotoUnikalizer</div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
           <div className="text-xs neon">by YALOKGAR</div>
           <button onClick={async()=>{
             try {
@@ -731,7 +731,7 @@ export default function App() {
       </header>
 
       {currentNotesOpen && (
-        <div className="mx-6 mb-4 p-3 rounded bg-slate-900/60 border border-white/10 text-slate-200">
+        <div className="mx-4 sm:mx-6 mb-4 p-3 rounded bg-slate-900/60 border border-white/10 text-slate-200">
           <div className="flex items-start justify-between gap-3">
             <div className="text-sm">Что нового</div>
             <button onClick={()=>setCurrentNotesOpen(false)} className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs">Закрыть</button>
@@ -743,7 +743,7 @@ export default function App() {
       )}
 
       {aboutOpen && (
-        <div className="mx-6 mb-4 p-3 rounded bg-slate-900/60 border border-white/10 text-slate-200">
+        <div className="mx-4 sm:mx-6 mb-4 p-3 rounded bg-slate-900/60 border border-white/10 text-slate-200">
           <div className="flex items-start justify-between gap-3">
             <div className="text-sm">О программе</div>
             <button onClick={()=>setAboutOpen(false)} className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs">Закрыть</button>
@@ -753,7 +753,7 @@ export default function App() {
       )}
 
       {upd.available && (
-        <div className="mx-6 mb-4 p-3 rounded bg-amber-900/40 border border-amber-600/40 text-amber-200">
+        <div className="mx-4 sm:mx-6 mb-4 p-3 rounded bg-amber-900/40 border border-amber-600/40 text-amber-200">
           <div className="flex items-start justify-between gap-3">
             <div className="text-sm">Доступно обновление {upd.info && upd.info.version ? `v${upd.info.version}` : ''}</div>
             <div className="flex gap-2">
@@ -783,8 +783,8 @@ export default function App() {
         </div>
       )}
 
-      <main className="px-6 pb-6 grid grid-cols-12 gap-6" onDrop={onDrop} onDragOver={onDragOver}>
-        <section className="col-span-4 glass rounded-xl p-5 border border-white/10">
+      <main className="px-4 sm:px-6 pb-6 grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6" onDrop={onDrop} onDragOver={onDragOver}>
+        <section className="col-span-1 lg:col-span-4 glass rounded-xl p-4 sm:p-5 border border-white/10">
           <div className="text-sm font-semibold mb-4">Вывод</div>
           <div className="flex gap-2">
             <button onClick={handleOutput} className="px-3 py-2 rounded bg-brand-600 hover:bg-brand-500 text-white">Выбрать папку</button>
@@ -794,7 +794,7 @@ export default function App() {
 
           <div className="h-px bg-white/10 my-5" />
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <div className="text-xs mb-1">Профиль</div>
               <select className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={profile} onChange={e => setProfile(e.target.value)}>
@@ -851,15 +851,15 @@ export default function App() {
               <div className="text-xs mb-1">Макс. ширина</div>
               <input type="number" className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={resizeMaxW} onChange={e=>setResizeMaxW(Number(e.target.value))} placeholder="0 = без ограничения (FB 2048)" />
             </div>
-            <div className="col-span-2">
+            <div className="md:col-span-2">
               <div className="text-xs mb-1">Схема имени</div>
               <input className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={naming} onChange={e => setNaming(e.target.value)} />
               <div className="text-[10px] opacity-60 mt-1">Токены: {'{name}'} {'{index}'} {'{ext}'} {'{date}'} {'{uuid}'} {'{rand}'}</div>
             </div>
 
-            <div className="col-span-2 h-px bg-white/10 my-5" />
+            <div className="md:col-span-2 h-px bg-white/10 my-5" />
 
-            <div className="col-span-2 flex items-center justify-between">
+            <div className="md:col-span-2 flex flex-col sm:flex-row items-center justify-between gap-2">
               <div className="text-xs">GPU ускорение (тестируется)</div>
               <label className="flex items-center gap-2 text-xs">
                 <input type="checkbox" disabled={!gpuSupported} checked={gpuEnabled && gpuSupported} onChange={e => {
@@ -873,14 +873,14 @@ export default function App() {
               </label>
             </div>
 
-            <div className="col-span-2">
+            <div className="md:col-span-2">
               <div className="text-sm font-semibold mb-3">Метаданные</div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
                   <div className="text-xs mb-1">Автор</div>
                   <input className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={author} onChange={e => setAuthor(e.target.value)} />
                 </div>
-                <div className="col-span-2 flex items-center justify-between">
+                <div className="md:col-span-2 flex items-center justify-between">
                   <div className="text-xs opacity-80">Мои данные</div>
                   <button onClick={fillMyData} className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs">Заполнить</button>
                 </div>
@@ -900,19 +900,19 @@ export default function App() {
                   <div className="text-xs mb-1">Владелец</div>
                   <input className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={owner} onChange={e => setOwner(e.target.value)} />
                 </div>
-                <div className="col-span-2">
+                <div className="md:col-span-2">
                   <div className="text-xs mb-1">Инструмент/ПО</div>
                   <input className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={creatorTool} onChange={e => setCreatorTool(e.target.value)} />
                 </div>
-                <div className="col-span-2">
+                <div className="md:col-span-2">
                   <div className="text-xs mb-1">Описание</div>
                   <input className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={description} onChange={e => setDescription(e.target.value)} />
                 </div>
-                <div className="col-span-2">
+                <div className="md:col-span-2">
                   <div className="text-xs mb-1">Права</div>
                   <input className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={copyright} onChange={e => setCopyright(e.target.value)} />
                 </div>
-                <div className="col-span-2">
+                <div className="md:col-span-2">
                   <div className="text-xs mb-1">Ключевые слова</div>
                   <input placeholder="через запятую" className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={keywords} onChange={e => setKeywords(e.target.value)} />
                 </div>
@@ -928,7 +928,7 @@ export default function App() {
                   <div className="text-xs mb-1">Смещение, мин</div>
                   <input type="number" className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={dateOffsetMinutes} onChange={e => setDateOffsetMinutes(e.target.value)} />
                 </div>
-                <div className="col-span-2 flex items-center gap-4 mt-2">
+                <div className="md:col-span-2 flex flex-wrap items-center gap-4 mt-2">
                   <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={removeGps} onChange={e => setRemoveGps(e.target.checked)} /> Убрать GPS</label>
                   <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={uniqueId} onChange={e => setUniqueId(e.target.checked)} /> Уникальный ID</label>
                   <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={removeAllMeta} onChange={e => setRemoveAllMeta(e.target.checked)} /> Удалить все метаданные</label>
@@ -940,13 +940,13 @@ export default function App() {
           <div className="h-px bg-white/10 my-5" />
 
           <div className="text-sm font-semibold mb-3">Фейковые метаданные</div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2 flex items-center justify-end">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2 flex items-center justify-end">
               <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={fakeMeta} onChange={e => setFakeMeta(e.target.checked)} /> Включить</label>
             </div>
 
             {!renderFakeBelow && (
-            <div className="col-span-2 grid grid-cols-3 gap-4 p-3 rounded bg-slate-900/40 border border-white/5">
+            <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4 p-3 rounded bg-slate-900/40 border border-white/5">
               <div>
                 <div className="text-[10px] opacity-60 mb-1">Кто</div>
                 <div className="text-xs">Автор: <span className="opacity-80">{author || '—'}</span></div>
@@ -967,7 +967,7 @@ export default function App() {
             </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4 col-span-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2">
               <label className="text-xs">Производитель
                 <select className="mt-1 w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={fakeMake} onChange={e => setFakeMake(e.target.value)} disabled={!fakeMeta}>
                   {makeOptions.map(v => <option key={v} value={v}>{v}</option>)}
@@ -1105,15 +1105,15 @@ export default function App() {
           </div>
         </section>
 
-        <section className="col-span-8 glass rounded-xl p-5 border border-white/10">
-          <div className="flex items-center justify-between mb-4">
+        <section className="col-span-1 lg:col-span-8 glass rounded-xl p-4 sm:p-5 border border-white/10">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
             <div className="flex items-center gap-4">
               <button className={`text-sm ${activeTab==='files' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('files')}>Файлы</button>
               <button className={`text-sm ${activeTab==='ready' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('ready')}>Готовое</button>
               <button className={`text-sm ${activeTab==='converter' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('converter')}>Конвертер TXT→JSON</button>
               <button className={`text-sm ${activeTab==='duplicates' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('duplicates')}>Дубли</button>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button onClick={handleAdd} className="px-3 py-2 rounded bg-brand-600 hover:bg-brand-500">Добавить файлы</button>
               <button onClick={addFolder} className="px-3 py-2 rounded bg-brand-700 hover:bg-brand-600">Добавить папку</button>
               <button onClick={handleClear} className="px-3 py-2 rounded bg-slate-800 hover:bg-slate-700">Очистить</button>
@@ -1125,11 +1125,11 @@ export default function App() {
 
           {activeTab === 'files' && (
             <>
-              <div className="grid grid-cols-3 gap-3 max-h-[520px] overflow-auto pr-2">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-[60vh] sm:max-h-[520px] overflow-auto pr-2">
                 {files.map((p, i) => (
                   <div key={p + i} className="bg-slate-900/60 rounded-md overflow-hidden border border-white/5">
-                    <div className="h-40 bg-slate-900 flex items-center justify-center overflow-hidden">
-                      <img className="max-h-40" src={toFileUrl(p)} />
+                    <div className="h-32 sm:h-40 bg-slate-900 flex items-center justify-center overflow-hidden">
+                      <img className="max-h-32 sm:max-h-40" src={toFileUrl(p)} />
                     </div>
                     <div className="text-[10px] p-2 truncate opacity-80" title={p}>{p}</div>
                   </div>
@@ -1151,11 +1151,11 @@ export default function App() {
           )}
 
           {activeTab === 'ready' && (
-            <div className="grid grid-cols-3 gap-3 max-h-[600px] overflow-auto pr-2">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-[60vh] sm:max-h-[600px] overflow-auto pr-2">
               {results.map((r, i) => (
                 <div key={r.out + i} className="bg-slate-900/60 rounded-md overflow-hidden border border-white/5">
-                  <div className="h-40 bg-slate-900 flex items-center justify-center overflow-hidden">
-                    <img className="max-h-40" src={toFileUrl(r.out)} />
+                  <div className="h-32 sm:h-40 bg-slate-900 flex items-center justify-center overflow-hidden">
+                    <img className="max-h-32 sm:max-h-40" src={toFileUrl(r.out)} />
                   </div>
                   <div className="text-[10px] p-2 truncate opacity-80 flex items-center gap-2" title={r.out}>
                     <span className="flex-1 truncate">{r.out}</span>
@@ -1171,7 +1171,7 @@ export default function App() {
 
           {activeTab === 'converter' && (
             <div className="grid grid-cols-12 gap-4">
-              <div className="col-span-12 flex items-center gap-2">
+              <div className="col-span-12 flex items-center gap-2 flex-wrap">
                 <button onClick={chooseTxtFile} className="px-3 py-2 rounded bg-brand-600 hover:bg-brand-500">Выбрать TXT</button>
                 {txtPath && <div className="text-xs opacity-80 truncate" title={txtPath}>{txtPath}</div>}
                 <div className="ml-auto flex items-center gap-2">
@@ -1184,7 +1184,7 @@ export default function App() {
                   <button onClick={saveCookiesPerProfile} disabled={!profiles.length} className={`px-3 py-2 rounded ${profiles.length ? 'bg-indigo-700 hover:bg-indigo-600' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}>Куки по профилям</button>
                 </div>
               </div>
-              <div className="col-span-4">
+              <div className="col-span-12 md:col-span-4">
                 <div className="text-xs mb-1 flex items-center justify-between">
                   <span>Профили</span>
                   {!!profiles.length && (
@@ -1194,7 +1194,7 @@ export default function App() {
                     </span>
                   )}
                 </div>
-                <div className="h-[460px] overflow-auto bg-slate-900 border border-white/10 rounded">
+                <div className="h-72 md:h-[460px] overflow-auto bg-slate-900 border border-white/10 rounded">
                   {profiles
                     .map((p, i) => ({ p, i }))
                     .filter(({p}) => {
@@ -1218,7 +1218,7 @@ export default function App() {
                 </div>
                 <div className="text-[11px] opacity-70 mt-2">Строк: {parseInfo.lines} • Профилей: {parseInfo.ok} • Ошибок: {parseInfo.errors} {parseError && `• ${parseError}`}</div>
               </div>
-              <div className="col-span-4" onDrop={async e=>{
+              <div className="col-span-12 md:col-span-4" onDrop={async e=>{
                 e.preventDefault()
                 const items = Array.from(e.dataTransfer.files || [])
                 const txt = items.find(f=>{ const p = String(f.path||'').toLowerCase(); return p.endsWith('.txt') || p.endsWith('.log') || p.endsWith('.json') })
@@ -1233,21 +1233,21 @@ export default function App() {
                 }
               }} onDragOver={e=>e.preventDefault()}>
                 <div className="text-xs mb-1">Исходный TXT</div>
-                <textarea className="w-full h-[460px] bg-slate-900 border border-white/10 rounded p-2 text-xs" value={txtContent} onChange={e => setTxtContent(e.target.value)} />
+                <textarea className="w-full h-64 md:h-[460px] bg-slate-900 border border-white/10 rounded p-2 text-xs" value={txtContent} onChange={e => setTxtContent(e.target.value)} />
               </div>
-              <div className="col-span-4">
+              <div className="col-span-12 md:col-span-4">
                 <div className="text-xs mb-1">JSON предпросмотр</div>
-                <textarea className="w-full h-[460px] bg-slate-900 border border-white/10 rounded p-2 text-xs" value={jsonPreview} onChange={e => setJsonPreview(e.target.value)} />
+                <textarea className="w-full h-64 md:h-[460px] bg-slate-900 border border-white/10 rounded p-2 text-xs" value={jsonPreview} onChange={e => setJsonPreview(e.target.value)} />
               </div>
             </div>
           )}
 
           {activeTab === 'duplicates' && (
-            <div className="grid grid-cols-3 gap-3 max-h-[600px] overflow-auto pr-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[60vh] sm:max-h-[600px] overflow-auto pr-2">
               {dupGroups.map((grp, gi)=> (
                 <div key={gi} className="bg-slate-900/60 rounded-md overflow-hidden border border-white/5 p-2">
                   <div className="text-xs mb-2 opacity-80">Группа {gi+1} • {grp.length}</div>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                     {grp.map(idx => {
                       const p = dupTargets[idx] || ''
                       return (
