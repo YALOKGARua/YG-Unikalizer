@@ -1111,7 +1111,8 @@ export default function App() {
               <button className={`text-sm ${activeTab==='files' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('files')}>Файлы</button>
               <button className={`text-sm ${activeTab==='ready' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('ready')}>Готовое</button>
               <button className={`text-sm ${activeTab==='converter' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('converter')}>Конвертер TXT→JSON</button>
-              <button className={`text-sm ${activeTab==='duplicates' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('duplicates')}>Дубли</button>
+              <button className={`text-sm ${activeTab==='indigo' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('indigo')}>Indigo (скоро)</button>
+              <button className={`text-sm ${activeTab==='vision' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('vision')}>Vision (скоро)</button>
             </div>
             <div className="flex flex-wrap gap-2">
               <button onClick={handleAdd} className="px-3 py-2 rounded bg-brand-600 hover:bg-brand-500">Добавить файлы</button>
@@ -1119,7 +1120,6 @@ export default function App() {
               <button onClick={handleClear} className="px-3 py-2 rounded bg-slate-800 hover:bg-slate-700">Очистить</button>
               {!busy && <button disabled={!canStart} onClick={start} className={`px-3 py-2 rounded ${canStart ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-emerald-900 opacity-50 cursor-not-allowed'}`}>Старт</button>}
               {busy && <button onClick={cancel} className="px-3 py-2 rounded bg-rose-600 hover:bg-rose-500">Отмена</button>}
-              <button onClick={buildDupIndex} className="px-3 py-2 rounded bg-indigo-700 hover:bg-indigo-600">Поиск дублей</button>
             </div>
           </div>
 
@@ -1242,26 +1242,12 @@ export default function App() {
             </div>
           )}
 
-          {activeTab === 'duplicates' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[60vh] sm:max-h-[600px] overflow-auto pr-2">
-              {dupGroups.map((grp, gi)=> (
-                <div key={gi} className="bg-slate-900/60 rounded-md overflow-hidden border border-white/5 p-2">
-                  <div className="text-xs mb-2 opacity-80">Группа {gi+1} • {grp.length}</div>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {grp.map(idx => {
-                      const p = dupTargets[idx] || ''
-                      return (
-                        <div key={p+idx} className="bg-slate-900 rounded overflow-hidden">
-                          <div className="h-20 flex items-center justify-center overflow-hidden"><img className="max-h-20" src={toFileUrl(p)} /></div>
-                          <div className="text-[10px] p-1 truncate opacity-80" title={p}>{p}</div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              ))}
-              {!dupGroups.length && <div className="opacity-60 text-xs">Нет групп дублей</div>}
-            </div>
+          {activeTab === 'indigo' && (
+            <div className="p-4 rounded bg-slate-900/60 border border-white/10 text-slate-200 text-sm opacity-80">Импорт автиков в Indigo (скоро)</div>
+          )}
+
+          {activeTab === 'vision' && (
+            <div className="p-4 rounded bg-slate-900/60 border border-white/10 text-slate-200 text-sm opacity-80">Экспорт из Indigo в Vision (скоро)</div>
           )}
 
         </section>
