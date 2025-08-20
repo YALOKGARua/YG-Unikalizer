@@ -89,7 +89,6 @@ export default function App() {
   const [dupIndex, setDupIndex] = useState(-1)
   const [dupGroups, setDupGroups] = useState([])
   const [dupTargets, setDupTargets] = useState([])
-  const [indigoToken, setIndigoToken] = useState('')
   const [indigoEndpoint, setIndigoEndpoint] = useState('http://127.0.0.1')
   const [indigoBusy, setIndigoBusy] = useState(false)
   const [indigoResult, setIndigoResult] = useState(null)
@@ -98,6 +97,8 @@ export default function App() {
   const [visionBusy, setVisionBusy] = useState(false)
   const [visionResult, setVisionResult] = useState(null)
   const [indigoPort, setIndigoPort] = useState('')
+  const [indigoEmail, setIndigoEmail] = useState('')
+  const [indigoPwd, setIndigoPwd] = useState('')
 
   const GEAR_PRESETS = {
     camera: {
@@ -492,23 +493,7 @@ export default function App() {
     await window.api.quitAndInstall()
   }
 
-  const checkIndigo = async () => {
-    if (!indigoToken.trim()) return
-    const host = (indigoEndpoint || 'http://127.0.0.1').replace(/\/+$/, '')
-    const baseHost = host.replace(/:\d+(?=\/?$)/, '')
-    const base = indigoPort ? `${baseHost}:${indigoPort}` : baseHost
-    setIndigoEndpoint(base)
-    setIndigoBusy(true)
-    setIndigoResult(null)
-    try {
-      const r = await window.api.checkTokenIndigo({ endpoint: base, token: indigoToken })
-      setIndigoResult(r || { ok: false })
-    } catch (_) {
-      setIndigoResult({ ok: false })
-    } finally {
-      setIndigoBusy(false)
-    }
-  }
+  const checkIndigo = async () => {}
 
   const checkVision = async () => {
     if (!visionToken.trim()) return
@@ -1161,7 +1146,7 @@ export default function App() {
               <button className={`text-sm ${activeTab==='files' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('files')}>Файлы</button>
               <button className={`text-sm ${activeTab==='ready' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('ready')}>Готовое</button>
               <button className={`text-sm ${activeTab==='converter' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('converter')}>Конвертер TXT→JSON</button>
-              <button className={`text-sm ${activeTab==='indigo' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('indigo')}>Indigo (скоро)</button>
+              <button className={`text-sm ${activeTab==='indigo' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('indigo')}>Indigo (Тестируется)</button>
               <button className={`text-sm ${activeTab==='vision' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('vision')}>Vision (скоро)</button>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -1295,10 +1280,6 @@ export default function App() {
           {activeTab === 'indigo' && (
             <div className="p-4 rounded bg-slate-900/60 border border-white/10 text-slate-200 text-sm">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-                <div>
-                  <div className="text-xs mb-1">Токен</div>
-                  <input className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={indigoToken} onChange={e => setIndigoToken(e.target.value)} placeholder="Bearer ..." />
-                </div>
                 <div className="flex flex-col">
                   <div className="text-xs mb-1">Endpoint/Порт</div>
                   <div className="flex gap-2">
@@ -1306,13 +1287,33 @@ export default function App() {
                     <input title="Порт" className="w-24 bg-slate-900 border border-white/10 rounded px-2 py-2 text-center" value={indigoPort} onChange={e=>setIndigoPort(e.target.value.replace(/[^0-9]/g,''))} />
                   </div>
                 </div>
-                <div className="md:col-span-2 flex items-center gap-2 flex-wrap">
-                  <button onClick={checkIndigo} disabled={!indigoToken || indigoBusy} className={`px-3 py-2 rounded ${indigoToken && !indigoBusy ? 'bg-indigo-600 hover:bg-indigo-500' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}>{indigoBusy ? 'Проверка…' : 'Проверить'}</button>
-                  {indigoResult && (
-                    <div className={`text-xs ${indigoResult.ok ? 'text-emerald-400' : 'text-rose-400'}`}>
-                      {indigoResult.ok ? 'Доступ есть' : 'Нет доступа'} {typeof indigoResult.status === 'number' ? `• ${indigoResult.status}` : ''} {indigoResult.error ? `• ${indigoResult.error}` : ''} {typeof indigoResult.exp === 'number' ? `• ${new Date(indigoResult.exp*1000).toLocaleString()}` : ''} {indigoResult.port ? `• порт ${indigoResult.port}` : ''} {indigoResult.prefix ? `• ${indigoResult.prefix}` : ''}
-                    </div>
-                  )}
+                {indigoResult && (
+                  <div className="md:col-span-2 text-xs">
+                    <span className={`${indigoResult.ok ? 'text-emerald-400' : 'text-rose-400'}`}>{indigoResult.ok ? 'Успех' : 'Ошибка'}</span>
+                    {typeof indigoResult.status === 'number' ? ` • ${indigoResult.status}` : ''}
+                    {indigoResult.error ? ` • ${indigoResult.error}` : ''}
+                    {indigoResult.prefix ? ` • ${indigoResult.prefix}` : ''}
+                  </div>
+                )}
+                <div className="md:col-span-2 h-px bg-white/10" />
+                <div>
+                  <div className="text-xs mb-1">Логин (email)</div>
+                  <input className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={indigoEmail} onChange={e=>setIndigoEmail(e.target.value)} placeholder="user@example.com" />
+                </div>
+                <div>
+                  <div className="text-xs mb-1">Пароль</div>
+                  <input type="password" className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={indigoPwd} onChange={e=>setIndigoPwd(e.target.value)} placeholder="••••••••" />
+                </div>
+                <div className="md:col-span-2 flex items-center gap-2">
+                  <button onClick={async()=>{
+                    const host = (indigoEndpoint || 'http://127.0.0.1').replace(/\/+$/,'')
+                    const baseHost = host.replace(/:\d+(?=\/?$)/, '')
+                    const base = indigoPort ? `${baseHost}:${indigoPort}` : baseHost
+                    try {
+                      const r = await window.api.loginIndigo({ base, email: indigoEmail, password: indigoPwd })
+                      setIndigoResult(r || { ok: false })
+                    } catch (_) { setIndigoResult({ ok: false }) }
+                  }} className="px-3 py-2 rounded bg-slate-800 hover:bg-slate-700">Войти</button>
                 </div>
               </div>
             </div>

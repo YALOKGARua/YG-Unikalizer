@@ -121,6 +121,7 @@ contextBridge.exposeInMainWorld('api', {
     logout: () => ipcRenderer.invoke('auth-logout'),
   },
   checkTokenIndigo: (payload) => ipcRenderer.invoke('check-token-indigo', payload),
+  loginIndigo: (payload) => ipcRenderer.invoke('login-indigo', payload),
   checkTokenVision: (payload) => ipcRenderer.invoke('check-token-vision', payload),
   discoverIndigoPort: (payload) => ipcRenderer.invoke('discover-indigo-port', payload),
   native: {

@@ -1208,6 +1208,37 @@ app.whenReady().then(() => {
       return { ok: false, error: String(e && e.message ? e.message : e) }
     }
   })
+
+  ipcMain.handle('login-indigo', async (_e, payload) => {
+    try {
+      const base = String(payload && payload.base)
+      const email = String(payload && payload.email)
+      const password = String(payload && payload.password)
+      if (!base || !email || !password) return { ok: false }
+      const prefix = await detectApiPrefix(base, '')
+      const url = `${base}${prefix}/login`
+      const ctrl = new AbortController()
+      const id = setTimeout(() => ctrl.abort(), 4000)
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+          signal: ctrl.signal
+        })
+        clearTimeout(id)
+        if (!res.ok) return { ok: false, status: res.status }
+        let body = null
+        try { body = await res.json() } catch (_) {}
+        return { ok: true, status: res.status, body }
+      } catch (e) {
+        clearTimeout(id)
+        return { ok: false, error: String(e && e.message ? e.message : e) }
+      }
+    } catch (e) {
+      return { ok: false, error: String(e && e.message ? e.message : e) }
+    }
+  })
 })
 
 app.on('window-all-closed', () => {
