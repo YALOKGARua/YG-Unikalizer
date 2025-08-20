@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import ProgressLine from './components/ProgressLine'
+import AuthGate from './components/AuthGate'
 
 function toFileUrl(p) {
   let s = p.replace(/\\/g, '/')
@@ -88,6 +89,15 @@ export default function App() {
   const [dupIndex, setDupIndex] = useState(-1)
   const [dupGroups, setDupGroups] = useState([])
   const [dupTargets, setDupTargets] = useState([])
+  const [indigoToken, setIndigoToken] = useState('')
+  const [indigoEndpoint, setIndigoEndpoint] = useState('http://127.0.0.1')
+  const [indigoBusy, setIndigoBusy] = useState(false)
+  const [indigoResult, setIndigoResult] = useState(null)
+  const [visionToken, setVisionToken] = useState('')
+  const [visionEndpoint, setVisionEndpoint] = useState('')
+  const [visionBusy, setVisionBusy] = useState(false)
+  const [visionResult, setVisionResult] = useState(null)
+  const [indigoPort, setIndigoPort] = useState('')
 
   const GEAR_PRESETS = {
     camera: {
@@ -252,6 +262,13 @@ export default function App() {
     })
     return () => { off(); done() }
   }, [])
+
+  useEffect(() => {
+    try {
+      const m = String(indigoEndpoint||'').match(/:(\d+)(?:$|\/)$/)
+      setIndigoPort(m ? m[1] : '')
+    } catch (_) {}
+  }, [indigoEndpoint])
 
   useEffect(() => {
     const g = window.api?.native?.gpu
@@ -473,6 +490,38 @@ export default function App() {
   const installUpdate = async () => {
     if (!upd.downloaded) return
     await window.api.quitAndInstall()
+  }
+
+  const checkIndigo = async () => {
+    if (!indigoToken.trim()) return
+    const host = (indigoEndpoint || 'http://127.0.0.1').replace(/\/+$/, '')
+    const baseHost = host.replace(/:\d+(?=\/?$)/, '')
+    const base = indigoPort ? `${baseHost}:${indigoPort}` : baseHost
+    setIndigoEndpoint(base)
+    setIndigoBusy(true)
+    setIndigoResult(null)
+    try {
+      const r = await window.api.checkTokenIndigo({ endpoint: base, token: indigoToken })
+      setIndigoResult(r || { ok: false })
+    } catch (_) {
+      setIndigoResult({ ok: false })
+    } finally {
+      setIndigoBusy(false)
+    }
+  }
+
+  const checkVision = async () => {
+    if (!visionToken.trim()) return
+    setVisionBusy(true)
+    setVisionResult(null)
+    try {
+      const r = await window.api.checkTokenVision({ endpoint: visionEndpoint, token: visionToken })
+      setVisionResult(r || { ok: false })
+    } catch (_) {
+      setVisionResult({ ok: false })
+    } finally {
+      setVisionBusy(false)
+    }
   }
 
   const fillMyData = () => {
@@ -699,6 +748,7 @@ export default function App() {
 
   return (
     <div className="h-full text-slate-100">
+      <AuthGate />
       <header className="px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-2">
         <div className="text-2xl font-semibold tracking-tight">PhotoUnikalizer</div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -1243,11 +1293,52 @@ export default function App() {
           )}
 
           {activeTab === 'indigo' && (
-            <div className="p-4 rounded bg-slate-900/60 border border-white/10 text-slate-200 text-sm opacity-80">Импорт автиков в Indigo (скоро)</div>
+            <div className="p-4 rounded bg-slate-900/60 border border-white/10 text-slate-200 text-sm">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                <div>
+                  <div className="text-xs mb-1">Токен</div>
+                  <input className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={indigoToken} onChange={e => setIndigoToken(e.target.value)} placeholder="Bearer ..." />
+                </div>
+                <div className="flex flex-col">
+                  <div className="text-xs mb-1">Endpoint/Порт</div>
+                  <div className="flex gap-2">
+                    <input className="flex-1 bg-slate-900 border border-white/10 rounded px-2 py-2" value={indigoEndpoint} onChange={e => setIndigoEndpoint(e.target.value)} placeholder="http://127.0.0.1" />
+                    <input title="Порт" className="w-24 bg-slate-900 border border-white/10 rounded px-2 py-2 text-center" value={indigoPort} onChange={e=>setIndigoPort(e.target.value.replace(/[^0-9]/g,''))} />
+                  </div>
+                </div>
+                <div className="md:col-span-2 flex items-center gap-2 flex-wrap">
+                  <button onClick={checkIndigo} disabled={!indigoToken || indigoBusy} className={`px-3 py-2 rounded ${indigoToken && !indigoBusy ? 'bg-indigo-600 hover:bg-indigo-500' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}>{indigoBusy ? 'Проверка…' : 'Проверить'}</button>
+                  {indigoResult && (
+                    <div className={`text-xs ${indigoResult.ok ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {indigoResult.ok ? 'Доступ есть' : 'Нет доступа'} {typeof indigoResult.status === 'number' ? `• ${indigoResult.status}` : ''} {indigoResult.error ? `• ${indigoResult.error}` : ''} {typeof indigoResult.exp === 'number' ? `• ${new Date(indigoResult.exp*1000).toLocaleString()}` : ''} {indigoResult.port ? `• порт ${indigoResult.port}` : ''} {indigoResult.prefix ? `• ${indigoResult.prefix}` : ''}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           )}
 
           {activeTab === 'vision' && (
-            <div className="p-4 rounded bg-slate-900/60 border border-white/10 text-slate-200 text-sm opacity-80">Экспорт из Indigo в Vision (скоро)</div>
+            <div className="p-4 rounded bg-slate-900/60 border border-white/10 text-slate-200 text-sm">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <div className="text-xs mb-1">Токен</div>
+                  <input className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={visionToken} onChange={e => setVisionToken(e.target.value)} placeholder="Bearer ..." />
+                </div>
+                <div>
+                  <div className="text-xs mb-1">Endpoint (опционально)</div>
+                  <input className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={visionEndpoint} onChange={e => setVisionEndpoint(e.target.value)} placeholder="https://api.example.com/me" />
+                </div>
+                <div className="md:col-span-2 flex items-center gap-2">
+                  <button onClick={checkVision} disabled={!visionToken || visionBusy} className={`px-3 py-2 rounded ${visionToken && !visionBusy ? 'bg-violet-600 hover:bg-violet-500' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}>{visionBusy ? 'Проверка…' : 'Проверить'}</button>
+                  {visionResult && (
+                    <div className={`text-xs ${visionResult.ok ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {visionResult.ok ? 'Доступ есть' : 'Нет доступа'} {typeof visionResult.status === 'number' ? `• ${visionResult.status}` : ''} {visionResult.error ? `• ${visionResult.error}` : ''} {typeof visionResult.exp === 'number' ? `• ${new Date(visionResult.exp*1000).toLocaleString()}` : ''}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           )}
 
         </section>

@@ -21,6 +21,9 @@ interface Window {
     getUpdateChangelog: () => Promise<{ ok: boolean; notes?: string }>
     getReadme: () => Promise<{ ok: boolean; data?: string; error?: string }>
     readTextFileByPath: (p: string) => Promise<{ ok: boolean; path?: string; content?: string; error?: string }>
+    checkTokenIndigo: (payload: { endpoint?: string; token: string }) => Promise<{ ok: boolean; status?: number; body?: any; error?: string; exp?: number; sub?: string }>
+    checkTokenVision: (payload: { endpoint?: string; token: string }) => Promise<{ ok: boolean; status?: number; body?: any; error?: string; exp?: number; sub?: string }>
+    discoverIndigoPort: (payload: { token?: string }) => Promise<{ ok: boolean; port?: number; base?: string; status?: number; path?: string; error?: string }>
     native: {
       parseTxtProfiles: (text: string) => { profiles: any[]; errors: number; errorsInvalidJson?: number; errorsUnsupported?: number; segments?: number; parsedSegments?: number } | null
       parseTxtProfilesFromFile: (path: string) => { profiles: any[]; errors: number; errorsInvalidJson?: number; errorsUnsupported?: number; segments?: number; parsedSegments?: number } | null

@@ -5,6 +5,7 @@ const os = require('os')
 const sharp = require('sharp')
 const { randomUUID, createHash } = require('crypto')
 const { autoUpdater } = require('electron-updater')
+const { exec } = require('child_process')
 
 let mainWindow
 let didInitUpdater = false
@@ -62,6 +63,348 @@ function loadNative() {
     nativeMod = null
   }
   return nativeMod
+}
+
+let appPasswordHash = null
+let isAuthed = false
+let rememberUntil = 0
+function loadAppPasswordSecret() {
+  try {
+    const envHash = (process.env.PU_APP_PASSWORD_HASH || process.env.APP_PASSWORD_HASH || '').trim()
+    if (envHash && /^[a-fA-F0-9]{64}$/.test(envHash)) { appPasswordHash = envHash.toLowerCase(); return }
+    const envPlain = (process.env.PU_APP_PASSWORD || process.env.APP_PASSWORD || '').trim()
+    if (envPlain) { appPasswordHash = createHash('sha256').update(envPlain, 'utf8').digest('hex'); return }
+    const p = path.join(app.getPath('userData'), 'app.pass')
+    if (fs.existsSync(p)) {
+      const txt = fs.readFileSync(p, 'utf8').toString().trim()
+      if (/^[a-fA-F0-9]{64}$/.test(txt)) appPasswordHash = txt.toLowerCase()
+      else if (txt) appPasswordHash = createHash('sha256').update(txt, 'utf8').digest('hex')
+      return
+    }
+    const r = path.join(process.resourcesPath || '', 'app.pass')
+    if (r && fs.existsSync(r)) {
+      const txt = fs.readFileSync(r, 'utf8').toString().trim()
+      if (/^[a-fA-F0-9]{64}$/.test(txt)) appPasswordHash = txt.toLowerCase()
+      else if (txt) appPasswordHash = createHash('sha256').update(txt, 'utf8').digest('hex')
+      return
+    }
+  } catch (_) {}
+}
+
+function base64UrlDecode(input) {
+  const s = String(input || '').replace(/-/g, '+').replace(/_/g, '/')
+  const pad = s.length % 4 === 2 ? '==' : s.length % 4 === 3 ? '=' : ''
+  return Buffer.from(s + pad, 'base64').toString('utf-8')
+}
+
+function normalizeBearerToken(token) {
+  if (!token || typeof token !== 'string') return ''
+  const t = token.trim()
+  if (t.toLowerCase().startsWith('bearer ')) return t.slice(7).trim()
+  return t
+}
+
+async function fetchWithAuth(url, token, timeoutMs = 2500) {
+  const ctrl = new AbortController()
+  const id = setTimeout(() => ctrl.abort(), timeoutMs)
+  try {
+    const res = await fetch(url, { method: 'GET', headers: { Authorization: `Bearer ${token}` }, signal: ctrl.signal })
+    let body = null
+    try { body = await res.json() } catch (_) {}
+    return { status: res.status, ok: res.ok, body }
+  } finally {
+    clearTimeout(id)
+  }
+}
+
+async function fetchWithAnyAuth(url, token, timeoutMs = 2500) {
+  const t = normalizeBearerToken(token)
+  const headersList = [
+    { Authorization: `Bearer ${t}` },
+    { Authorization: t },
+    { 'X-Auth-Token': t },
+    { 'X-Token': t },
+    { 'X-Api-Key': t },
+    { 'Api-Key': t },
+    { apikey: t }
+  ]
+  for (const h of headersList) {
+    const ctrl = new AbortController()
+    const id = setTimeout(() => ctrl.abort(), timeoutMs)
+    try {
+      const res = await fetch(url, { method: 'GET', headers: h, signal: ctrl.signal })
+      let body = null
+      try { body = await res.json() } catch (_) {}
+      return { status: res.status, ok: res.ok, body }
+    } catch (_) {
+    } finally {
+      clearTimeout(id)
+    }
+  }
+  return { ok: false, status: 0 }
+}
+
+async function fetchSimple(url, timeoutMs = 1000) {
+  const ctrl = new AbortController()
+  const id = setTimeout(() => ctrl.abort(), timeoutMs)
+  try {
+    const res = await fetch(url, { method: 'GET', signal: ctrl.signal })
+    let body = null
+    try { body = await res.text() } catch (_) {}
+    return { status: res.status, ok: res.ok, body }
+  } finally {
+    clearTimeout(id)
+  }
+}
+
+async function verifyTokenAccess(endpoint, token) {
+  const t = normalizeBearerToken(token)
+  if (!t) return { ok: false, error: 'empty-token' }
+  if (endpoint && typeof endpoint === 'string' && endpoint.trim()) {
+    try {
+      const url = endpoint.trim()
+      const r = await fetchWithAuth(url, t)
+      if (r.ok) return { ok: true, status: r.status, body: r.body || null }
+      return { ok: false, status: r.status, body: r.body || null }
+    } catch (e) {
+      return { ok: false, error: String(e && e.message ? e.message : e) }
+    }
+  }
+  try {
+    const parts = t.split('.')
+    if (parts.length < 2) return { ok: false, error: 'invalid-token' }
+    const payloadStr = base64UrlDecode(parts[1])
+    const payload = JSON.parse(payloadStr)
+    const exp = Number(payload && payload.exp ? payload.exp : 0)
+    if (exp && Date.now() / 1000 > exp) return { ok: false, error: 'expired', exp }
+    const sub = payload && (payload.sub || payload.user || payload.uid || '')
+    return { ok: true, exp, sub }
+  } catch (_) {
+    return { ok: true }
+  }
+}
+
+async function fetchWithPreferredAuth(url, token, timeoutMs = 2500) {
+  const t = normalizeBearerToken(token)
+  const headerName = (process.env.INDIGO_AUTH_HEADER || 'Authorization').trim()
+  const scheme = (process.env.INDIGO_AUTH_SCHEME || 'Bearer').trim()
+  const headers = {}
+  if (headerName) {
+    if (headerName.toLowerCase() === 'authorization' && scheme) headers[headerName] = `${scheme} ${t}`
+    else headers[headerName] = t
+  }
+  const ctrl = new AbortController()
+  const id = setTimeout(() => ctrl.abort(), timeoutMs)
+  try {
+    const res = await fetch(url, { method: 'GET', headers, signal: ctrl.signal })
+    let body = null
+    try { body = await res.json() } catch (_) {}
+    return { status: res.status, ok: res.ok, body }
+  } finally {
+    clearTimeout(id)
+  }
+}
+
+async function getWithHeaderOrQuery(base, pathPart, token, timeoutMs = 2000) {
+  const url = base + pathPart
+  const queryParam = (process.env.INDIGO_QUERY_TOKEN_PARAM || '').trim()
+  async function asQuery() {
+    const sep = pathPart.includes('?') ? '&' : '?'
+    return await fetchSimple(base + pathPart + sep + (queryParam || 'token') + '=' + encodeURIComponent(normalizeBearerToken(token)), timeoutMs).catch(() => ({ ok: false, status: 0 }))
+  }
+  async function asHeader() {
+    const pref = await fetchWithPreferredAuth(url, token, timeoutMs).catch(() => ({ ok: false, status: 0 }))
+    if (pref && (pref.ok || (pref.status && pref.status !== 0 && pref.status !== 404))) return pref
+    return await fetchWithAnyAuth(url, token, timeoutMs).catch(() => ({ ok: false, status: 0 }))
+  }
+  if (queryParam) {
+    const r = await asQuery()
+    if (r && (r.ok || (r.status && r.status !== 0 && r.status !== 404))) return r
+    return await asHeader()
+  } else {
+    const r = await asHeader()
+    if (r && r.ok) return r
+    if (r && (r.status === 401 || r.status === 403 || r.status === 404 || r.status === 0)) {
+      const q = await asQuery()
+      if (q && (q.ok || (q.status && q.status !== 0))) return q
+    }
+    return r
+  }
+}
+
+async function tryProbeIndigo(port) {
+  const base = `http://127.0.0.1:${port}`
+  const authPaths = ['/api/v1/me', '/api/v1/user', '/api/user', '/me', '/api/v1/profile', '/api/profile', '/profile', '/api/account', '/account']
+  for (const p of authPaths) {
+    try {
+      const r = await fetchSimple(base + p, 900)
+      if (r && (r.status === 401 || r.status === 403)) return { ok: true, base, path: p, status: r.status, authRequired: true }
+      if (r && (r.ok || (r.status >= 200 && r.status < 500))) return { ok: true, base, path: p, status: r.status }
+    } catch (_) {}
+  }
+  const pingPaths = ['/api/v1/ping', '/api/ping', '/ping', '/api/v1/version', '/api/version', '/version', '/status', '/health', '/api/health', '/']
+  for (const p of pingPaths) {
+    try {
+      const r = await fetchSimple(base + p, 900)
+      if (r && (r.ok || (r.status >= 200 && r.status < 500))) return { ok: true, base, path: p, status: r.status }
+    } catch (_) {}
+  }
+  return { ok: false }
+}
+
+async function detectApiPrefix(base, token) {
+  const candidates = ['/api/v2/version', '/api/v1/version']
+  for (const p of candidates) {
+    try {
+      const r = await getWithHeaderOrQuery(base, p, token, 1500)
+      if (r && (r.ok || (r.status >= 200 && r.status < 300))) return p.startsWith('/api/v2') ? '/api/v2' : '/api/v1'
+    } catch (_) {}
+  }
+  return '/api/v2'
+}
+
+async function tryAuthEndpoints(base, prefix, token) {
+  const suffixes = ['/profile', '/profiles', '/group', '/groups', '/folder', '/folders', '/team/groups', '/version']
+  for (const s of suffixes) {
+    const p = `${prefix}${s}`
+    try {
+      const r = await getWithHeaderOrQuery(base, p, token, 2000)
+      if (r && r.ok) return { ok: true, path: p, status: r.status }
+      if (r && (r.status === 401 || r.status === 403)) return { ok: false, path: p, status: r.status }
+    } catch (_) {}
+  }
+  return { ok: false }
+}
+
+async function discoverIndigoPort() {
+  const seen = new Set()
+  const add = (n) => { const x = Number(n); if (Number.isFinite(x) && x > 0 && x < 65536 && !seen.has(x)) { seen.add(x) } }
+  const envPort = Number(process.env.INDIGO_PORT || 0)
+  if (envPort) add(envPort)
+  add(21168)
+  for (let d = -8; d <= 8; d += 1) add(21168 + d)
+  for (let p = 21100; p <= 21250; p += 1) add(p)
+  try {
+    const home = os.homedir()
+    const candidates = [
+      path.join(home, '.indigobrowser', 'app.properties'),
+      path.join(home, '.IndigoBrowser', 'app.properties'),
+      path.join(home, '.indigo', 'app.properties'),
+      path.join(home, 'AppData', 'Roaming', 'IndigoBrowser', 'app.properties'),
+      path.join(home, 'AppData', 'Roaming', 'Indigo', 'app.properties'),
+      path.join(home, 'AppData', 'Roaming', 'IndigoBrowser', 'config.json'),
+      path.join(home, 'AppData', 'Roaming', 'Indigo', 'config.json')
+    ]
+    for (const fp of candidates) {
+      try {
+        const txt = await fs.promises.readFile(fp, 'utf-8')
+        const m1 = txt.match(/(^|\n)\s*multiloginapp\.port\s*[=:]\s*(\d+)/i)
+        if (m1 && m1[2]) add(Number(m1[2]))
+        const m2 = txt.match(/(^|\n)\s*indigo.*port\s*[=:]\s*(\d+)/i)
+        if (m2 && m2[2]) add(Number(m2[2]))
+        const m3 = txt.match(/(^|\n)\s*port\s*[=:]\s*(\d+)/i)
+        if (m3 && m3[2]) add(Number(m3[2]))
+        try { const obj = JSON.parse(txt); const pv = obj && (obj.port || obj.apiPort || obj.serverPort); if (pv) add(Number(pv)) } catch (_) {}
+      } catch (_) {}
+    }
+    const logRoots = [
+      path.join(home, 'AppData', 'Roaming'),
+      path.join(home, 'AppData', 'Local')
+    ]
+    for (const root of logRoots) {
+      try {
+        const dirs = await fs.promises.readdir(root, { withFileTypes: true })
+        for (const d of dirs) {
+          if (!d.isDirectory()) continue
+          const name = d.name.toLowerCase()
+          if (!name.includes('indigo')) continue
+          const dir = path.join(root, d.name)
+          const sub = await fs.promises.readdir(dir, { withFileTypes: true }).catch(() => [])
+          for (const s of sub) {
+            if (!s.isDirectory() && !/log/i.test(s.name)) continue
+            const logDir = s.isDirectory() ? path.join(dir, s.name) : dir
+            const files = await fs.promises.readdir(logDir).catch(() => [])
+            for (const fn of files) {
+              if (!/log|txt|out|json/i.test(fn)) continue
+              const p = path.join(logDir, fn)
+              try {
+                const stat = await fs.promises.stat(p)
+                if (!stat.isFile()) continue
+                if (Date.now() - stat.mtimeMs > 1000 * 60 * 60 * 24 * 7) continue
+                const buf = await fs.promises.readFile(p, 'utf-8')
+                const m = buf.match(/port[^\d]{0,10}(\d{3,6})/i)
+                if (m && m[1]) add(Number(m[1]))
+              } catch (_) {}
+            }
+          }
+        }
+      } catch (_) {}
+    }
+  } catch (_) {}
+  let sawIndigoProcess = false
+  try {
+    await new Promise((resolve) => {
+      exec('netstat -ano -p tcp', { windowsHide: true }, (err, stdout) => {
+        const portsWithPid = []
+        if (stdout) {
+          const lines = String(stdout).split(/\r?\n/)
+          for (const ln of lines) {
+            if (!/LISTENING/i.test(ln)) continue
+            const mPort = ln.match(/\s(?:0\.0\.0\.0|127\.0\.0\.1|\[::\]|\[::1\]):(\d+)/)
+            const mPid = ln.match(/\s(\d+)\s*$/)
+            if (mPort && mPort[1]) {
+              const prt = Number(mPort[1])
+              const pid = mPid ? Number(mPid[1]) : 0
+              portsWithPid.push({ prt, pid })
+              add(prt)
+            }
+          }
+        }
+        try {
+          exec('tasklist /FO CSV /NH', { windowsHide: true }, (_e2, out2) => {
+            if (out2) {
+              const map = new Map()
+              const rows = String(out2).split(/\r?\n/).filter(Boolean)
+              for (const row of rows) {
+                const parts = row.split(',').map(s => s.replace(/^"|"$/g, ''))
+                const name = parts[0] || ''
+                const pid = Number(parts[1] || 0)
+                if (pid) map.set(pid, name)
+              }
+              for (const it of portsWithPid) {
+                const name = (map.get(it.pid) || '').toLowerCase()
+                if (name.includes('indigo')) { add(it.prt); sawIndigoProcess = true }
+              }
+              for (const name of map.values()) {
+                const low = String(name || '').toLowerCase()
+                if (low.includes('indigo')) { sawIndigoProcess = true; break }
+              }
+            }
+            resolve()
+          })
+        } catch (_) { resolve() }
+      })
+    })
+  } catch (_) {}
+  const candidates = Array.from(seen)
+  let found = null
+  let idx = 0
+  const limit = Math.min(16, Math.max(4, Math.floor(candidates.length / 8)))
+  async function worker() {
+    while (!found && idx < candidates.length) {
+      const i = idx
+      idx += 1
+      const port = candidates[i]
+      const r = await tryProbeIndigo(port)
+      if (r && r.ok) {
+        found = { ok: true, port, base: r.base, status: r.status, path: r.path, running: true }
+        break
+      }
+    }
+  }
+  const workers = new Array(limit).fill(0).map(() => worker())
+  await Promise.all(workers)
+  return found || { ok: false, running: !!sawIndigoProcess }
 }
 
 function resolveHtmlPath() {
@@ -464,6 +807,7 @@ app.whenReady().then(() => {
     })
   }
   createWindow()
+  loadAppPasswordSecret()
   initAutoUpdater()
 
   const devUrl = process.env.VITE_DEV_SERVER_URL
@@ -669,6 +1013,40 @@ app.whenReady().then(() => {
     }
   })
 
+  ipcMain.handle('auth-required', async () => {
+    try {
+      const now = Date.now()
+      const authed = isAuthed && (rememberUntil === 0 || now < rememberUntil)
+      if (!authed) { isAuthed = false }
+      return { ok: true, required: !!appPasswordHash, authed }
+    } catch (e) {
+      return { ok: true, required: false, authed: true }
+    }
+  })
+
+  ipcMain.handle('auth-login', async (_e, payload) => {
+    try {
+      const password = payload && payload.password
+      const remember = payload && !!payload.remember
+      if (!appPasswordHash) return { ok: true, authed: true }
+      const incoming = String(password || '')
+      const incomingHash = createHash('sha256').update(incoming, 'utf8').digest('hex')
+      if (incomingHash === appPasswordHash) {
+        isAuthed = true
+        rememberUntil = remember ? Date.now() + 7 * 24 * 60 * 60 * 1000 : 0
+        return { ok: true, authed: true }
+      }
+      return { ok: false, authed: false }
+    } catch (e) {
+      return { ok: false, authed: false }
+    }
+  })
+
+  ipcMain.handle('auth-logout', async () => {
+    isAuthed = false
+    return { ok: true }
+  })
+
   ipcMain.handle('save-json', async (_e, payload) => {
     try {
       const defPath = (payload && payload.defaultPath) || path.join(app.getPath('documents'), 'data.json')
@@ -765,6 +1143,67 @@ app.whenReady().then(() => {
       })
       const paths = await Promise.all(writes)
       return { ok: true, paths }
+    } catch (e) {
+      return { ok: false, error: String(e && e.message ? e.message : e) }
+    }
+  })
+
+  ipcMain.handle('check-token-indigo', async (_e, payload) => {
+    try {
+      const endpoint = payload && payload.endpoint ? String(payload.endpoint) : ''
+      const token = payload && payload.token ? String(payload.token) : ''
+      const needsAuthPaths = (u) => {
+        try {
+          const url = new URL(u)
+          if (!url.pathname || url.pathname === '/' || /^(?:\/index\.html)?$/i.test(url.pathname)) return true
+          if (/\/(me|user|profile|account|apikey|token)$/i.test(url.pathname)) return false
+          return true
+        } catch (_) { return true }
+      }
+      if (!endpoint) {
+        const host = (process.env.INDIGO_HOST || 'http://127.0.0.1').replace(/\/$/, '')
+        const envPort = Number(process.env.INDIGO_PORT || 0)
+        let base = host
+        if (envPort) base = `${host}:${envPort}`
+        if (base) {
+          const prefix = await detectApiPrefix(base, token)
+          const res = await tryAuthEndpoints(base, prefix, token)
+          if (res && res.ok) return { ok: true, status: res.status, url: base + res.path, prefix }
+          if (res && res.status) return { ok: false, status: res.status, url: base + (res.path || ''), prefix }
+          return { ok: false, status: 0, url: base, prefix }
+        }
+      }
+      if (endpoint && needsAuthPaths(endpoint)) {
+        try {
+          const base = endpoint.replace(/\/?$/, '')
+          const prefix = await detectApiPrefix(base, token)
+          const res = await tryAuthEndpoints(base, prefix, token)
+          if (res && res.ok) return { ok: true, status: res.status, url: base + res.path, prefix }
+          if (res && res.status) return { ok: false, status: res.status, url: base + (res.path || ''), prefix }
+        } catch (_) {}
+      }
+      const res = await verifyTokenAccess(endpoint, token)
+      return res && typeof res.ok === 'boolean' ? res : { ok: false }
+    } catch (e) {
+      return { ok: false, error: String(e && e.message ? e.message : e) }
+    }
+  })
+
+  ipcMain.handle('check-token-vision', async (_e, payload) => {
+    try {
+      const endpoint = payload && payload.endpoint ? String(payload.endpoint) : ''
+      const token = payload && payload.token ? String(payload.token) : ''
+      const res = await verifyTokenAccess(endpoint, token)
+      return res && typeof res.ok === 'boolean' ? res : { ok: false }
+    } catch (e) {
+      return { ok: false, error: String(e && e.message ? e.message : e) }
+    }
+  })
+
+  ipcMain.handle('discover-indigo-port', async (_e, payload) => {
+    try {
+      const res = await discoverIndigoPort()
+      return res && res.ok ? res : { ok: false }
     } catch (e) {
       return { ok: false, error: String(e && e.message ? e.message : e) }
     }
