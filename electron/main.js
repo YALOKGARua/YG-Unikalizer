@@ -104,6 +104,24 @@ function normalizeBearerToken(token) {
   return t
 }
 
+function withInsecureTls(fn) {
+  const prev = process.env.NODE_TLS_REJECT_UNAUTHORIZED
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
+  const end = () => {
+    if (prev === undefined) delete process.env.NODE_TLS_REJECT_UNAUTHORIZED
+    else process.env.NODE_TLS_REJECT_UNAUTHORIZED = prev
+  }
+  try {
+    const p = fn()
+    if (p && typeof p.finally === 'function') return p.finally(end)
+    end()
+    return p
+  } catch (e) {
+    end()
+    throw e
+  }
+}
+
 async function fetchWithAuth(url, token, timeoutMs = 2500) {
   const ctrl = new AbortController()
   const id = setTimeout(() => ctrl.abort(), timeoutMs)
@@ -210,12 +228,24 @@ async function getWithHeaderOrQuery(base, pathPart, token, timeoutMs = 2000) {
   const queryParam = (process.env.INDIGO_QUERY_TOKEN_PARAM || '').trim()
   async function asQuery() {
     const sep = pathPart.includes('?') ? '&' : '?'
-    return await fetchSimple(base + pathPart + sep + (queryParam || 'token') + '=' + encodeURIComponent(normalizeBearerToken(token)), timeoutMs).catch(() => ({ ok: false, status: 0 }))
+    const u = base + pathPart + sep + (queryParam || 'token') + '=' + encodeURIComponent(normalizeBearerToken(token))
+    let r = await fetchSimple(u, timeoutMs).catch(() => ({ ok: false, status: 0 }))
+    if (!r || r.status === 0) {
+      try { r = await withInsecureTls(() => fetchSimple(u, timeoutMs).catch(() => ({ ok: false, status: 0 }))) } catch (_) {}
+    }
+    return r
   }
   async function asHeader() {
-    const pref = await fetchWithPreferredAuth(url, token, timeoutMs).catch(() => ({ ok: false, status: 0 }))
+    let pref = await fetchWithPreferredAuth(url, token, timeoutMs).catch(() => ({ ok: false, status: 0 }))
+    if (!pref || pref.status === 0) {
+      try { pref = await withInsecureTls(() => fetchWithPreferredAuth(url, token, timeoutMs).catch(() => ({ ok: false, status: 0 }))) } catch (_) {}
+    }
     if (pref && (pref.ok || (pref.status && pref.status !== 0 && pref.status !== 404))) return pref
-    return await fetchWithAnyAuth(url, token, timeoutMs).catch(() => ({ ok: false, status: 0 }))
+    let any = await fetchWithAnyAuth(url, token, timeoutMs).catch(() => ({ ok: false, status: 0 }))
+    if (!any || any.status === 0) {
+      try { any = await withInsecureTls(() => fetchWithAnyAuth(url, token, timeoutMs).catch(() => ({ ok: false, status: 0 }))) } catch (_) {}
+    }
+    return any
   }
   if (queryParam) {
     const r = await asQuery()
@@ -232,6 +262,7 @@ async function getWithHeaderOrQuery(base, pathPart, token, timeoutMs = 2000) {
   }
 }
 
+// Indigo support removed
 async function tryProbeIndigo(port) {
   const base = `http://127.0.0.1:${port}`
   const authPaths = ['/api/v1/me', '/api/v1/user', '/api/user', '/me', '/api/v1/profile', '/api/profile', '/profile', '/api/account', '/account']
@@ -284,6 +315,7 @@ async function discoverIndigoPort() {
   add(21168)
   for (let d = -8; d <= 8; d += 1) add(21168 + d)
   for (let p = 21100; p <= 21250; p += 1) add(p)
+  for (let p = 20000; p <= 24000; p += 1) add(p)
   try {
     const home = os.homedir()
     const candidates = [
@@ -1148,46 +1180,7 @@ app.whenReady().then(() => {
     }
   })
 
-  ipcMain.handle('check-token-indigo', async (_e, payload) => {
-    try {
-      const endpoint = payload && payload.endpoint ? String(payload.endpoint) : ''
-      const token = payload && payload.token ? String(payload.token) : ''
-      const needsAuthPaths = (u) => {
-        try {
-          const url = new URL(u)
-          if (!url.pathname || url.pathname === '/' || /^(?:\/index\.html)?$/i.test(url.pathname)) return true
-          if (/\/(me|user|profile|account|apikey|token)$/i.test(url.pathname)) return false
-          return true
-        } catch (_) { return true }
-      }
-      if (!endpoint) {
-        const host = (process.env.INDIGO_HOST || 'http://127.0.0.1').replace(/\/$/, '')
-        const envPort = Number(process.env.INDIGO_PORT || 0)
-        let base = host
-        if (envPort) base = `${host}:${envPort}`
-        if (base) {
-          const prefix = await detectApiPrefix(base, token)
-          const res = await tryAuthEndpoints(base, prefix, token)
-          if (res && res.ok) return { ok: true, status: res.status, url: base + res.path, prefix }
-          if (res && res.status) return { ok: false, status: res.status, url: base + (res.path || ''), prefix }
-          return { ok: false, status: 0, url: base, prefix }
-        }
-      }
-      if (endpoint && needsAuthPaths(endpoint)) {
-        try {
-          const base = endpoint.replace(/\/?$/, '')
-          const prefix = await detectApiPrefix(base, token)
-          const res = await tryAuthEndpoints(base, prefix, token)
-          if (res && res.ok) return { ok: true, status: res.status, url: base + res.path, prefix }
-          if (res && res.status) return { ok: false, status: res.status, url: base + (res.path || ''), prefix }
-        } catch (_) {}
-      }
-      const res = await verifyTokenAccess(endpoint, token)
-      return res && typeof res.ok === 'boolean' ? res : { ok: false }
-    } catch (e) {
-      return { ok: false, error: String(e && e.message ? e.message : e) }
-    }
-  })
+
 
   ipcMain.handle('check-token-vision', async (_e, payload) => {
     try {
@@ -1200,45 +1193,190 @@ app.whenReady().then(() => {
     }
   })
 
-  ipcMain.handle('discover-indigo-port', async (_e, payload) => {
+
+
+
+
+
+
+
+
+  ipcMain.handle('export-indigo-by-token', async (_e, payload) => {
     try {
-      const res = await discoverIndigoPort()
-      return res && res.ok ? res : { ok: false }
+      const token = String(payload && payload.token)
+      const targetDir = String(payload && payload.targetDir)
+      const baseOverride = (payload && payload.base ? String(payload.base) : '').trim()
+      if (!token || !targetDir) return { ok: false, error: 'bad-args' }
+      await fs.promises.mkdir(targetDir, { recursive: true })
+      function log(info) { try { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('indigo-export-progress', { log: String(info||'') }) } catch (_) {} }
+      async function detectPort() {
+        try {
+          const p = path.join(os.homedir(), '.indigobrowser', 'app.properties')
+          const txt = await fs.promises.readFile(p, 'utf-8')
+          const m = txt.match(/multiloginapp\.port\s*=\s*(\d{4,5})/)
+          if (m) return Number(m[1])
+        } catch (_) {}
+        try {
+          const logsDir = path.join(os.homedir(), '.indigobrowser')
+          const items = await fs.promises.readdir(logsDir).catch(()=>[])
+          for (const f of items.slice(0, 50)) {
+            const fp = path.join(logsDir, f)
+            try {
+              const st = await fs.promises.stat(fp)
+              if (!st.isFile()) continue
+              const txt = await fs.promises.readFile(fp, 'utf-8')
+              let m = txt.match(/Server Running: https?:\/\/[^:]+:(\d{4,5})/)
+              if (m) return Number(m[1])
+              m = txt.match(/listening\s+(\d{4,5})\s+port/i)
+              if (m) return Number(m[1])
+            } catch (_) {}
+          }
+        } catch (_) {}
+        try {
+          const ports = []
+          await new Promise(resolve => {
+            exec('netstat -ano -p tcp', { windowsHide: true }, (err, stdout) => {
+              if (stdout) {
+                const lines = String(stdout).split(/\r?\n/)
+                for (const ln of lines) {
+                  if (!/LISTENING/i.test(ln)) continue
+                  const m = ln.match(/\s(?:127\.0\.0\.1|0\.0\.0\.0|\[::1\]|\[::\]):(\d{4,5})/)
+                  const pidm = ln.match(/\s(\d+)\s*$/)
+                  if (m && pidm) ports.push({ port: Number(m[1]), pid: Number(pidm[1]) })
+                }
+              }
+              resolve()
+            })
+          })
+          const names = new Map()
+          await new Promise(resolve => {
+            exec('tasklist /FO CSV /NH', { windowsHide: true }, (_e2, out2) => {
+              if (out2) {
+                const rows = String(out2).split(/\r?\n/).filter(Boolean)
+                for (const row of rows) {
+                  const parts = row.split(',').map(s => s.replace(/^"|"$/g, ''))
+                  const name = parts[0] || ''
+                  const pid = Number(parts[1] || 0)
+                  if (pid) names.set(pid, name.toLowerCase())
+                }
+              }
+              resolve()
+            })
+          })
+          for (const it of ports) {
+            const nm = names.get(it.pid) || ''
+            if (nm.includes('indigo') || nm.includes('multilogin')) return it.port
+          }
+        } catch (_) {}
+        const guesses = [12301, 10628, 35000, 21168]
+        const ranges = [[12000,13050],[21000,21300]]
+        async function portOk(p) {
+          const base = `http://127.0.0.1:${p}`
+          const pref = await detectApiPrefix(base, token)
+          const ctrl = new AbortController(); const id = setTimeout(() => ctrl.abort(), 1500)
+          try { const res = await fetch(`${base}${pref}/version`, { signal: ctrl.signal }); clearTimeout(id); return res && res.ok } catch (_) { clearTimeout(id); return false }
+        }
+        for (const g of guesses) { if (await portOk(g)) return g }
+        for (const [a,b] of ranges) { for (let p=a;p<=b;p+=1) { if (await portOk(p)) return p } }
+        return 0
+      }
+      let base = ''
+      if (baseOverride) {
+        base = baseOverride.replace(/\/$/, '')
+        log(`base-override=${base}`)
+      } else {
+        const port = await detectPort(); log(`port=${port||'unknown'}`)
+        base = port ? `http://127.0.0.1:${port}` : 'http://127.0.0.1'; log(`base=${base}`)
+      }
+      const prefix = await detectApiPrefix(base, token); log(`prefix=${prefix}`)
+      async function getJsonAuthForBase(baseArg, pathPart) {
+        try {
+          const r = await getWithHeaderOrQuery(baseArg, pathPart, token, 6000)
+          if (!r || (!r.ok && (!r.status || r.status === 0 || r.status === 404))) return { ok: false, status: r ? r.status : 0 }
+          let data = r.body
+          if (typeof data === 'string') {
+            try { data = JSON.parse(data) } catch (_) { data = null }
+          }
+          return { ok: !!r.ok, status: r.status, data }
+        } catch (e) { return { ok: false, error: String(e && e.message ? e.message : e) } }
+      }
+      const listUrls = [`${prefix}/profiles`, `${prefix}/profile`, `${prefix}/groups`, `${prefix}/team/groups`, `${prefix}/group`]
+      let listRes = { ok: false }
+      let chosenListPath = ''
+      const baseCandidates = [base, base.replace(/^http:\/\//i, 'https://')]
+      for (const pth of listUrls) {
+        let found = false
+        for (const b of Array.from(new Set(baseCandidates))) {
+          const r = await getJsonAuthForBase(b, pth)
+          log(`probe ${b}${pth} -> ${r && (r.status||r.ok) ? (r.ok?('ok '+(r.status||200)) : ('err '+(r.status||0))) : 'fail'}`)
+          if (r && r.ok) { listRes = r; chosenListPath = pth; base = b; found = true; break }
+          if (r && r.status && r.status !== 404) { listRes = r; chosenListPath = pth; base = b; found = true; break }
+        }
+        if (found) break
+      }
+      if (!listRes.ok) {
+        log('fallback-offline')
+        const src = path.join(os.homedir(), '.indigobrowser')
+        async function findProfilesRoot(base) {
+          const c1 = path.join(base, 'data', 'profiles')
+          const c2 = path.join(base, 'profiles')
+          try { if ((await fs.promises.stat(c1)).isDirectory()) return c1 } catch (_) {}
+          try { if ((await fs.promises.stat(c2)).isDirectory()) return c2 } catch (_) {}
+          return ''
+        }
+        const root = await findProfilesRoot(src)
+        if (!root) return { ok: false, error: 'fetch-failed' }
+        const items = await fs.promises.readdir(root, { withFileTypes: true })
+        let cnt = 0
+        for (const it of items) {
+          if (!it.isDirectory()) continue
+          const s = path.join(root, it.name)
+          const d = path.join(targetDir, it.name)
+          await fs.promises.mkdir(d, { recursive: true })
+          const files = await fs.promises.readdir(s, { withFileTypes: true })
+          for (const f of files) {
+            const sp = path.join(s, f.name)
+            const dp = path.join(d, f.name)
+            if (f.isDirectory()) continue
+            try { await fs.promises.copyFile(sp, dp) } catch (_) {}
+          }
+          cnt += 1
+          emit(cnt, { id: it.name })
+        }
+        emit(cnt, { done: true })
+        return { ok: true, count: cnt, base, prefix, listPath: 'offline' }
+      }
+      let profiles = []
+      if (Array.isArray(listRes.data)) profiles = listRes.data
+      else if (listRes.data && typeof listRes.data === 'object') {
+        const d = listRes.data
+        profiles = d.items || d.profiles || d.data || d.result || d.results || []
+        if (!Array.isArray(profiles)) profiles = []
+      }
+      let count = 0
+      const total = profiles.length || 0
+      function emit(idx, info) {
+        try { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('indigo-export-progress', { idx, total, info }) } catch (_) {}
+      }
+      emit(0, { base, prefix, listPath: chosenListPath })
+      for (const p of profiles) {
+        const id = p && (p.id || p.uuid || p.profileId)
+        if (!id) continue
+        const details = await getJsonAuth(`${prefix}/profile/${id}`)
+        if (!details.ok) continue
+        const outPath = path.join(targetDir, `${sanitizeName(String(id))}.json`)
+        await fs.promises.writeFile(outPath, JSON.stringify(details.data, null, 2), 'utf-8')
+        count += 1
+        emit(count, { id })
+      }
+      emit(total, { done: true })
+      return { ok: true, count, base, prefix, listPath: chosenListPath }
     } catch (e) {
       return { ok: false, error: String(e && e.message ? e.message : e) }
     }
   })
 
-  ipcMain.handle('login-indigo', async (_e, payload) => {
-    try {
-      const base = String(payload && payload.base)
-      const email = String(payload && payload.email)
-      const password = String(payload && payload.password)
-      if (!base || !email || !password) return { ok: false }
-      const prefix = await detectApiPrefix(base, '')
-      const url = `${base}${prefix}/login`
-      const ctrl = new AbortController()
-      const id = setTimeout(() => ctrl.abort(), 4000)
-      try {
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
-          signal: ctrl.signal
-        })
-        clearTimeout(id)
-        if (!res.ok) return { ok: false, status: res.status }
-        let body = null
-        try { body = await res.json() } catch (_) {}
-        return { ok: true, status: res.status, body }
-      } catch (e) {
-        clearTimeout(id)
-        return { ok: false, error: String(e && e.message ? e.message : e) }
-      }
-    } catch (e) {
-      return { ok: false, error: String(e && e.message ? e.message : e) }
-    }
-  })
+
 })
 
 app.on('window-all-closed', () => {

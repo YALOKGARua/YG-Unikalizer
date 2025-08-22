@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import ProgressLine from './components/ProgressLine'
 import AuthGate from './components/AuthGate'
 
@@ -9,6 +10,7 @@ function toFileUrl(p) {
 }
 
 export default function App() {
+  const { t, i18n } = useTranslation()
   const [files, setFiles] = useState([])
   const [outputDir, setOutputDir] = useState('')
   const [format, setFormat] = useState('jpg')
@@ -99,6 +101,18 @@ export default function App() {
   const [indigoPort, setIndigoPort] = useState('')
   const [indigoEmail, setIndigoEmail] = useState('')
   const [indigoPwd, setIndigoPwd] = useState('')
+  const [indigoSrc, setIndigoSrc] = useState('')
+  const [indigoTokenInput, setIndigoTokenInput] = useState('')
+  const [indigoExp, setIndigoExp] = useState({ idx: 0, total: 0, info: null })
+  const [indigoCsvPath, setIndigoCsvPath] = useState('')
+
+  function resSummary(r) {
+    if (!r) return null
+    const text = r.ok ? (typeof r.count === 'number' ? `Готово • ${r.count}` : 'Готово') : (r.status ? `Ошибка • ${r.status}` : 'Ошибка')
+    return <div className={`text-xs ${r.ok ? 'text-emerald-400' : 'text-rose-400'}`}>{text}</div>
+  }
+
+  
 
   const GEAR_PRESETS = {
     camera: {
@@ -311,6 +325,10 @@ export default function App() {
     window.api.checkForUpdates().catch(() => {})
     return () => { offAvail(); offNot(); offErr(); offProg(); offDone() }
   }, [])
+
+  useEffect(() => {
+    try { document.documentElement.setAttribute('dir', i18n.language === 'ar' ? 'rtl' : 'ltr') } catch (_) {}
+  }, [i18n.language])
 
   const handleAdd = async () => {
     const paths = await window.api.selectImages()
@@ -737,6 +755,29 @@ export default function App() {
       <header className="px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-2">
         <div className="text-2xl font-semibold tracking-tight">PhotoUnikalizer</div>
         <div className="flex items-center gap-2 flex-wrap">
+          <select
+            className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs"
+            value={i18n.language}
+            onChange={e => { const v = e.target.value; i18n.changeLanguage(v); try { localStorage.setItem('lang', v) } catch (_) {} }}
+          >
+            <option value="uk">Українська</option>
+            <option value="ru">Русский</option>
+            <option value="en">English</option>
+            <option value="ar">العربية</option>
+            <option value="zh">中文</option>
+            <option value="pl">Polski</option>
+            <option value="es">Español</option>
+            <option value="fr">Français</option>
+            <option value="ja">日本語</option>
+            <option value="ko">한국어</option>
+            <option value="kk">Қазақ тілі</option>
+            <option value="it">Italiano</option>
+            <option value="sv">Svenska</option>
+            <option value="nb">Norsk</option>
+            <option value="fi">Suomi</option>
+            <option value="ro">Română</option>
+            <option value="ro-MD">Română (MD)</option>
+          </select>
           <div className="text-xs neon">by YALOKGAR</div>
           <button onClick={async()=>{
             try {
@@ -749,7 +790,7 @@ export default function App() {
             } catch (_) {
               setCurrentNotesOpen(v=>!v)
             }
-          }} className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs">Что нового в текущей версии</button>
+          }} className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs">{t('actions.whatsNew')}</button>
           <button onClick={async()=>{
             try {
               if (!aboutMd) {
@@ -761,7 +802,7 @@ export default function App() {
             } catch (_) {
               setAboutOpen(v=>!v)
             }
-          }} className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs">О программе</button>
+          }} className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs">{t('actions.about')}</button>
         </div>
       </header>
 
@@ -820,27 +861,27 @@ export default function App() {
 
       <main className="px-4 sm:px-6 pb-6 grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6" onDrop={onDrop} onDragOver={onDragOver}>
         <section className="col-span-1 lg:col-span-4 glass rounded-xl p-4 sm:p-5 border border-white/10">
-          <div className="text-sm font-semibold mb-4">Вывод</div>
+          <div className="text-sm font-semibold mb-4">{t('sections.output')}</div>
           <div className="flex gap-2">
-            <button onClick={handleOutput} className="px-3 py-2 rounded bg-brand-600 hover:bg-brand-500 text-white">Выбрать папку</button>
-            <div className="text-xs truncate opacity-80 self-center max-w-[260px]" title={outputDir}>{outputDir || 'Не выбрана'}</div>
-            {!!outputDir && <button onClick={()=>window.api.openPath(outputDir)} className="px-2 py-2 rounded bg-slate-800 hover:bg-slate-700 text-xs">Открыть</button>}
+            <button onClick={handleOutput} className="px-3 py-2 rounded bg-brand-600 hover:bg-brand-500 text-white">{t('common.pickFolder')}</button>
+            <div className="text-xs truncate opacity-80 self-center max-w-[260px]" title={outputDir}>{outputDir || t('common.notSelected')}</div>
+            {!!outputDir && <button onClick={()=>window.api.openPath(outputDir)} className="px-2 py-2 rounded bg-slate-800 hover:bg-slate-700 text-xs">{t('common.open')}</button>}
           </div>
 
           <div className="h-px bg-white/10 my-5" />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <div className="text-xs mb-1">Профиль</div>
+              <div className="text-xs mb-1">{t('profile.title')}</div>
               <select className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={profile} onChange={e => setProfile(e.target.value)}>
-                <option value="custom">Свои настройки</option>
-                <option value="soft">Мягкая уникализация</option>
-                <option value="strong">Сильная уникализация</option>
-                <option value="facebook">Facebook</option>
+                <option value="custom">{t('profile.custom')}</option>
+                <option value="soft">{t('profile.soft')}</option>
+                <option value="strong">{t('profile.strong')}</option>
+                <option value="facebook">{t('profile.facebook')}</option>
               </select>
             </div>
             <div>
-              <div className="text-xs mb-1">Формат</div>
+              <div className="text-xs mb-1">{t('format.title')}</div>
               <select className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={format} onChange={e => setFormat(e.target.value)}>
                 <option value="jpg">JPG</option>
                 <option value="png">PNG</option>
@@ -849,7 +890,7 @@ export default function App() {
               </select>
             </div>
             <div>
-              <div className="text-xs mb-1">Качество</div>
+              <div className="text-xs mb-1">{t('quality.title')}</div>
               <select className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={quality} onChange={e => setQuality(Number(e.target.value))}>
                 <option value={70}>70</option>
                 <option value={75}>75</option>
@@ -861,7 +902,7 @@ export default function App() {
               </select>
             </div>
             <div>
-              <div className="text-xs mb-1">Цветовой дрейф %</div>
+              <div className="text-xs mb-1">{t('drift.color')}</div>
               <select className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={colorDrift} onChange={e => setColorDrift(Number(e.target.value))}>
                 <option value={0}>0</option>
                 <option value={1}>1</option>
@@ -872,7 +913,7 @@ export default function App() {
               </select>
             </div>
             <div>
-              <div className="text-xs mb-1">Размерный дрейф %</div>
+              <div className="text-xs mb-1">{t('drift.size')}</div>
               <select className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={resizeDrift} onChange={e => setResizeDrift(Number(e.target.value))}>
                 <option value={0}>0</option>
                 <option value={1}>1</option>
@@ -883,19 +924,19 @@ export default function App() {
               </select>
             </div>
             <div>
-              <div className="text-xs mb-1">Макс. ширина</div>
-              <input type="number" className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={resizeMaxW} onChange={e=>setResizeMaxW(Number(e.target.value))} placeholder="0 = без ограничения (FB 2048)" />
+              <div className="text-xs mb-1">{t('maxWidth.title')}</div>
+              <input type="number" className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={resizeMaxW} onChange={e=>setResizeMaxW(Number(e.target.value))} placeholder={t('maxWidth.placeholder', { defaultValue: '0 = no limit (FB 2048)' })} />
             </div>
             <div className="md:col-span-2">
-              <div className="text-xs mb-1">Схема имени</div>
+              <div className="text-xs mb-1">{t('naming.title')}</div>
               <input className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={naming} onChange={e => setNaming(e.target.value)} />
-              <div className="text-[10px] opacity-60 mt-1">Токены: {'{name}'} {'{index}'} {'{ext}'} {'{date}'} {'{uuid}'} {'{rand}'}</div>
+              <div className="text-[10px] opacity-60 mt-1">{t('naming.hint')}</div>
             </div>
 
             <div className="md:col-span-2 h-px bg-white/10 my-5" />
 
             <div className="md:col-span-2 flex flex-col sm:flex-row items-center justify-between gap-2">
-              <div className="text-xs">GPU ускорение (тестируется)</div>
+              <div className="text-xs">{t('gpu.title')}</div>
               <label className="flex items-center gap-2 text-xs">
                 <input type="checkbox" disabled={!gpuSupported} checked={gpuEnabled && gpuSupported} onChange={e => {
                   const g = window.api?.native?.gpu
@@ -904,69 +945,69 @@ export default function App() {
                   g.setEnabled(next)
                   setGpuEnabled(next)
                 }} />
-                <span className="opacity-70">{gpuSupported ? (gpuEnabled ? `Включено • ${gpuName||'GPU'}` : 'Выключено') : 'Недоступно'}</span>
+                <span className="opacity-70">{gpuSupported ? (gpuEnabled ? `${t('gpu.enabled')} • ${gpuName||'GPU'}` : t('gpu.disabled')) : t('gpu.unavailable')}</span>
               </label>
             </div>
 
             <div className="md:col-span-2">
-              <div className="text-sm font-semibold mb-3">Метаданные</div>
+              <div className="text-sm font-semibold mb-3">{t('meta.title')}</div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
-                  <div className="text-xs mb-1">Автор</div>
+                  <div className="text-xs mb-1">{t('meta.author')}</div>
                   <input className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={author} onChange={e => setAuthor(e.target.value)} />
                 </div>
                 <div className="md:col-span-2 flex items-center justify-between">
-                  <div className="text-xs opacity-80">Мои данные</div>
-                  <button onClick={fillMyData} className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs">Заполнить</button>
+                  <div className="text-xs opacity-80">{t('meta.myData')}</div>
+                  <button onClick={fillMyData} className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs">{t('meta.fill')}</button>
                 </div>
                 <div>
-                  <div className="text-xs mb-1">Контактное имя</div>
+                  <div className="text-xs mb-1">{t('meta.contactName')}</div>
                   <input className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={contactName} onChange={e => setContactName(e.target.value)} />
                 </div>
                 <div>
-                  <div className="text-xs mb-1">Email</div>
+                  <div className="text-xs mb-1">{t('meta.email')}</div>
                   <input className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={contactEmail} onChange={e => setContactEmail(e.target.value)} />
                 </div>
                 <div>
-                  <div className="text-xs mb-1">Сайт/URL</div>
+                  <div className="text-xs mb-1">{t('meta.website')}</div>
                   <input className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={website} onChange={e => setWebsite(e.target.value)} />
                 </div>
                 <div>
-                  <div className="text-xs mb-1">Владелец</div>
+                  <div className="text-xs mb-1">{t('meta.owner')}</div>
                   <input className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={owner} onChange={e => setOwner(e.target.value)} />
                 </div>
                 <div className="md:col-span-2">
-                  <div className="text-xs mb-1">Инструмент/ПО</div>
+                  <div className="text-xs mb-1">{t('meta.tool')}</div>
                   <input className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={creatorTool} onChange={e => setCreatorTool(e.target.value)} />
                 </div>
                 <div className="md:col-span-2">
-                  <div className="text-xs mb-1">Описание</div>
+                  <div className="text-xs mb-1">{t('meta.description')}</div>
                   <input className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={description} onChange={e => setDescription(e.target.value)} />
                 </div>
                 <div className="md:col-span-2">
-                  <div className="text-xs mb-1">Права</div>
+                  <div className="text-xs mb-1">{t('meta.rights')}</div>
                   <input className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={copyright} onChange={e => setCopyright(e.target.value)} />
                 </div>
                 <div className="md:col-span-2">
-                  <div className="text-xs mb-1">Ключевые слова</div>
-                  <input placeholder="через запятую" className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={keywords} onChange={e => setKeywords(e.target.value)} />
+                  <div className="text-xs mb-1">{t('meta.keywords')}</div>
+                  <input placeholder={t('meta.keywordsPlaceholder', { defaultValue: 'comma separated' })} className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={keywords} onChange={e => setKeywords(e.target.value)} />
                 </div>
                 <div>
-                  <div className="text-xs mb-1">Даты</div>
+                  <div className="text-xs mb-1">{t('meta.dates')}</div>
                   <select className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={dateStrategy} onChange={e => setDateStrategy(e.target.value)}>
-                    <option value="keep">Оставить</option>
-                    <option value="now">Текущее время</option>
-                    <option value="offset">Смещение</option>
+                    <option value="keep">{t('meta.date.keep')}</option>
+                    <option value="now">{t('meta.date.now')}</option>
+                    <option value="offset">{t('meta.date.offset')}</option>
                   </select>
                 </div>
                 <div>
-                  <div className="text-xs mb-1">Смещение, мин</div>
+                  <div className="text-xs mb-1">{t('meta.offsetMinutes')}</div>
                   <input type="number" className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={dateOffsetMinutes} onChange={e => setDateOffsetMinutes(e.target.value)} />
                 </div>
                 <div className="md:col-span-2 flex flex-wrap items-center gap-4 mt-2">
-                  <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={removeGps} onChange={e => setRemoveGps(e.target.checked)} /> Убрать GPS</label>
-                  <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={uniqueId} onChange={e => setUniqueId(e.target.checked)} /> Уникальный ID</label>
-                  <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={removeAllMeta} onChange={e => setRemoveAllMeta(e.target.checked)} /> Удалить все метаданные</label>
+                  <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={removeGps} onChange={e => setRemoveGps(e.target.checked)} /> {t('meta.removeGps')}</label>
+                  <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={uniqueId} onChange={e => setUniqueId(e.target.checked)} /> {t('meta.uniqueId')}</label>
+                  <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={removeAllMeta} onChange={e => setRemoveAllMeta(e.target.checked)} /> {t('meta.removeAll')}</label>
                 </div>
               </div>
             </div>
@@ -974,67 +1015,67 @@ export default function App() {
 
           <div className="h-px bg-white/10 my-5" />
 
-          <div className="text-sm font-semibold mb-3">Фейковые метаданные</div>
+          <div className="text-sm font-semibold mb-3">{t('fake.title')}</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2 flex items-center justify-end">
-              <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={fakeMeta} onChange={e => setFakeMeta(e.target.checked)} /> Включить</label>
+              <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={fakeMeta} onChange={e => setFakeMeta(e.target.checked)} /> {t('fake.enable')}</label>
             </div>
 
             {!renderFakeBelow && (
             <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4 p-3 rounded bg-slate-900/40 border border-white/5">
               <div>
-                <div className="text-[10px] opacity-60 mb-1">Кто</div>
-                <div className="text-xs">Автор: <span className="opacity-80">{author || '—'}</span></div>
-                <div className="text-xs">Владелец: <span className="opacity-80">{owner || '—'}</span></div>
+                <div className="text-[10px] opacity-60 mb-1">{t('fake.who')}</div>
+                <div className="text-xs">{t('meta.author')}: <span className="opacity-80">{author || '—'}</span></div>
+                <div className="text-xs">{t('meta.owner')}: <span className="opacity-80">{owner || '—'}</span></div>
                 <div className="text-xs">Email: <span className="opacity-80">{contactEmail || '—'}</span></div>
               </div>
               <div>
-                <div className="text-[10px] opacity-60 mb-1">Аппарат</div>
-                <div className="text-xs">{fakeMake || 'Производитель'} • {fakeModel || 'Модель'}</div>
-                <div className="text-xs">{fakeLens || 'Объектив'}</div>
-                <div className="text-[10px] opacity-60 mt-1">Профиль: {fakeProfile}</div>
+                <div className="text-[10px] opacity-60 mb-1">{t('fake.device')}</div>
+                <div className="text-xs">{fakeMake || t('fake.make')} • {fakeModel || t('fake.model')}</div>
+                <div className="text-xs">{fakeLens || t('fake.lens')}</div>
+                <div className="text-[10px] opacity-60 mt-1">{t('fake.profile')}: {fakeProfile}</div>
               </div>
               <div>
-                <div className="text-[10px] opacity-60 mb-1">Контакты</div>
-                <div className="text-xs">Сайт: <span className="opacity-80">{website || '—'}</span></div>
-                <div className="text-xs">ПО: <span className="opacity-80">{fakeSoftware || creatorTool || '—'}</span></div>
+                <div className="text-[10px] opacity-60 mb-1">{t('fake.contacts')}</div>
+                <div className="text-xs">{t('fake.site')}: <span className="opacity-80">{website || '—'}</span></div>
+                <div className="text-xs">{t('fake.software')}: <span className="opacity-80">{fakeSoftware || creatorTool || '—'}</span></div>
               </div>
             </div>
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2">
-              <label className="text-xs">Производитель
+              <label className="text-xs">{t('fake.make')}
                 <select className="mt-1 w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={fakeMake} onChange={e => setFakeMake(e.target.value)} disabled={!fakeMeta}>
                   {makeOptions.map(v => <option key={v} value={v}>{v}</option>)}
                 </select>
               </label>
-              <label className="text-xs">Модель
+              <label className="text-xs">{t('fake.model')}
                 <select className="mt-1 w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={fakeModel} onChange={e => setFakeModel(e.target.value)} disabled={!fakeMeta}>
                   {modelOptions.map(v => <option key={v} value={v}>{v}</option>)}
                 </select>
               </label>
-              <label className="text-xs">Объектив
+              <label className="text-xs">{t('fake.lens')}
                 <select className="mt-1 w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={fakeLens} onChange={e => setFakeLens(e.target.value)} disabled={!fakeMeta}>
                   {lensOptions.map(v => <option key={v} value={v}>{v}</option>)}
                 </select>
               </label>
-              <label className="text-xs">ПО
+              <label className="text-xs">{t('fake.softwareLabel')}
                 <select className="mt-1 w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={fakeSoftware} onChange={e => setFakeSoftware(e.target.value)} disabled={!fakeMeta}>
                   {SOFTWARE_PRESETS.map(v => <option key={v} value={v}>{v}</option>)}
                 </select>
               </label>
-              <label className="text-xs">Серийный номер
+              <label className="text-xs">{t('fake.serial')}
                 <select className="mt-1 w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={fakeSerial} onChange={e => setFakeSerial(e.target.value)} disabled={!fakeMeta}>
                   {SERIAL_PRESETS.map(v => <option key={v} value={v}>{v}</option>)}
                 </select>
               </label>
               <div className="col-span-2 flex flex-wrap items-center gap-x-4 gap-y-2">
-                <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={fakePerFile} onChange={e => setFakePerFile(e.target.checked)} disabled={!fakeMeta} /> Уникально на файл</label>
-                <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={fakeGps} onChange={e => setFakeGps(e.target.checked)} disabled={!fakeMeta} /> Подменить GPS</label>
-                <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={fakeAuto} onChange={e => setFakeAuto(e.target.checked)} disabled={!fakeMeta} /> Автозаполнение</label>
-                <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={onlineAuto} onChange={e => setOnlineAuto(e.target.checked)} disabled={!fakeMeta} /> Подтянуть из интернета</label>
+                <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={fakePerFile} onChange={e => setFakePerFile(e.target.checked)} disabled={!fakeMeta} /> {t('fake.perFile')}</label>
+                <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={fakeGps} onChange={e => setFakeGps(e.target.checked)} disabled={!fakeMeta} /> {t('fake.gps')}</label>
+                <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={fakeAuto} onChange={e => setFakeAuto(e.target.checked)} disabled={!fakeMeta} /> {t('fake.auto')}</label>
+                <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={onlineAuto} onChange={e => setOnlineAuto(e.target.checked)} disabled={!fakeMeta} /> {t('fake.online')}</label>
               </div>
-              <label className="text-xs">Профиль
+              <label className="text-xs">{t('fake.profile')}
                 <select className="mt-1 w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={fakeProfile} onChange={e => setFakeProfile(e.target.value)} disabled={!fakeMeta}>
                   <option value="camera">Камера</option>
                   <option value="phone">Смартфон</option>
@@ -1043,97 +1084,97 @@ export default function App() {
                   <option value="scanner">Сканер</option>
                 </select>
               </label>
-              <label className="text-xs">Локация
+              <label className="text-xs">{t('fake.location')}
                 <select className="mt-1 w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={locationPreset} onChange={e => setLocationPreset(e.target.value)} disabled={!fakeMeta}>
                   {LOCATION_PRESETS.map(l => <option key={l.id} value={l.id}>{l.label}</option>)}
                 </select>
               </label>
               <div />
-              <label className="text-xs">Широта
+              <label className="text-xs">{t('fake.lat')}
                 <input type="number" step="0.000001" className="mt-1 w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={fakeLat} onChange={e => setFakeLat(e.target.value)} placeholder="оставь пусто для случайного" disabled={!fakeMeta || !fakeGps} />
               </label>
-              <label className="text-xs">Долгота
+              <label className="text-xs">{t('fake.lon')}
                 <input type="number" step="0.000001" className="mt-1 w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={fakeLon} onChange={e => setFakeLon(e.target.value)} placeholder="оставь пусто для случайного" disabled={!fakeMeta || !fakeGps} />
               </label>
-              <label className="text-xs">Высота
+              <label className="text-xs">{t('fake.alt')}
                 <input type="number" step="1" className="mt-1 w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={fakeAltitude} onChange={e => setFakeAltitude(e.target.value)} placeholder="м" disabled={!fakeMeta || !fakeGps} />
               </label>
-              <label className="text-xs">ISO
+              <label className="text-xs">{t('fake.iso')}
                 <select className="mt-1 w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={fakeIso} onChange={e => setFakeIso(e.target.value)} disabled={!fakeMeta}>
                   <option value="">—</option>
                   {ISO_PRESETS.map(v => <option key={v} value={v}>{v}</option>)}
                 </select>
               </label>
-              <label className="text-xs">Выдержка
+              <label className="text-xs">{t('fake.exposure')}
                 <select className="mt-1 w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={fakeExposureTime} onChange={e => setFakeExposureTime(e.target.value)} disabled={!fakeMeta}>
                   <option value="">—</option>
                   {EXPOSURE_TIMES.map(v => <option key={v} value={v}>{v}</option>)}
                 </select>
               </label>
-              <label className="text-xs">Диафрагма (f/)
+              <label className="text-xs">{t('fake.fnumber')}
                 <select className="mt-1 w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={fakeFNumber} onChange={e => setFakeFNumber(e.target.value)} disabled={!fakeMeta}>
                   <option value="">—</option>
                   {FNUMBERS.map(v => <option key={v} value={v}>{v}</option>)}
                 </select>
               </label>
-              <label className="text-xs">Фокусное (мм)
+              <label className="text-xs">{t('fake.focal')}
                 <select className="mt-1 w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={fakeFocalLength} onChange={e => setFakeFocalLength(e.target.value)} disabled={!fakeMeta}>
                   <option value="">—</option>
                   {FOCALS.map(v => <option key={v} value={v}>{v}</option>)}
                 </select>
               </label>
-              <label className="text-xs">Программа экспозиции
+              <label className="text-xs">{t('fake.program')}
                 <select className="mt-1 w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={fakeExposureProgram} onChange={e => setFakeExposureProgram(e.target.value)} disabled={!fakeMeta}>
                   <option value="">—</option>
                   {EXPOSURE_PROGRAMS.map(o => <option key={o.v} value={o.v}>{o.label}</option>)}
                 </select>
               </label>
-              <label className="text-xs">Замер экспозиции
+              <label className="text-xs">{t('fake.metering')}
                 <select className="mt-1 w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={fakeMeteringMode} onChange={e => setFakeMeteringMode(e.target.value)} disabled={!fakeMeta}>
                   <option value="">—</option>
                   {METERING_MODES.map(o => <option key={o.v} value={o.v}>{o.label}</option>)}
                 </select>
               </label>
-              <label className="text-xs">Вспышка
+              <label className="text-xs">{t('fake.flash')}
                 <select className="mt-1 w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={fakeFlash} onChange={e => setFakeFlash(e.target.value)} disabled={!fakeMeta}>
                   <option value="">—</option>
                   {FLASH_MODES.map(o => <option key={o.v} value={o.v}>{o.label}</option>)}
                 </select>
               </label>
-              <label className="text-xs">Баланс белого
+              <label className="text-xs">{t('fake.whiteBalance')}
                 <select className="mt-1 w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={fakeWhiteBalance} onChange={e => setFakeWhiteBalance(e.target.value)} disabled={!fakeMeta}>
                   <option value="">—</option>
                   {WHITE_BALANCES.map(o => <option key={o.v} value={o.v}>{o.label}</option>)}
                 </select>
               </label>
-              <label className="text-xs">Цветовое пространство
+              <label className="text-xs">{t('fake.colorSpace')}
                 <select className="mt-1 w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={fakeColorSpace} onChange={e => setFakeColorSpace(e.target.value)} disabled={!fakeMeta}>
                   <option value="">—</option>
                   {COLOR_SPACES.map(v => <option key={v} value={v}>{v}</option>)}
                 </select>
               </label>
-              <label className="text-xs">Рейтинг
+              <label className="text-xs">{t('fake.rating')}
                 <select className="mt-1 w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={fakeRating} onChange={e => setFakeRating(e.target.value)} disabled={!fakeMeta}>
                   <option value="">—</option>
                   {RATINGS.map(v => <option key={v} value={v}>{v}</option>)}
                 </select>
               </label>
-              <label className="text-xs">Метка
+              <label className="text-xs">{t('fake.label')}
                 <select className="mt-1 w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={fakeLabel} onChange={e => setFakeLabel(e.target.value)} disabled={!fakeMeta}>
                   <option value="">—</option>
                   {LABELS.map(v => <option key={v} value={v}>{v}</option>)}
                 </select>
               </label>
-              <label className="text-xs">Заголовок
+              <label className="text-xs">{t('fake.titleField')}
                 <input className="mt-1 w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={fakeTitle} onChange={e => setFakeTitle(e.target.value)} disabled={!fakeMeta} />
               </label>
-              <label className="text-xs">Город
+              <label className="text-xs">{t('fake.city')}
                 <input className="mt-1 w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={fakeCity} onChange={e => setFakeCity(e.target.value)} disabled={!fakeMeta} />
               </label>
-              <label className="text-xs">Регион
+              <label className="text-xs">{t('fake.state')}
                 <input className="mt-1 w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={fakeState} onChange={e => setFakeState(e.target.value)} disabled={!fakeMeta} />
               </label>
-              <label className="text-xs">Страна
+              <label className="text-xs">{t('fake.country')}
                 <input className="mt-1 w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={fakeCountry} onChange={e => setFakeCountry(e.target.value)} disabled={!fakeMeta} />
               </label>
             </div>
@@ -1143,18 +1184,18 @@ export default function App() {
         <section className="col-span-1 lg:col-span-8 glass rounded-xl p-4 sm:p-5 border border-white/10">
           <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
             <div className="flex items-center gap-4">
-              <button className={`text-sm ${activeTab==='files' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('files')}>Файлы</button>
-              <button className={`text-sm ${activeTab==='ready' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('ready')}>Готовое</button>
-              <button className={`text-sm ${activeTab==='converter' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('converter')}>Конвертер TXT→JSON</button>
-              <button className={`text-sm ${activeTab==='indigo' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('indigo')}>Indigo (Тестируется)</button>
-              <button className={`text-sm ${activeTab==='vision' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('vision')}>Vision (скоро)</button>
+              <button className={`text-sm ${activeTab==='files' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('files')}>{t('tabs.files')}</button>
+              <button className={`text-sm ${activeTab==='ready' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('ready')}>{t('tabs.ready')}</button>
+              <button className={`text-sm ${activeTab==='converter' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('converter')}>{t('tabs.converter')}</button>
+              <button className={`text-sm ${activeTab==='indigo' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('indigo')}>{t('tabs.indigo')}</button>
+              <button className={`text-sm ${activeTab==='vision' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('vision')}>{t('tabs.vision')}</button>
             </div>
             <div className="flex flex-wrap gap-2">
-              <button onClick={handleAdd} className="px-3 py-2 rounded bg-brand-600 hover:bg-brand-500">Добавить файлы</button>
-              <button onClick={addFolder} className="px-3 py-2 rounded bg-brand-700 hover:bg-brand-600">Добавить папку</button>
-              <button onClick={handleClear} className="px-3 py-2 rounded bg-slate-800 hover:bg-slate-700">Очистить</button>
-              {!busy && <button disabled={!canStart} onClick={start} className={`px-3 py-2 rounded ${canStart ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-emerald-900 opacity-50 cursor-not-allowed'}`}>Старт</button>}
-              {busy && <button onClick={cancel} className="px-3 py-2 rounded bg-rose-600 hover:bg-rose-500">Отмена</button>}
+              <button onClick={handleAdd} className="px-3 py-2 rounded bg-brand-600 hover:bg-brand-500">{t('buttons.addFiles')}</button>
+              <button onClick={addFolder} className="px-3 py-2 rounded bg-brand-700 hover:bg-brand-600">{t('buttons.addFolder')}</button>
+              <button onClick={handleClear} className="px-3 py-2 rounded bg-slate-800 hover:bg-slate-700">{t('buttons.clear')}</button>
+              {!busy && <button disabled={!canStart} onClick={start} className={`px-3 py-2 rounded ${canStart ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-emerald-900 opacity-50 cursor-not-allowed'}`}>{t('buttons.start')}</button>}
+              {busy && <button onClick={cancel} className="px-3 py-2 rounded bg-rose-600 hover:bg-rose-500">{t('buttons.cancel')}</button>}
             </div>
           </div>
 
@@ -1173,11 +1214,11 @@ export default function App() {
               <div className="mt-6">
                 <ProgressLine current={progress.current} total={progress.total} />
                 <div className="text-xs opacity-80 mt-1">
-                  {busy ? 'Обработка…' : 'Готово'} {progress.lastFile ? `• ${progress.lastFile}` : ''}
+                  {busy ? t('status.processing') : t('status.ready')} {progress.lastFile ? `• ${progress.lastFile}` : ''}
                   {busy && (
                     <>
-                      {' '}• скорость {progress.speedBps ? `${(progress.speedBps/1024/1024).toFixed(2)} MB/s` : '—'}
-                      {' '}• ETA {progress.etaMs ? `${Math.max(0, Math.floor(progress.etaMs/1000))}s` : '—'}
+                      {' '}• {t('status.speed')} {progress.speedBps ? `${(progress.speedBps/1024/1024).toFixed(2)} MB/s` : '—'}
+                      {' '}• {t('status.eta')} {progress.etaMs ? `${Math.max(0, Math.floor(progress.etaMs/1000))}s` : '—'}
                     </>
                   )}
                 </div>
@@ -1279,43 +1320,7 @@ export default function App() {
 
           {activeTab === 'indigo' && (
             <div className="p-4 rounded bg-slate-900/60 border border-white/10 text-slate-200 text-sm">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-                <div className="flex flex-col">
-                  <div className="text-xs mb-1">Endpoint/Порт</div>
-                  <div className="flex gap-2">
-                    <input className="flex-1 bg-slate-900 border border-white/10 rounded px-2 py-2" value={indigoEndpoint} onChange={e => setIndigoEndpoint(e.target.value)} placeholder="http://127.0.0.1" />
-                    <input title="Порт" className="w-24 bg-slate-900 border border-white/10 rounded px-2 py-2 text-center" value={indigoPort} onChange={e=>setIndigoPort(e.target.value.replace(/[^0-9]/g,''))} />
-                  </div>
-                </div>
-                {indigoResult && (
-                  <div className="md:col-span-2 text-xs">
-                    <span className={`${indigoResult.ok ? 'text-emerald-400' : 'text-rose-400'}`}>{indigoResult.ok ? 'Успех' : 'Ошибка'}</span>
-                    {typeof indigoResult.status === 'number' ? ` • ${indigoResult.status}` : ''}
-                    {indigoResult.error ? ` • ${indigoResult.error}` : ''}
-                    {indigoResult.prefix ? ` • ${indigoResult.prefix}` : ''}
-                  </div>
-                )}
-                <div className="md:col-span-2 h-px bg-white/10" />
-                <div>
-                  <div className="text-xs mb-1">Логин (email)</div>
-                  <input className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={indigoEmail} onChange={e=>setIndigoEmail(e.target.value)} placeholder="user@example.com" />
-                </div>
-                <div>
-                  <div className="text-xs mb-1">Пароль</div>
-                  <input type="password" className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={indigoPwd} onChange={e=>setIndigoPwd(e.target.value)} placeholder="••••••••" />
-                </div>
-                <div className="md:col-span-2 flex items-center gap-2">
-                  <button onClick={async()=>{
-                    const host = (indigoEndpoint || 'http://127.0.0.1').replace(/\/+$/,'')
-                    const baseHost = host.replace(/:\d+(?=\/?$)/, '')
-                    const base = indigoPort ? `${baseHost}:${indigoPort}` : baseHost
-                    try {
-                      const r = await window.api.loginIndigo({ base, email: indigoEmail, password: indigoPwd })
-                      setIndigoResult(r || { ok: false })
-                    } catch (_) { setIndigoResult({ ok: false }) }
-                  }} className="px-3 py-2 rounded bg-slate-800 hover:bg-slate-700">Войти</button>
-                </div>
-              </div>
+              <div className="text-xs opacity-80">В разработке</div>
             </div>
           )}
 

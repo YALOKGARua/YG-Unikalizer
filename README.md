@@ -22,6 +22,7 @@ Anonymize and uniquely process photos at scale. Smart resizing, subtle color dri
 - **Perceptual similarity**: aHash/dHash/pHash + Hamming distance; duplicate groups
 - **Progress**: ETA, speed, live updates, system notifications
 - **Changelog**: GitHub Release notes + local CHANGELOG
+- **Localization**: 16+ languages with in‑app selector (persisted)
 
 ### System requirements
 

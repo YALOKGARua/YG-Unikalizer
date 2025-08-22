@@ -120,10 +120,7 @@ contextBridge.exposeInMainWorld('api', {
     login: (password, remember) => ipcRenderer.invoke('auth-login', { password, remember }),
     logout: () => ipcRenderer.invoke('auth-logout'),
   },
-  checkTokenIndigo: (payload) => ipcRenderer.invoke('check-token-indigo', payload),
-  loginIndigo: (payload) => ipcRenderer.invoke('login-indigo', payload),
   checkTokenVision: (payload) => ipcRenderer.invoke('check-token-vision', payload),
-  discoverIndigoPort: (payload) => ipcRenderer.invoke('discover-indigo-port', payload),
   native: {
     parseTxtProfiles: (text) => { const mod = loadNative(); return mod ? mod.parseTxtProfiles(String(text||'')) : null },
     computeFileHash: async p => {
