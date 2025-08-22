@@ -1046,14 +1046,7 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('auth-required', async () => {
-    try {
-      const now = Date.now()
-      const authed = isAuthed && (rememberUntil === 0 || now < rememberUntil)
-      if (!authed) { isAuthed = false }
-      return { ok: true, required: !!appPasswordHash, authed }
-    } catch (e) {
-      return { ok: true, required: false, authed: true }
-    }
+    return { ok: true, required: false, authed: true }
   })
 
   ipcMain.handle('auth-login', async (_e, payload) => {

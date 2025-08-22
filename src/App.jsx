@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import ProgressLine from './components/ProgressLine'
 import AuthGate from './components/AuthGate'
+import Chat from './components/Chat'
 
 function toFileUrl(p) {
   let s = p.replace(/\\/g, '/')
@@ -105,6 +106,7 @@ export default function App() {
   const [indigoTokenInput, setIndigoTokenInput] = useState('')
   const [indigoExp, setIndigoExp] = useState({ idx: 0, total: 0, info: null })
   const [indigoCsvPath, setIndigoCsvPath] = useState('')
+  const chatUrl = 'ws://127.0.0.1:8081'
 
   function resSummary(r) {
     if (!r) return null
@@ -1189,6 +1191,7 @@ export default function App() {
               <button className={`text-sm ${activeTab==='converter' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('converter')}>{t('tabs.converter')}</button>
               <button className={`text-sm ${activeTab==='indigo' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('indigo')}>{t('tabs.indigo')}</button>
               <button className={`text-sm ${activeTab==='vision' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('vision')}>{t('tabs.vision')}</button>
+              <button className={`text-sm ${activeTab==='chat' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('chat')}>Chat</button>
             </div>
             <div className="flex flex-wrap gap-2">
               <button onClick={handleAdd} className="px-3 py-2 rounded bg-brand-600 hover:bg-brand-500">{t('buttons.addFiles')}</button>
@@ -1344,6 +1347,12 @@ export default function App() {
                   )}
                 </div>
               </div>
+            </div>
+          )}
+
+          {activeTab === 'chat' && (
+            <div className="p-4 rounded bg-slate-900/60 border border-white/10 text-slate-200 text-sm">
+              <Chat url={chatUrl} userId={owner || 'YALOKGAR'} userName={author || 'YALOKGAR'} />
             </div>
           )}
 
