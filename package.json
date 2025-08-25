@@ -1,6 +1,6 @@
 {
   "name": "photounikalizer",
-  "version": "1.24.0",
+  "version": "1.25.0",
   "private": true,
   "main": "electron/main.js",
   "author": "YALOKGAR <yalokgar@gmail.com>",

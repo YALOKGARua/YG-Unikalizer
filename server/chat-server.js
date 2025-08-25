@@ -21,6 +21,11 @@ function broadcast(obj) {
   }
 }
 
+function broadcastStats() {
+  const count = Array.from(wss.clients).filter(c => c.readyState === 1).length
+  broadcast({ type: 'stats', count })
+}
+
 wss.on('connection', ws => {
   ws.id = randomUUID()
   ws.isAlive = true
@@ -31,21 +36,19 @@ wss.on('connection', ws => {
     try { msg = JSON.parse(String(data)) } catch (_) { return }
     if (!msg || typeof msg !== 'object') return
     const type = String(msg.type || '')
-    if (type === 'hello') {
-      const uid = String(msg.userId || '').slice(0, 128) || ws.id
-      const name = String(msg.name || '').slice(0, 128)
-      ws.user = { id: uid, name }
-      return
-    }
     if (type === 'message') {
       const text = String(msg.text || '').trim()
       if (!text) return
       const safe = text.slice(0, 2000)
-      const out = { type: 'message', id: randomUUID(), text: safe, userId: ws.user.id, name: ws.user.name, ts: Date.now() }
+      const uid = String(msg.userId || ws.user.id || ws.id).slice(0, 128)
+      const name = String(msg.name || ws.user.name || '').slice(0, 128)
+      ws.user = { id: uid, name }
+      const out = { type: 'message', id: randomUUID(), text: safe, userId: uid, name, ts: Date.now() }
       broadcast(out)
       return
     }
   })
+  try { ws.send(JSON.stringify({ type: 'stats', count: Array.from(wss.clients).filter(c => c.readyState === 1).length })) } catch (_) {}
 })
 
 const interval = setInterval(() => {
@@ -57,3 +60,6 @@ const interval = setInterval(() => {
 }, 30000)
 
 wss.on('close', () => { clearInterval(interval) })
+
+wss.on('headers', () => { setTimeout(broadcastStats, 0) })
+wss.on('connection', (ws) => { ws.on('close', () => { setTimeout(broadcastStats, 0) }) })
