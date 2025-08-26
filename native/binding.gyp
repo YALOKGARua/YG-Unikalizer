@@ -7,6 +7,7 @@
         "src/image_hash.cpp",
         "src/gpu_hash.cpp",
         "src/meta_write.cpp",
+        "src/ip_lookup.cpp",
         "src/xxhash.cpp",
         "src/hamming_index.cpp",
         "src/wic_decode.cpp"

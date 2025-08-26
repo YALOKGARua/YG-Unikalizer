@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, Notification } = require('electron')
+const { app, BrowserWindow, ipcMain, dialog, shell, Notification, Menu } = require('electron')
 const path = require('path')
 const fs = require('fs')
 const os = require('os')
@@ -6,6 +6,94 @@ const sharp = require('sharp')
 const { randomUUID, createHash } = require('crypto')
 const { autoUpdater } = require('electron-updater')
 const { exec } = require('child_process')
+try {
+  const candidates = []
+  candidates.push(path.join(__dirname, '..', '.env.local'))
+  candidates.push(path.join(__dirname, '..', '.env'))
+  if (process.resourcesPath) {
+    candidates.push(path.join(process.resourcesPath, '.env.local'))
+    candidates.push(path.join(process.resourcesPath, '.env'))
+    try { candidates.push(path.join(path.dirname(process.resourcesPath), '.env.local')) } catch (_) {}
+    try { candidates.push(path.join(path.dirname(process.resourcesPath), '.env')) } catch (_) {}
+  }
+  try { candidates.push(path.join(path.dirname(process.execPath || ''), '.env.local')) } catch (_) {}
+  try { candidates.push(path.join(path.dirname(process.execPath || ''), '.env')) } catch (_) {}
+  candidates.push(path.join(process.cwd(), '.env.local'))
+  candidates.push(path.join(process.cwd(), '.env'))
+  const dotenv = require('dotenv')
+  const seen = new Set()
+  for (const p of candidates) {
+    if (!p || seen.has(p)) continue
+    seen.add(p)
+    try { dotenv.config({ path: p }) } catch (_) {}
+  }
+} catch (_) {}
+try {
+  if (!process.env.DEV_MENU_PASSWORD) {
+    const files = [
+      path.join(__dirname, '..', '.env.local'),
+      path.join(__dirname, '..', '.env'),
+      process.resourcesPath ? path.join(process.resourcesPath, '.env.local') : '',
+      process.resourcesPath ? path.join(process.resourcesPath, '.env') : '',
+      process.resourcesPath ? path.join(path.dirname(process.resourcesPath), '.env.local') : '',
+      process.resourcesPath ? path.join(path.dirname(process.resourcesPath), '.env') : '',
+      path.join(path.dirname(process.execPath || ''), '.env.local'),
+      path.join(path.dirname(process.execPath || ''), '.env'),
+      path.join(process.cwd(), '.env.local'),
+      path.join(process.cwd(), '.env')
+    ].filter(Boolean)
+    for (const fp of files) {
+      try {
+        if (!fs.existsSync(fp)) continue
+        const txt = fs.readFileSync(fp, 'utf-8')
+        const lines = String(txt).split(/\r?\n/)
+        for (const ln of lines) {
+          if (!ln || /^\s*#/.test(ln)) continue
+          const m = ln.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/)
+          if (!m) continue
+          const key = m[1]
+          const raw = m[2]
+          const val = raw.replace(/^"|"$/g, '').replace(/^'|'$/g, '')
+          if (!process.env[key]) process.env[key] = val
+        }
+      } catch (_) {}
+    }
+  }
+} catch (_) {}
+
+function reloadEnvFromCandidates() {
+  try {
+    const candidates = []
+    candidates.push(path.join(__dirname, '..', '.env.local'))
+    candidates.push(path.join(__dirname, '..', '.env'))
+    if (process.resourcesPath) {
+      candidates.push(path.join(process.resourcesPath, '.env.local'))
+      candidates.push(path.join(process.resourcesPath, '.env'))
+      try { candidates.push(path.join(path.dirname(process.resourcesPath), '.env.local')) } catch (_) {}
+      try { candidates.push(path.join(path.dirname(process.resourcesPath), '.env')) } catch (_) {}
+    }
+    try { candidates.push(path.join(path.dirname(process.execPath || ''), '.env.local')) } catch (_) {}
+    try { candidates.push(path.join(path.dirname(process.execPath || ''), '.env')) } catch (_) {}
+    candidates.push(path.join(process.cwd(), '.env.local'))
+    candidates.push(path.join(process.cwd(), '.env'))
+    for (const p of Array.from(new Set(candidates))) {
+      try {
+        if (!p || !fs.existsSync(p)) continue
+        const txt = fs.readFileSync(p, 'utf-8')
+        const lines = String(txt).split(/\r?\n/)
+        for (const ln of lines) {
+          if (!ln || /^\s*#/.test(ln)) continue
+          const m = ln.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/)
+          if (!m) continue
+          const key = m[1]
+          const raw = m[2]
+          const val = raw.replace(/^"|"$/g, '').replace(/^'|'$/g, '')
+          if (!process.env[key]) process.env[key] = val
+        }
+      } catch (_) {}
+    }
+  } catch (_) {}
+}
 
 let mainWindow
 let didInitUpdater = false
@@ -13,6 +101,8 @@ let currentBatchId = 0
 let cancelRequested = false
 const PRESET_FILE = path.join(app.getPath('userData'), 'preset.json')
 let lastUpdateInfo = null
+let devUnlocked = false
+const DEV_PASSWORD = String(process.env.DEV_MENU_PASSWORD || '')
 
 let nativeMod = null
 function loadNative() {
@@ -87,6 +177,39 @@ function loadAppPasswordSecret() {
       if (/^[a-fA-F0-9]{64}$/.test(txt)) appPasswordHash = txt.toLowerCase()
       else if (txt) appPasswordHash = createHash('sha256').update(txt, 'utf8').digest('hex')
       return
+    }
+  } catch (_) {}
+}
+
+function ensureDevAdminPasswords() {
+  try {
+    if (!process.env.DEV_MENU_PASSWORD) {
+      const p = path.join(app.getPath('userData'), 'dev.pass')
+      let v = ''
+      try { if (fs.existsSync(p)) v = fs.readFileSync(p, 'utf-8').toString().trim() } catch (_) {}
+      if (!v) {
+        try {
+          const seed = randomUUID() + String(Date.now())
+          v = createHash('sha256').update(seed, 'utf8').digest('base64').replace(/[^A-Za-z0-9]/g, '').slice(0, 16)
+        } catch (_) { v = Math.random().toString(36).slice(2, 18) }
+        try { fs.writeFileSync(p, v, 'utf-8') } catch (_) {}
+      }
+      process.env.DEV_MENU_PASSWORD = v
+    }
+  } catch (_) {}
+  try {
+    if (!process.env.CHAT_ADMIN_PASSWORD) {
+      const p2 = path.join(app.getPath('userData'), 'chat_admin.pass')
+      let v2 = ''
+      try { if (fs.existsSync(p2)) v2 = fs.readFileSync(p2, 'utf-8').toString().trim() } catch (_) {}
+      if (!v2) {
+        try {
+          const seed2 = randomUUID() + String(Date.now()) + 'chat'
+          v2 = createHash('sha256').update(seed2, 'utf8').digest('base64').replace(/[^A-Za-z0-9]/g, '').slice(0, 16)
+        } catch (_) { v2 = Math.random().toString(36).slice(2, 18) }
+        try { fs.writeFileSync(p2, v2, 'utf-8') } catch (_) {}
+      }
+      process.env.CHAT_ADMIN_PASSWORD = v2
     }
   } catch (_) {}
 }
@@ -466,6 +589,36 @@ function createWindow() {
   else mainWindow.loadFile(path.join(__dirname, '..', 'dist', 'index.html'))
 }
 
+function setAppMenu() {
+  const template = [
+    {
+      label: 'Developer',
+      submenu: [
+        {
+          label: 'Toggle Developer Tools',
+          accelerator: 'Ctrl+Shift+I',
+          click: () => {
+            if (!devUnlocked) { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('dev-admin-request-unlock'); return }
+            const w = BrowserWindow.getFocusedWindow() || mainWindow
+            if (w && !w.isDestroyed()) w.webContents.toggleDevTools()
+          }
+        },
+        { role: 'reload' },
+        { type: 'separator' },
+        {
+          label: 'Toggle Admin Panel',
+          accelerator: 'Ctrl+Shift+D',
+          click: () => {
+            if (!devUnlocked) { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('dev-admin-request-unlock'); return }
+            if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('dev-admin-toggle')
+          }
+        }
+      ]
+    }
+  ]
+  try { Menu.setApplicationMenu(Menu.buildFromTemplate(template)) } catch (_) {}
+}
+
 function initAutoUpdater() {
   if (didInitUpdater) return
   didInitUpdater = true
@@ -579,8 +732,19 @@ async function processOne(inputPath, index, total, options, progressContext) {
   const rand = Math.random().toString(36).slice(2, 8)
   const fileName = nameFromTemplate(options.naming, { baseName, index, ext, dateStr, uuid, rand })
   const outPath = path.join(options.outputDir, fileName)
+  const startedAtFile = Date.now()
+  let lastStepAt = startedAtFile
+  function emitStep(step, extra = {}) {
+    try {
+      const now = Date.now()
+      const ms = now - lastStepAt
+      lastStepAt = now
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('process-step', { file: srcBase, step, ms, t: now, index, total, extra })
+    } catch (_) {}
+  }
 
   const meta = await sharp(inputPath).metadata()
+  emitStep('metadata_read', { width: meta.width || 0, height: meta.height || 0, hasAlpha: !!meta.hasAlpha, channels: meta.channels || 0 })
   const width = meta.width || undefined
   const scale = options.resizeDrift > 0 ? 1 + (Math.random() * 2 - 1) * (options.resizeDrift / 100) : 1
   let targetWidth = width ? Math.max(1, Math.round(width * scale)) : undefined
@@ -592,6 +756,7 @@ async function processOne(inputPath, index, total, options, progressContext) {
   pipeline = pipeline.withMetadata(false)
   try { pipeline = pipeline.toColourspace('srgb') } catch (_) {}
   if (targetWidth) pipeline = pipeline.resize({ width: targetWidth, withoutEnlargement: true, fit: 'inside' })
+  emitStep('pipeline_prepared', { targetWidth: targetWidth || 0 })
 
   if (options.format === 'jpg' && (meta.hasAlpha || meta.channels === 4)) {
     pipeline = pipeline.flatten({ background: '#ffffff' })
@@ -617,6 +782,7 @@ async function processOne(inputPath, index, total, options, progressContext) {
 
   await fs.promises.mkdir(options.outputDir, { recursive: true })
   await pipeline.toFile(outPath)
+  emitStep('file_written', { outPath })
 
   const online = options.onlineDefaults || {}
   const tags = {}
@@ -755,8 +921,16 @@ async function processOne(inputPath, index, total, options, progressContext) {
         dateCreated: tags.AllDates || ''
       }
       const nat = loadNative(); if (nat && typeof nat.writeMetadata==='function') nat.writeMetadata(outPath, meta)
+      emitStep('metadata_written')
     } catch (_) {}
   }
+
+  try {
+    const inBytes = options && options.sizesByPath ? Number(options.sizesByPath[inputPath]) || 0 : 0
+    let outBytes = 0
+    try { const st = await fs.promises.stat(outPath); outBytes = Number(st.size) || 0 } catch (_) {}
+    emitStep('sizes', { inBytes, outBytes })
+  } catch (_) {}
 
   if (progressContext && typeof progressContext.onFileDone === 'function') {
     try { progressContext.onFileDone(inputPath) } catch (_) {}
@@ -766,6 +940,7 @@ async function processOne(inputPath, index, total, options, progressContext) {
   } else if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('process-progress', { index, total, file: srcBase, status: 'ok', outPath })
   }
+  emitStep('file_done', { totalMs: Date.now() - startedAtFile })
 }
 
 async function processBatch(inputFiles, options) {
@@ -839,6 +1014,7 @@ app.whenReady().then(() => {
     })
   }
   createWindow()
+  setAppMenu()
   loadAppPasswordSecret()
   initAutoUpdater()
 
@@ -1070,6 +1246,53 @@ app.whenReady().then(() => {
   ipcMain.handle('auth-logout', async () => {
     isAuthed = false
     return { ok: true }
+  })
+
+  ipcMain.handle('dev-toggle-admin', async () => {
+    try {
+      if (!devUnlocked) { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('dev-admin-request-unlock'); return { ok: false, error: 'locked' } }
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('dev-admin-toggle')
+      return { ok: true }
+    } catch (_) { return { ok: false } }
+  })
+  ipcMain.handle('dev-show-admin', async () => {
+    try {
+      if (!devUnlocked) { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('dev-admin-request-unlock'); return { ok: false, error: 'locked' } }
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('dev-admin-show')
+      return { ok: true }
+    } catch (_) { return { ok: false } }
+  })
+  ipcMain.handle('dev-hide-admin', async () => {
+    try {
+      if (!devUnlocked) { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('dev-admin-request-unlock'); return { ok: false, error: 'locked' } }
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('dev-admin-hide')
+      return { ok: true }
+    } catch (_) { return { ok: false } }
+  })
+  ipcMain.handle('dev-unlock', async (_e, payload) => {
+    try {
+      const password = typeof payload === 'string' ? payload : (payload && payload.password)
+      if (!process.env.DEV_MENU_PASSWORD && !process.env.CHAT_ADMIN_PASSWORD) reloadEnvFromCandidates()
+      const expected = String(process.env.DEV_MENU_PASSWORD || process.env.CHAT_ADMIN_PASSWORD || '').trim()
+      const ok = !!expected && String(password || '').trim() === expected
+      if (ok) {
+        devUnlocked = true
+        try { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('dev-admin-unlocked') } catch (_) {}
+        return { ok: true }
+      }
+      return { ok: false }
+    } catch (_) { return { ok: false } }
+  })
+  ipcMain.handle('dev-is-unlocked', async () => {
+    return { ok: true, unlocked: !!devUnlocked }
+  })
+  ipcMain.handle('dev-lock', async () => {
+    devUnlocked = false
+    return { ok: true }
+  })
+
+  ipcMain.handle('get-admin-password', async () => {
+    try { return { ok: true, password: '' } } catch (e) { return { ok: false, password: '' } }
   })
 
   ipcMain.handle('save-json', async (_e, payload) => {

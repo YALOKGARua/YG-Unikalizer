@@ -6,6 +6,7 @@ export default function Chat({ url, userId, userName }) {
   const [status, setStatus] = useState('connecting')
   const [messages, setMessages] = useState([])
   const [text, setText] = useState('')
+  const MIN_NICK_LEN = 3
   const [nick, setNick] = useState(() => {
     try { return localStorage.getItem('chatNick') || '' } catch (_) { return '' }
   })
@@ -63,6 +64,10 @@ export default function Chat({ url, userId, userName }) {
       ws.addEventListener('open', () => {
         setStatus('connected')
         backoffMs = 500
+        try {
+          const helloName = (nick || '').trim()
+          if (helloName.length >= MIN_NICK_LEN) ws.send(JSON.stringify({ type: 'hello', userId: myId, name: helloName }))
+        } catch (_) {}
       })
       ws.addEventListener('close', () => {
         setStatus('disconnected')
@@ -91,7 +96,11 @@ export default function Chat({ url, userId, userName }) {
     return () => { cancelled = true; try { wsRef.current && wsRef.current.close() } catch (_) {} }
   }, [connectKey, myId, myName])
 
-  useEffect(() => { if (nick.trim()) setConnectKey(1) }, [nick])
+  useEffect(() => { if (nick.trim().length >= MIN_NICK_LEN) setConnectKey(1) }, [nick])
+  useEffect(() => {
+    if (connectKey) return
+    setConnectKey(1)
+  }, [])
   useEffect(() => { setNickEdit(nick) }, [nick])
 
   useEffect(() => { try { localStorage.setItem('chatNick', nick) } catch (_) {} }, [nick])
@@ -107,7 +116,7 @@ export default function Chat({ url, userId, userName }) {
     setText('')
   }
 
-  if (!nick.trim()) {
+  if (nick.trim().length < MIN_NICK_LEN) {
     return (
       <div className="h-full flex flex-col">
         <div className="flex items-center gap-2 mb-2"><div className="text-xs opacity-70">{t('chat.prompt')}</div></div>
@@ -115,11 +124,11 @@ export default function Chat({ url, userId, userName }) {
           <input
             className="flex-1 bg-slate-900 border border-white/10 rounded px-2 py-2 text-sm"
             placeholder={t('chat.nickname')}
-            value={nick}
-            onChange={e => setNick(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter' && e.target.value.trim()) setNick(e.target.value.trim()) }}
+            value={nickEdit}
+            onChange={e => setNickEdit(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && e.target.value.trim().length >= MIN_NICK_LEN) setNick(e.target.value.trim()) }}
           />
-          <button disabled={!nick.trim()} onClick={() => { if (nick.trim()) setNick(nick.trim()) }} className={`px-3 py-2 rounded ${nick.trim() ? 'bg-violet-600 hover:bg-violet-500' : 'bg-slate-800 opacity-50 cursor-not-allowed'} text-sm`}>{t('chat.join')}</button>
+          <button disabled={nickEdit.trim().length < MIN_NICK_LEN} onClick={() => { if (nickEdit.trim().length >= MIN_NICK_LEN) setNick(nickEdit.trim()) }} className={`px-3 py-2 rounded ${nickEdit.trim().length >= MIN_NICK_LEN ? 'bg-violet-600 hover:bg-violet-500' : 'bg-slate-800 opacity-50 cursor-not-allowed'} text-sm`}>{t('chat.join')}</button>
         </div>
       </div>
     )
@@ -135,12 +144,12 @@ export default function Chat({ url, userId, userName }) {
             placeholder={t('chat.nickname')}
             value={nickEdit}
             onChange={e => setNickEdit(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter' && nickEdit.trim()) setNick(nickEdit.trim()) }}
+            onKeyDown={e => { if (e.key === 'Enter' && nickEdit.trim().length >= MIN_NICK_LEN) setNick(nickEdit.trim()) }}
           />
           <button
-            disabled={!nickEdit.trim() || nickEdit.trim() === nick.trim()}
-            onClick={() => { if (nickEdit.trim()) setNick(nickEdit.trim()) }}
-            className={`px-2 py-1 rounded text-xs ${nickEdit.trim() && nickEdit.trim() !== nick.trim() ? 'bg-slate-800 hover:bg-slate-700' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}
+            disabled={nickEdit.trim().length < MIN_NICK_LEN || nickEdit.trim() === nick.trim()}
+            onClick={() => { if (nickEdit.trim().length >= MIN_NICK_LEN) setNick(nickEdit.trim()) }}
+            className={`px-2 py-1 rounded text-xs ${nickEdit.trim().length >= MIN_NICK_LEN && nickEdit.trim() !== nick.trim() ? 'bg-slate-800 hover:bg-slate-700' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}
           >{t('chat.set')}</button>
         </div>
         <div className="text-xs opacity-70 ml-auto">{t('chat.users')}: {Math.max(0, usersCount)}</div>
@@ -160,9 +169,9 @@ export default function Chat({ url, userId, userName }) {
           placeholder={t('chat.typeMessage')}
           value={text}
           onChange={e => setText(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter' && status === 'connected' && nick.trim() && text.trim()) send() }}
+          onKeyDown={e => { if (e.key === 'Enter' && status === 'connected' && nick.trim().length >= MIN_NICK_LEN && text.trim()) send() }}
         />
-        <button disabled={!nick.trim() || status !== 'connected' || !text.trim()} onClick={send} className={`px-3 py-2 rounded ${nick.trim() && status === 'connected' && text.trim() ? 'bg-violet-600 hover:bg-violet-500' : 'bg-slate-800 opacity-50 cursor-not-allowed'} text-sm`}>{t('chat.send')}</button>
+        <button disabled={nick.trim().length < MIN_NICK_LEN || status !== 'connected' || !text.trim()} onClick={send} className={`px-3 py-2 rounded ${nick.trim().length >= MIN_NICK_LEN && status === 'connected' && text.trim() ? 'bg-violet-600 hover:bg-violet-500' : 'bg-slate-800 opacity-50 cursor-not-allowed'} text-sm`}>{t('chat.send')}</button>
       </div>
     </div>
   )

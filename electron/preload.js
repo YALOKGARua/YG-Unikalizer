@@ -113,12 +113,53 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('update-downloaded', listener)
     return () => ipcRenderer.removeListener('update-downloaded', listener)
   },
+  onStep: cb => {
+    const listener = (_, s) => cb(s)
+    ipcRenderer.on('process-step', listener)
+    return () => ipcRenderer.removeListener('process-step', listener)
+  },
   getUpdateChangelog: () => ipcRenderer.invoke('get-update-changelog'),
   getReadme: () => ipcRenderer.invoke('get-readme'),
   auth: {
     isRequired: () => ipcRenderer.invoke('auth-required'),
     login: (password, remember) => ipcRenderer.invoke('auth-login', { password, remember }),
     logout: () => ipcRenderer.invoke('auth-logout'),
+  },
+  dev: {
+    onToggleAdminPanel: (cb) => {
+      const listener = () => cb()
+      ipcRenderer.on('dev-admin-toggle', listener)
+      return () => ipcRenderer.removeListener('dev-admin-toggle', listener)
+    },
+    onShowAdminPanel: (cb) => {
+      const listener = () => cb()
+      ipcRenderer.on('dev-admin-show', listener)
+      return () => ipcRenderer.removeListener('dev-admin-show', listener)
+    },
+    onHideAdminPanel: (cb) => {
+      const listener = () => cb()
+      ipcRenderer.on('dev-admin-hide', listener)
+      return () => ipcRenderer.removeListener('dev-admin-hide', listener)
+    },
+    onRequestUnlock: (cb) => {
+      const listener = () => cb()
+      ipcRenderer.on('dev-admin-request-unlock', listener)
+      return () => ipcRenderer.removeListener('dev-admin-request-unlock', listener)
+    },
+    onUnlocked: (cb) => {
+      const listener = () => cb()
+      ipcRenderer.on('dev-admin-unlocked', listener)
+      return () => ipcRenderer.removeListener('dev-admin-unlocked', listener)
+    },
+    toggleAdminPanel: () => ipcRenderer.invoke('dev-toggle-admin'),
+    showAdminPanel: () => ipcRenderer.invoke('dev-show-admin'),
+    hideAdminPanel: () => ipcRenderer.invoke('dev-hide-admin'),
+    unlock: (password) => ipcRenderer.invoke('dev-unlock', password),
+    isUnlocked: () => ipcRenderer.invoke('dev-is-unlocked'),
+    lock: () => ipcRenderer.invoke('dev-lock')
+  },
+  admin: {
+    getPassword: () => ipcRenderer.invoke('get-admin-password')
   },
   checkTokenVision: (payload) => ipcRenderer.invoke('check-token-vision', payload),
   native: {

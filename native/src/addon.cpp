@@ -16,6 +16,19 @@
 #include "meta_write.h"
 #include "hamming_index.h"
 #include "wic_decode.h"
+#include "ip_lookup.h"
+static Napi::Value IpLookup(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env();
+  if (info.Length() < 1 || !info[0].IsString()) {
+    Napi::TypeError::New(env, "ip required").ThrowAsJavaScriptException();
+    return env.Null();
+  }
+  std::string ip = info[0].As<Napi::String>().Utf8Value();
+  std::string json;
+  bool ok = ip_lookup(ip, json);
+  if (!ok) return env.Null();
+  return Napi::String::New(env, json);
+}
 
 using namespace photounikalizer_native;
 
@@ -756,6 +769,7 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
   exports.Set("clusterByHamming", Napi::Function::New(env, ClusterByHamming));
   exports.Set("parseTxtProfiles", Napi::Function::New(env, ParseTxtProfiles));
   exports.Set("parseTxtProfilesFromFile", Napi::Function::New(env, ParseTxtProfilesFromFile));
+  exports.Set("ipLookup", Napi::Function::New(env, IpLookup));
   return exports;
 }
 

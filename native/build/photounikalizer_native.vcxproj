@@ -149,6 +149,9 @@
     <ClCompile Include="..\src\meta_write.cpp">
       <ObjectFileName>$(IntDir)\src\meta_write.obj</ObjectFileName>
     </ClCompile>
+    <ClCompile Include="..\src\ip_lookup.cpp">
+      <ObjectFileName>$(IntDir)\src\ip_lookup.obj</ObjectFileName>
+    </ClCompile>
     <ClCompile Include="..\src\xxhash.cpp">
       <ObjectFileName>$(IntDir)\src\xxhash.obj</ObjectFileName>
     </ClCompile>

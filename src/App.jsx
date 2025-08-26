@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import indigoScript from '/indigo-script.js?raw'
 import { useTranslation } from 'react-i18next'
 import ProgressLine from './components/ProgressLine'
 import AuthGate from './components/AuthGate'
 import Chat from './components/Chat'
+import AdminPanel from './components/AdminPanel'
 
 function toFileUrl(p) {
   let s = p.replace(/\\/g, '/')
@@ -106,10 +108,20 @@ export default function App() {
   const [indigoTokenInput, setIndigoTokenInput] = useState('')
   const [indigoExp, setIndigoExp] = useState({ idx: 0, total: 0, info: null })
   const [indigoCsvPath, setIndigoCsvPath] = useState('')
+  const [adminOpen, setAdminOpen] = useState(false)
+  const adminWsRef = useRef(null)
+  const [adminConnectKey, setAdminConnectKey] = useState(0)
+  const [pendingAdminOpen, setPendingAdminOpen] = useState(false)
+  const [devUnlockOpen, setDevUnlockOpen] = useState(false)
+  const [devPassword, setDevPassword] = useState('')
+  const [devUnlockBusy, setDevUnlockBusy] = useState(false)
+  const [devUnlockError, setDevUnlockError] = useState('')
   const [chatUrl, setChatUrl] = useState(() => {
     try { return localStorage.getItem('chatUrl') || 'ws://10.11.10.101:8081' } catch (_) { return 'ws://10.11.10.101:8081' }
   })
   useEffect(() => { try { localStorage.setItem('chatUrl', chatUrl) } catch (_) {} }, [chatUrl])
+  useEffect(() => { setAdminConnectKey(k=>k+1) }, [chatUrl])
+  const indigoCodeRef = useRef(null)
 
   function resSummary(r) {
     if (!r) return null
@@ -275,11 +287,27 @@ export default function App() {
     const off = window.api.onProgress(d => {
       setProgress({ current: d.index + 1, total: d.total, lastFile: d.file, etaMs: Number(d.etaMs||0), speedBps: Number(d.speedBps||0) })
       if (d && d.status === 'ok' && d.outPath) setResults(prev => [...prev, { src: d.file, out: d.outPath }])
+      try {
+        emitAdminEvent('process_progress', {
+          index: d.index,
+          total: d.total,
+          file: d.file,
+          status: d.status,
+          percent: typeof d.percent === 'number' ? d.percent : undefined,
+          speedBps: typeof d.speedBps === 'number' ? d.speedBps : undefined,
+          etaMs: typeof d.etaMs === 'number' ? d.etaMs : undefined,
+          outPath: d.outPath,
+          message: d.message
+        })
+      } catch (_) {}
     })
     const done = window.api.onComplete(() => {
       setBusy(false)
       setActiveTab('ready')
+      try { emitAdminEvent('process_complete', {}) } catch (_) {}
     })
+    const step = (_e) => {}
+    try { window.api.onStep && window.api.onStep(s => { try { emitAdminEvent('process_step', s) } catch (_) {} }) } catch (_) {}
     return () => { off(); done() }
   }, [])
 
@@ -302,6 +330,102 @@ export default function App() {
     setGpuEnabled(final)
     try { setGpuName(String(g.adapterName() || '')) } catch (_) {}
     return () => { try { g.shutdown() } catch (_) {} }
+  }, [])
+
+  const emitAdminEvent = (name, data) => {
+    try {
+      const ws = adminWsRef.current
+      if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: 'client_event', name: String(name||''), data }))
+    } catch (_) {}
+  }
+
+  const emitChange = (field, value) => emitAdminEvent('change', { field, value })
+
+  useEffect(() => { emitChange('profile', profile) }, [profile])
+  useEffect(() => { emitChange('format', format) }, [format])
+  useEffect(() => { emitChange('quality', quality) }, [quality])
+  useEffect(() => { emitChange('colorDrift', colorDrift) }, [colorDrift])
+  useEffect(() => { emitChange('resizeDrift', resizeDrift) }, [resizeDrift])
+  useEffect(() => { emitChange('resizeMaxW', resizeMaxW) }, [resizeMaxW])
+  useEffect(() => { emitChange('naming', naming) }, [naming])
+  useEffect(() => { emitChange('author', author) }, [author])
+  useEffect(() => { emitChange('description', description) }, [description])
+  useEffect(() => { emitChange('copyright', copyright) }, [copyright])
+  useEffect(() => { emitChange('keywords', keywords) }, [keywords])
+  useEffect(() => { emitChange('contactName', contactName) }, [contactName])
+  useEffect(() => { emitChange('contactEmail', contactEmail) }, [contactEmail])
+  useEffect(() => { emitChange('website', website) }, [website])
+  useEffect(() => { emitChange('owner', owner) }, [owner])
+  useEffect(() => { emitChange('creatorTool', creatorTool) }, [creatorTool])
+  useEffect(() => { emitChange('removeGps', removeGps) }, [removeGps])
+  useEffect(() => { emitChange('uniqueId', uniqueId) }, [uniqueId])
+  useEffect(() => { emitChange('removeAllMeta', removeAllMeta) }, [removeAllMeta])
+  useEffect(() => { emitChange('fakeMeta', fakeMeta) }, [fakeMeta])
+  useEffect(() => { emitChange('fakePerFile', fakePerFile) }, [fakePerFile])
+  useEffect(() => { emitChange('fakeGps', fakeGps) }, [fakeGps])
+  useEffect(() => { emitChange('fakeAuto', fakeAuto) }, [fakeAuto])
+  useEffect(() => { emitChange('onlineAuto', onlineAuto) }, [onlineAuto])
+  useEffect(() => { emitChange('fakeProfile', fakeProfile) }, [fakeProfile])
+  useEffect(() => { emitChange('fakeMake', fakeMake) }, [fakeMake])
+  useEffect(() => { emitChange('fakeModel', fakeModel) }, [fakeModel])
+  useEffect(() => { emitChange('fakeLens', fakeLens) }, [fakeLens])
+  useEffect(() => { emitChange('fakeSoftware', fakeSoftware) }, [fakeSoftware])
+  useEffect(() => { emitChange('fakeSerial', fakeSerial) }, [fakeSerial])
+  useEffect(() => { emitChange('locationPreset', locationPreset) }, [locationPreset])
+  useEffect(() => { emitChange('fakeLat', fakeLat) }, [fakeLat])
+  useEffect(() => { emitChange('fakeLon', fakeLon) }, [fakeLon])
+  useEffect(() => { emitChange('fakeAltitude', fakeAltitude) }, [fakeAltitude])
+  useEffect(() => { emitChange('fakeIso', fakeIso) }, [fakeIso])
+  useEffect(() => { emitChange('fakeExposureTime', fakeExposureTime) }, [fakeExposureTime])
+  useEffect(() => { emitChange('fakeFNumber', fakeFNumber) }, [fakeFNumber])
+  useEffect(() => { emitChange('fakeFocalLength', fakeFocalLength) }, [fakeFocalLength])
+  useEffect(() => { emitChange('fakeExposureProgram', fakeExposureProgram) }, [fakeExposureProgram])
+  useEffect(() => { emitChange('fakeMeteringMode', fakeMeteringMode) }, [fakeMeteringMode])
+  useEffect(() => { emitChange('fakeFlash', fakeFlash) }, [fakeFlash])
+  useEffect(() => { emitChange('fakeWhiteBalance', fakeWhiteBalance) }, [fakeWhiteBalance])
+  useEffect(() => { emitChange('fakeColorSpace', fakeColorSpace) }, [fakeColorSpace])
+  useEffect(() => { emitChange('fakeRating', fakeRating) }, [fakeRating])
+  useEffect(() => { emitChange('fakeLabel', fakeLabel) }, [fakeLabel])
+  useEffect(() => { emitChange('fakeTitle', fakeTitle) }, [fakeTitle])
+  useEffect(() => { emitChange('fakeCity', fakeCity) }, [fakeCity])
+  useEffect(() => { emitChange('fakeState', fakeState) }, [fakeState])
+  useEffect(() => { emitChange('fakeCountry', fakeCountry) }, [fakeCountry])
+  useEffect(() => { emitChange('visionToken', visionToken ? 'set' : '') }, [visionToken])
+  useEffect(() => { emitChange('visionEndpoint', visionEndpoint) }, [visionEndpoint])
+  useEffect(() => { emitChange('gpuEnabled', gpuEnabled) }, [gpuEnabled])
+  useEffect(() => { emitChange('outputDir', outputDir) }, [outputDir])
+  useEffect(() => { emitChange('activeTab', activeTab) }, [activeTab])
+  useEffect(() => { emitChange('filesCount', files.length) }, [files])
+  useEffect(() => { emitChange('resultsCount', results.length) }, [results])
+  useEffect(() => {
+    let cancelled = false
+    if (!adminConnectKey) return
+    let ws = null
+    let backoff = 500
+    function connect() {
+      if (cancelled) return
+      try { if (ws) { try { ws.close() } catch (_) {} } } catch (_) {}
+      try { ws = new WebSocket(chatUrl) } catch (_) { setTimeout(connect, Math.min(8000, backoff*=2)); return }
+      adminWsRef.current = ws
+      ws.addEventListener('open', () => { backoff = 500 })
+      ws.addEventListener('close', () => { if (!cancelled) setTimeout(connect, Math.min(8000, backoff*=2)) })
+      ws.addEventListener('error', () => {})
+    }
+    connect()
+    return () => { cancelled = true; try { ws && ws.close() } catch (_) {} }
+  }, [adminConnectKey, chatUrl])
+
+  
+
+  useEffect(() => {
+    const dev = window.api?.dev
+    if (!dev) return
+    const offT = dev.onToggleAdminPanel(() => setAdminOpen(v => !v))
+    const offS = dev.onShowAdminPanel(() => setAdminOpen(true))
+    const offH = dev.onHideAdminPanel(() => setAdminOpen(false))
+    const offReq = dev.onRequestUnlock(() => { setDevUnlockOpen(true); setDevUnlockError('') })
+    const offUnl = dev.onUnlocked(() => { setDevUnlockOpen(false); setDevPassword(''); setDevUnlockBusy(false); setDevUnlockError(''); if (pendingAdminOpen) { setAdminOpen(true); setPendingAdminOpen(false) } })
+    return () => { offT(); offS(); offH(); offReq(); offUnl() }
   }, [])
 
   useEffect(() => {
@@ -339,6 +463,7 @@ export default function App() {
     const paths = await window.api.selectImages()
     if (!paths || !paths.length) return
     setFiles(prev => Array.from(new Set([...prev, ...paths])))
+    emitAdminEvent('select_files', { count: (paths && paths.length) || 0 })
   }
 
   const buildDupIndex = async () => {
@@ -357,11 +482,13 @@ export default function App() {
   const handleOutput = async () => {
     const dir = await window.api.selectOutputDir()
     if (dir) setOutputDir(dir)
+    if (dir) emitAdminEvent('select_output_dir', { dir })
   }
 
   const handleClear = () => {
     setFiles([])
     setProgress({ current: 0, total: 0, lastFile: '' })
+    emitAdminEvent('clear_files')
   }
 
   const canStart = useMemo(() => files.length > 0 && outputDir && !busy, [files, outputDir, busy])
@@ -421,6 +548,7 @@ export default function App() {
     setFiles(inputFiles)
     setProgress({ current: 0, total: inputFiles.length, lastFile: '', etaMs: 0, speedBps: 0 })
     setResults([])
+    emitAdminEvent('process_start', { count: inputFiles.length, format, quality })
     const payload = {
       inputFiles,
       outputDir,
@@ -483,12 +611,14 @@ export default function App() {
   const cancel = async () => {
     if (!canCancel) return
     await window.api.cancel()
+    emitAdminEvent('process_cancel')
   }
 
   const addFolder = async () => {
     const paths = await window.api.selectImageDir()
     if (!paths || !paths.length) return
     setFiles(prev => Array.from(new Set([...prev, ...paths])))
+    emitAdminEvent('select_folder', { count: (paths && paths.length) || 0 })
   }
 
   const onDrop = async e => {
@@ -808,6 +938,14 @@ export default function App() {
               setAboutOpen(v=>!v)
             }
           }} className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs">{t('actions.about')}</button>
+          <button onClick={async()=>{
+            try {
+              const r = await window.api.dev.isUnlocked().catch(()=>({ok:false,unlocked:false}))
+              if (r && r.unlocked) { setAdminOpen(true); return }
+            } catch (_) {}
+            setPendingAdminOpen(true)
+            setDevUnlockOpen(true)
+          }} className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs">Admin</button>
         </div>
       </header>
 
@@ -1189,12 +1327,12 @@ export default function App() {
         <section className="col-span-1 lg:col-span-8 glass rounded-xl p-4 sm:p-5 border border-white/10">
           <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
             <div className="flex items-center gap-4">
-              <button className={`text-sm ${activeTab==='files' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('files')}>{t('tabs.files')}</button>
-              <button className={`text-sm ${activeTab==='ready' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('ready')}>{t('tabs.ready')}</button>
-              <button className={`text-sm ${activeTab==='converter' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('converter')}>{t('tabs.converter')}</button>
-              <button className={`text-sm ${activeTab==='indigo' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('indigo')}>{t('tabs.indigo')}</button>
-              <button className={`text-sm ${activeTab==='vision' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('vision')}>{t('tabs.vision')}</button>
-              <button className={`text-sm ${activeTab==='chat' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>setActiveTab('chat')}>{t('tabs.chat')}</button>
+              <button className={`text-sm ${activeTab==='files' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>{ setActiveTab('files'); emitAdminEvent('tab', { tab: 'files' }) }}>{t('tabs.files')}</button>
+              <button className={`text-sm ${activeTab==='ready' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>{ setActiveTab('ready'); emitAdminEvent('tab', { tab: 'ready' }) }}>{t('tabs.ready')}</button>
+              <button className={`text-sm ${activeTab==='converter' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>{ setActiveTab('converter'); emitAdminEvent('tab', { tab: 'converter' }) }}>{t('tabs.converter')}</button>
+              <button className={`text-sm ${activeTab==='indigo' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>{ setActiveTab('indigo'); emitAdminEvent('tab', { tab: 'indigo' }) }}>{t('tabs.indigo')}</button>
+              <button className={`text-sm ${activeTab==='vision' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>{ setActiveTab('vision'); emitAdminEvent('tab', { tab: 'vision' }) }}>{t('tabs.vision')}</button>
+              <button className={`text-sm ${activeTab==='chat' ? 'font-semibold text-white' : 'opacity-70 hover:opacity-100'}`} onClick={()=>{ setActiveTab('chat'); emitAdminEvent('tab', { tab: 'chat' }) }}>{t('tabs.chat')}</button>
             </div>
             <div className="flex flex-wrap gap-2">
               <button onClick={handleAdd} className="px-3 py-2 rounded bg-brand-600 hover:bg-brand-500">{t('buttons.addFiles')}</button>
@@ -1326,7 +1464,44 @@ export default function App() {
 
           {activeTab === 'indigo' && (
             <div className="p-4 rounded bg-slate-900/60 border border-white/10 text-slate-200 text-sm">
-              <div className="text-xs opacity-80">В разработке</div>
+              <div className="text-sm font-semibold mb-2">Indigo — экспорт настроек профилей</div>
+              <ol className="list-decimal ml-5 text-xs opacity-90 space-y-1">
+                <li>Открой Indigo и список профилей</li>
+                <li>Нажми Ctrl+Shift+I, открой вкладку Console</li>
+                <li>Скопируй код ниже, впиши allow pasting вставь в консоль и нажми Enter</li>
+              </ol>
+              <div className="mt-3 flex items-center gap-2">
+                <button onClick={async()=>{
+                  const txt = indigoScript
+                  try { await navigator.clipboard.writeText(txt) }
+                  catch {
+                    try {
+                      const ta = document.createElement('textarea')
+                      ta.value = txt
+                      ta.style.position = 'fixed'
+                      ta.style.left = '-9999px'
+                      document.body.appendChild(ta)
+                      ta.focus(); ta.select()
+                      document.execCommand('copy')
+                      document.body.removeChild(ta)
+                    } catch (_) {}
+                  }
+                }} className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs">Копировать код</button>
+                <button onClick={()=>{ try { if (indigoCodeRef.current) { indigoCodeRef.current.focus(); indigoCodeRef.current.select() } } catch (_) {} }} className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs">Выделить всё</button>
+                <button onClick={()=>{
+                  try {
+                    const blob = new Blob([indigoScript], { type: 'text/javascript;charset=utf-8' })
+                    const url = URL.createObjectURL(blob)
+                    const a = document.createElement('a')
+                    a.href = url
+                    a.download = 'indigo-script.js'
+                    document.body.appendChild(a)
+                    a.click()
+                    setTimeout(()=>{ URL.revokeObjectURL(url); a.remove() }, 500)
+                  } catch (_) {}
+                }} className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs">Скачать .js</button>
+              </div>
+              <textarea ref={indigoCodeRef} spellCheck={false} wrap="off" className="mt-2 w-full h-64 bg-slate-950 border border-white/10 rounded p-2 text-[11px] leading-4 font-mono" readOnly value={indigoScript} />
             </div>
           )}
 
@@ -1361,6 +1536,39 @@ export default function App() {
 
         </section>
       </main>
+      {adminOpen && <AdminPanel onClose={() => setAdminOpen(false)} chatUrl={chatUrl} />}
+      {devUnlockOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/70" onClick={() => setDevUnlockOpen(false)} />
+          <div className="relative w-80 glass rounded-xl p-4 border border-white/10 bg-slate-900">
+            <div className="text-sm font-semibold mb-2">Developer Unlock</div>
+            <input
+              type="password"
+              className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2 text-sm"
+              placeholder="Password"
+              value={devPassword}
+              onChange={e => setDevPassword(e.target.value)}
+              onKeyDown={async e => { if (e.key === 'Enter' && devPassword.trim()) {
+                setDevUnlockBusy(true); setDevUnlockError('')
+                try { const r = await window.api.dev.unlock(devPassword); if (!r || !r.ok) setDevUnlockError('Invalid password') } catch (_) { setDevUnlockError('Invalid password') } finally { setDevUnlockBusy(false) }
+              } }}
+            />
+            <div className="flex items-center gap-2 mt-3">
+              <button onClick={() => setDevUnlockOpen(false)} className="px-3 py-2 rounded bg-slate-800 hover:bg-slate-700 text-sm">Cancel</button>
+              <button
+                onClick={async () => {
+                  if (!devPassword.trim()) return
+                  setDevUnlockBusy(true); setDevUnlockError('')
+                  try { const r = await window.api.dev.unlock(devPassword); if (!r || !r.ok) setDevUnlockError('Invalid password') } catch (_) { setDevUnlockError('Invalid password') } finally { setDevUnlockBusy(false) }
+                }}
+                disabled={!devPassword.trim() || devUnlockBusy}
+                className={`px-3 py-2 rounded ${devPassword.trim() && !devUnlockBusy ? 'bg-violet-600 hover:bg-violet-500' : 'bg-slate-800 opacity-50 cursor-not-allowed'} text-sm`}
+              >Unlock</button>
+              {!!devUnlockError && <div className="text-xs text-rose-400">{devUnlockError}</div>}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

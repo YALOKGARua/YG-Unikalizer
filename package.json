@@ -1,6 +1,6 @@
 {
   "name": "photounikalizer",
-  "version": "1.25.0",
+  "version": "1.26.0",
   "private": true,
   "main": "electron/main.js",
   "author": "YALOKGAR <yalokgar@gmail.com>",
@@ -39,6 +39,7 @@
     "native:prebuild": "cd native && prebuildify --napi --strip"
   },
   "dependencies": {
+    "dotenv": "^16.4.5",
     "electron-updater": "^6.1.8",
     "i18next": "^23.16.8",
     "node-addon-api": "^7.1.0",
