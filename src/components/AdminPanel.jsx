@@ -99,12 +99,12 @@ export default function AdminPanel({ onClose, chatUrl }) {
   return (
     <div className="fixed inset-0 z-50 p-4 flex items-start justify-center">
       <div className="absolute inset-0 bg-black/70" onClick={onClose} />
-      <div className="relative w-[1100px] max-w-[98vw] glass rounded-xl border border-white/10 bg-slate-900 p-4">
+      <div className="relative w-[1100px] max-w-[98vw] glass rounded-xl border border-white/10 bg-slate-950 p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="text-sm font-semibold">Developer Panel</div>
           <div className="flex items-center gap-2">
-            <input className="bg-slate-900 border border-white/10 rounded px-2 py-1 text-xs w-40" type="password" placeholder="admin password" value={adminPassword} onChange={e=>setAdminPassword(e.target.value)} />
-            <input className="bg-slate-900 border border-white/10 rounded px-2 py-1 text-xs w-60" placeholder="filter" value={filter} onChange={e=>setFilter(e.target.value)} />
+            <input className="bg-slate-950 border border-white/10 rounded px-2 py-1 text-xs w-40" type="password" placeholder="admin password" value={adminPassword} onChange={e=>setAdminPassword(e.target.value)} />
+            <input className="bg-slate-950 border border-white/10 rounded px-2 py-1 text-xs w-60" placeholder="filter" value={filter} onChange={e=>setFilter(e.target.value)} />
             <button onClick={requestUsers} disabled={busy || status !== 'connected' || !adminPassword} className={`px-2 py-1 rounded text-xs ${(status==='connected'&&!busy&&adminPassword)?'bg-slate-800 hover:bg-slate-700':'bg-slate-800 opacity-50 cursor-not-allowed'}`}>Refresh</button>
             <button className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs" onClick={onClose}>Close</button>
           </div>
@@ -112,9 +112,9 @@ export default function AdminPanel({ onClose, chatUrl }) {
         {error && <div className="text-xs text-rose-400 mb-2">{error}</div>}
         <div className="text-[11px] opacity-70 mb-2">Status: {status}</div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="max-h-[70vh] overflow-auto bg-slate-900 border border-white/10 rounded">
+          <div className="max-h-[70vh] overflow-auto bg-slate-950 border border-white/10 rounded">
             <table className="w-full text-left text-[11px]">
-            <thead className="sticky top-0 bg-slate-900">
+            <thead className="sticky top-0 bg-slate-950">
               <tr>
                 <th className="px-2 py-2 border-b border-white/10">ID</th>
                 <th className="px-2 py-2 border-b border-white/10">Name</th>
@@ -147,7 +147,7 @@ export default function AdminPanel({ onClose, chatUrl }) {
             </tbody>
             </table>
           </div>
-          <div className="max-h-[70vh] overflow-auto bg-slate-900 border border-white/10 rounded p-2 text-[11px]">
+          <div className="max-h-[70vh] overflow-auto bg-slate-950 border border-white/10 rounded p-2 text-[11px]">
             <div className="text-xs mb-2">Live feed</div>
             {globalEvents.length === 0 && <div className="opacity-60">No events</div>}
             {globalEvents.slice().reverse().map((e, i) => (
@@ -166,7 +166,7 @@ export default function AdminPanel({ onClose, chatUrl }) {
               </div>
             ))}
           </div>
-          <div className="max-h-[70vh] overflow-auto bg-slate-900 border border-white/10 rounded p-2 text-[11px]">
+          <div className="max-h-[70vh] overflow-auto bg-slate-950 border border-white/10 rounded p-2 text-[11px]">
             <div className="text-xs mb-2">History: {String(selectedId||'')}</div>
             {selectedEvents.length === 0 && <div className="opacity-60">No events</div>}
             {selectedEvents.slice().reverse().map((e, i) => (

@@ -1396,6 +1396,74 @@ app.whenReady().then(() => {
     }
   })
 
+  ipcMain.handle('file-rename', async (_e, payload) => {
+    try {
+      const oldPath = payload && payload.path ? String(payload.path) : ''
+      let newName = payload && payload.newName ? String(payload.newName) : ''
+      if (!oldPath || !newName) return { ok: false, error: 'bad-args' }
+      const dir = path.dirname(oldPath)
+      const origExt = path.extname(oldPath)
+      if (!path.extname(newName)) newName = newName + origExt
+      newName = sanitizeName(newName)
+      let target = path.join(dir, newName)
+      if (target === oldPath) return { ok: true, path: oldPath }
+      const base = newName.replace(/\.[^.]+$/, '')
+      const ext = path.extname(newName)
+      let counter = 1
+      while (true) {
+        try { await fs.promises.access(target); } catch (_) { break }
+        target = path.join(dir, `${base}_${counter}${ext}`)
+        counter += 1
+      }
+      await fs.promises.rename(oldPath, target)
+      return { ok: true, path: target }
+    } catch (e) {
+      return { ok: false, error: String(e && e.message ? e.message : e) }
+    }
+  })
+
+  ipcMain.handle('file-delete', async (_e, filePath) => {
+    try {
+      const p = String(filePath || '')
+      if (!p) return { ok: false, error: 'bad-args' }
+      if (shell.trashItem) {
+        await shell.trashItem(p)
+        return { ok: true }
+      }
+      await fs.promises.unlink(p)
+      return { ok: true }
+    } catch (e) {
+      return { ok: false, error: String(e && e.message ? e.message : e) }
+    }
+  })
+
+  ipcMain.handle('file-stats', async (_e, filePath) => {
+    try {
+      const p = String(filePath || '')
+      if (!p) return { ok: false, error: 'bad-args' }
+      const st = await fs.promises.stat(p)
+      let meta = {}
+      try { meta = await sharp(p).metadata() } catch (_) {}
+      return {
+        ok: true,
+        stats: {
+          path: p,
+          sizeBytes: Number(st.size) || 0,
+          mtimeMs: Number(st.mtimeMs) || 0,
+          ctimeMs: Number(st.ctimeMs) || 0,
+          width: Number(meta.width) || 0,
+          height: Number(meta.height) || 0,
+          format: meta.format || '',
+          space: meta.space || '',
+          hasAlpha: !!meta.hasAlpha,
+          channels: Number(meta.channels) || 0
+        }
+      }
+    } catch (e) {
+      return { ok: false, error: String(e && e.message ? e.message : e) }
+    }
+  })
+
 
 
   ipcMain.handle('check-token-vision', async (_e, payload) => {

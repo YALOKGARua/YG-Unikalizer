@@ -75,6 +75,9 @@ contextBridge.exposeInMainWorld('api', {
   expandPaths: paths => ipcRenderer.invoke('expand-paths', paths),
   openPath: p => ipcRenderer.invoke('open-path', p),
   showInFolder: p => ipcRenderer.invoke('show-item-in-folder', p),
+  renameFile: (path, newName) => ipcRenderer.invoke('file-rename', { path, newName }),
+  deleteFile: (path) => ipcRenderer.invoke('file-delete', path),
+  fileStats: (path) => ipcRenderer.invoke('file-stats', path),
   onProgress: cb => {
     const listener = (_, data) => cb(data)
     ipcRenderer.on('process-progress', listener)

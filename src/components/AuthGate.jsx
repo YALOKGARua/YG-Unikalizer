@@ -46,9 +46,9 @@ export default function AuthGate() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
-      <div className="w-80 glass rounded-xl p-4 border border-white/10">
+      <div className="w-80 glass rounded-xl p-4 border border-white/10 bg-slate-950">
         <div className="text-sm font-semibold mb-2">{t('auth.title', { defaultValue: 'Enter password' })}</div>
-        <input type="password" className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>{ if (e.key==='Enter') login() }} />
+        <input type="password" className="w-full bg-slate-950 border border-white/10 rounded px-2 py-2" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>{ if (e.key==='Enter') login() }} />
         <div className="flex items-center gap-2 mt-3">
           <label className="flex items-center gap-2 text-xs opacity-80"><input type="checkbox" checked={remember} onChange={e=>setRemember(e.target.checked)} /> {t('auth.remember', { defaultValue: 'Remember for 7 days' })}</label>
           <button onClick={login} disabled={busy || !password} className={`px-3 py-2 rounded ${busy || !password ? 'bg-slate-800 opacity-50 cursor-not-allowed' : 'bg-brand-600 hover:bg-brand-500'}`}>{busy ? '...' : t('auth.unlock', { defaultValue: 'Unlock' })}</button>
