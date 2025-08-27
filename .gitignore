@@ -31,3 +31,4 @@ coverage/
 *.rpm
 *.zip
 *.7z
+server/admin-events.jsonl

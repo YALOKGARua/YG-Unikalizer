@@ -94,3 +94,14 @@ export const IconCheck = (props) => (
     <path d="M5 13l4 4L19 7" />
   </svg>
 )
+
+export async function initWasm() {
+  try {
+    const res = await fetch('/wasm/pu.wasm')
+    const buf = await res.arrayBuffer()
+    const { instance } = await WebAssembly.instantiate(buf, {})
+    return instance && instance.exports ? instance.exports : null
+  } catch (_) {
+    return null
+  }
+}

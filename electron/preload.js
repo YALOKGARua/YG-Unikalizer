@@ -129,6 +129,8 @@ contextBridge.exposeInMainWorld('api', {
   getUpdateChangelog: () => ipcRenderer.invoke('get-update-changelog'),
   getReadme: () => ipcRenderer.invoke('get-readme'),
   clearStatsCache: () => ipcRenderer.invoke('stats-cache-clear'),
+  relaunchAsAdmin: () => ipcRenderer.invoke('relaunch-admin'),
+  isAdmin: () => ipcRenderer.invoke('is-admin'),
   ui: {
     saveState: (data) => ipcRenderer.invoke('ui-state-save', data),
     loadState: () => ipcRenderer.invoke('ui-state-load')

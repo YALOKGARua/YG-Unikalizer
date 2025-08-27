@@ -185,6 +185,8 @@ export default function App() {
   const [dupIndex, setDupIndex] = useState(-1)
   const [dupGroups, setDupGroups] = useState([])
   const [dupTargets, setDupTargets] = useState([])
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [adminToast, setAdminToast] = useState(false)
   const [indigoEndpoint, setIndigoEndpoint] = useState('http://127.0.0.1')
   const [indigoBusy, setIndigoBusy] = useState(false)
   const [indigoResult, setIndigoResult] = useState(null)
@@ -436,6 +438,26 @@ export default function App() {
     setGpuEnabled(final)
     try { setGpuName(String(g.adapterName() || '')) } catch (_) {}
     return () => { try { g.shutdown() } catch (_) {} }
+  }, [])
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const mod = await import('./components/Icons')
+        const wasm = await (mod.initWasm ? mod.initWasm() : null)
+        if (wasm && wasm.init) { try { wasm.init() } catch (_) {} }
+      } catch (_) {}
+    })()
+  }, [])
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await window.api.isAdmin().catch(()=>({ ok: true, admin: false }))
+        setIsAdmin(!!(r && r.admin))
+        if (r && r.admin) { setAdminToast(true); setTimeout(()=>setAdminToast(false), 3000) }
+      } catch (_) {}
+    })()
   }, [])
 
   const emitAdminEvent = (name, data) => {
@@ -1132,6 +1154,9 @@ export default function App() {
               setAboutOpen(v=>!v)
             }
           }} className="px-2 py-1 rounded bg-slate-900 border border-white/10 hover:bg-slate-800 text-xs">{t('actions.about')}</button>
+          {!isAdmin && <button onClick={async()=>{
+            try { await window.api.relaunchAsAdmin() } catch (_) {}
+          }} className="px-2 py-1 rounded bg-slate-900 border border-white/10 hover:bg-slate-700 text-xs">Запустить от администратора</button>}
           <button onClick={async()=>{
             try {
               const r = await window.api.dev.isUnlocked().catch(()=>({ok:false,unlocked:false}))
@@ -1168,6 +1193,10 @@ export default function App() {
           </div>
           <div className="mt-2 text-[11px] max-h-56 overflow-auto opacity-90 prose prose-invert prose-sm" dangerouslySetInnerHTML={{ __html: currentNotesHtml || prepareNotesHtml(currentNotes || 'Нет заметок') }} />
         </div>
+      )}
+
+      {adminToast && (
+        <div className="fixed top-3 right-3 z-50 px-3 py-2 rounded bg-emerald-900/70 border border-emerald-500/40 text-emerald-200 text-xs shadow-lg">Запущено от администратора</div>
       )}
 
       {aboutOpen && (

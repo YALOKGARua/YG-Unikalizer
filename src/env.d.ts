@@ -22,6 +22,11 @@ interface Window {
     getReadme: () => Promise<{ ok: boolean; data?: string; error?: string }>
     readTextFileByPath: (p: string) => Promise<{ ok: boolean; path?: string; content?: string; error?: string }>
     checkTokenVision: (payload: { endpoint?: string; token: string }) => Promise<{ ok: boolean; status?: number; body?: any; error?: string; exp?: number; sub?: string }>
+    clearStatsCache: () => Promise<{ ok: boolean }>
+    ui: {
+      saveState: (data: any) => Promise<{ ok: boolean }>
+      loadState: () => Promise<{ ok: boolean; data?: any }>
+    }
     native: {
       parseTxtProfiles: (text: string) => { profiles: any[]; errors: number; errorsInvalidJson?: number; errorsUnsupported?: number; segments?: number; parsedSegments?: number } | null
       parseTxtProfilesFromFile: (path: string) => { profiles: any[]; errors: number; errorsInvalidJson?: number; errorsUnsupported?: number; segments?: number; parsedSegments?: number } | null

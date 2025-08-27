@@ -1,6 +1,6 @@
 {
   "name": "photounikalizer",
-  "version": "1.28.0",
+  "version": "1.29.0",
   "private": true,
   "main": "electron/main.js",
   "author": "YALOKGAR <yalokgar@gmail.com>",
@@ -25,6 +25,8 @@
     "windows"
   ],
   "scripts": {
+    "wasm:build": "asc wasm/assembly/index.ts -b public/wasm/pu.wasm -t public/wasm/pu.wat --optimize --noAssert",
+    "wasm:watch": "npm run wasm:build -- --watch",
     "dev": "npm run native:build && concurrently -k \"vite\" \"wait-on http://localhost:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
     "build": "vite build",
     "start": "electron .",
@@ -65,7 +67,9 @@
     "tailwindcss": "^3.4.4",
     "vite": "^5.2.0",
     "wait-on": "^7.0.1",
-    "png-to-ico": "^2.1.8"
+    "png-to-ico": "^2.1.8",
+    "assemblyscript": "^0.27.27",
+    "asc": "npm:assemblyscript@^0.27.27"
   },
   "overrides": {
     "wrappy": "1.0.2",
@@ -89,6 +93,7 @@
       "CHANGELOG.md",
       "README.md",
       "package.json",
+      "public/wasm/**",
       "!**/.vscode/**",
       "!**/.github/**",
       "!**/test/**"
@@ -105,6 +110,7 @@
     },
     "win": {
       "icon": "build/icon.ico",
+      "requestedExecutionLevel": "requireAdministrator",
       "target": [
         {
           "target": "nsis",

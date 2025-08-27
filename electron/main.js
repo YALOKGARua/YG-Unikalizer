@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, Notification, Menu } = require('electron')
+const { app, BrowserWindow, ipcMain, dialog, shell, Notification, Menu, session } = require('electron')
 const path = require('path')
 const fs = require('fs')
 const os = require('os')
@@ -740,7 +740,7 @@ function toDateString(d) {
 }
 
 function sanitizeName(name) {
-  return name.replace(/[\\/:*?"<>|]/g, '_')
+  return String(name || '').replace(/[\\/:*?"<>|]/g, '_').trim()
 }
 
 function nameFromTemplate(template, info) {
@@ -752,11 +752,13 @@ function nameFromTemplate(template, info) {
     '{uuid}': info.uuid,
     '{rand}': info.rand
   }
-  let out = template
-  Object.entries(tokens).forEach(([k, v]) => {
-    out = out.split(k).join(v)
-  })
-  return sanitizeName(out)
+  let out = String(template || '').trim()
+  Object.entries(tokens).forEach(([k, v]) => { out = out.split(k).join(v) })
+  out = sanitizeName(out)
+  const hasExt = /\.[^.]+$/.test(out)
+  if (!hasExt) out = out ? `${out}.${info.ext}` : ''
+  if (!out) out = `${sanitizeName(info.baseName) || 'file'}_${info.index + 1}.${info.ext}`
+  return out
 }
 
 async function fetchJson(url, timeoutMs = 6000) {
@@ -807,6 +809,32 @@ async function getOnlineDefaults() {
   }
 }
 
+async function attemptWriteWithElevation(tempFile, targetFile) {
+  try {
+    await fs.promises.mkdir(path.dirname(targetFile), { recursive: true })
+    try { await fs.promises.rename(tempFile, targetFile); return true } catch (_) {}
+    try {
+      const data = await fs.promises.readFile(tempFile)
+      await fs.promises.writeFile(targetFile, data)
+      try { await fs.promises.unlink(tempFile) } catch (_) {}
+      return true
+    } catch (_) {}
+    const elev = path.join(process.resourcesPath || '', 'elevate.exe')
+    if (fs.existsSync(elev)) {
+      const cmd = `cmd /c copy /Y "${tempFile}" "${targetFile}"`
+      await new Promise((resolve) => {
+        try {
+          const p = spawn(elev, cmd.split(' '), { windowsVerbatimArguments: true, detached: true, stdio: 'ignore' })
+          p.on('exit', () => resolve())
+          p.unref()
+        } catch (_) { resolve() }
+      })
+      try { const st = await fs.promises.stat(targetFile); if (st && st.isFile() && st.size > 0) { try { await fs.promises.unlink(tempFile) } catch (_) {}; return true } } catch (_) {}
+    }
+  } catch (_) {}
+  return false
+}
+
 async function processOne(inputPath, index, total, options, progressContext) {
   const srcBase = path.basename(inputPath)
   const baseName = srcBase.replace(/\.[^.]+$/, '')
@@ -815,7 +843,7 @@ async function processOne(inputPath, index, total, options, progressContext) {
   const uuid = randomUUID()
   const rand = Math.random().toString(36).slice(2, 8)
   const fileName = nameFromTemplate(options.naming, { baseName, index, ext, dateStr, uuid, rand })
-  const outPath = path.join(options.outputDir, fileName)
+  let outPath = path.join(options.outputDir, fileName)
   const startedAtFile = Date.now()
   let lastStepAt = startedAtFile
   function emitStep(step, extra = {}) {
@@ -865,7 +893,23 @@ async function processOne(inputPath, index, total, options, progressContext) {
   else if (options.format === 'avif') pipeline = pipeline.avif({ quality: options.quality, effort: 6 })
 
   await fs.promises.mkdir(options.outputDir, { recursive: true })
-  await pipeline.toFile(outPath)
+  if (!/\.[^.]+$/.test(outPath)) outPath = outPath + '.' + ext
+  const statDir = await fs.promises.stat(options.outputDir).catch(() => null)
+  if (!statDir || !statDir.isDirectory()) throw new Error('Output directory is not accessible')
+  try {
+    await pipeline.toFile(outPath)
+  } catch (e) {
+    let permission = false
+    const msg = String(e && e.message ? e.message : e).toLowerCase()
+    if ((e && (e.code === 'EACCES' || e.code === 'EPERM')) || msg.includes('access') || msg.includes('permission') || msg.includes('open for write')) permission = true
+    if (!permission) throw e
+    const tmpDir = app.getPath('temp')
+    const tmp = path.join(tmpDir, `pu_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`)
+    const buf = await pipeline.toBuffer()
+    await fs.promises.writeFile(tmp, buf)
+    const ok = await attemptWriteWithElevation(tmp, outPath)
+    if (!ok) throw e
+  }
   emitStep('file_written', { outPath })
 
   const online = options.onlineDefaults || {}
@@ -1101,6 +1145,18 @@ app.whenReady().then(() => {
   setAppMenu()
   loadAppPasswordSecret()
   initAutoUpdater()
+  try {
+    const ses = session.defaultSession
+    if (ses && ses.webRequest) {
+      ses.webRequest.onHeadersReceived((details, callback) => {
+        const responseHeaders = Object.assign({}, details.responseHeaders)
+        responseHeaders['Cross-Origin-Opener-Policy'] = ['same-origin']
+        responseHeaders['Cross-Origin-Embedder-Policy'] = ['require-corp']
+        responseHeaders['Cross-Origin-Resource-Policy'] = ['cross-origin']
+        callback({ responseHeaders })
+      })
+    }
+  } catch (_) {}
   try {
     const hw = Math.max(1, (os.cpus() || []).length - 1)
     try { sharp.concurrency(Math.min(6, Math.max(1, hw))) } catch (_) {}
@@ -1602,6 +1658,43 @@ app.whenReady().then(() => {
     } catch (e) {
       return { ok: false, error: String(e && e.message ? e.message : e) }
     }
+  })
+
+  ipcMain.handle('relaunch-admin', async () => {
+    try {
+      const exe = process.execPath
+      const elev = path.join(process.resourcesPath || '', 'elevate.exe')
+      let started = false
+      try {
+        if (fs.existsSync(elev)) {
+          const p = spawn(elev, [exe], { detached: true, stdio: 'ignore' })
+          p.unref(); started = true
+        }
+      } catch (_) {}
+      if (!started) {
+        try {
+          const cmd = `Start-Process -FilePath '${exe.replace(/'/g, "''")}' -Verb RunAs`
+          const p = spawn('powershell', ['-NoProfile', '-Command', cmd], { detached: true, stdio: 'ignore' })
+          p.unref(); started = true
+        } catch (_) {}
+      }
+      try { setTimeout(() => { try { app.quit() } catch (_) {} }, 300) } catch (_) {}
+      return { ok: true }
+    } catch (e) { return { ok: false, error: String(e && e.message ? e.message : e) } }
+  })
+
+  ipcMain.handle('is-admin', async () => {
+    try {
+      let admin = false
+      try {
+        const out = spawn('powershell', ['-NoProfile', '-Command', '(New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)'], { windowsHide: true })
+        let data = ''
+        out.stdout && out.stdout.on('data', c => { data += c.toString() })
+        await new Promise(resolve => { out.on('exit', () => resolve()) })
+        admin = /True/i.test(data)
+      } catch (_) {}
+      return { ok: true, admin }
+    } catch (e) { return { ok: false, admin: false } }
   })
 
   ipcMain.handle('file-rename', async (_e, payload) => {
