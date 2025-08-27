@@ -12,6 +12,35 @@ function toFileUrl(p) {
   return encodeURI('file://' + s)
 }
 
+function sanitizeHtml(html) {
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(String(html || ''), 'text/html')
+  doc.querySelectorAll('script,iframe,object,embed,link,style,meta,form,input,button,video,audio,img').forEach(el => el.remove())
+  const all = doc.getElementsByTagName('*')
+  for (let i = all.length - 1; i >= 0; i -= 1) {
+    const el = all[i]
+    Array.from(el.attributes).forEach(attr => {
+      const n = attr.name.toLowerCase()
+      const v = attr.value || ''
+      if (n.startsWith('on') || n === 'style' || n === 'src' || n === 'srcdoc') el.removeAttribute(attr.name)
+      if (n === 'href' && el.tagName.toLowerCase() === 'a') {
+        const href = v.trim()
+        if (!href || href.startsWith('javascript:')) el.removeAttribute('href')
+        else { el.setAttribute('target', '_blank'); el.setAttribute('rel', 'noopener noreferrer') }
+      }
+    })
+  }
+  return doc.body.innerHTML
+}
+
+function prepareNotesHtml(s) {
+  const str = String(s || '')
+  const isHtml = /<\s*[a-z][\s\S]*>/i.test(str)
+  if (isHtml) return sanitizeHtml(str)
+  const escaped = str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  return escaped.replace(/\r?\n/g, '<br/>')
+}
+
 export default function App() {
   const { t, i18n } = useTranslation()
   const [files, setFiles] = useState([])
@@ -97,9 +126,11 @@ export default function App() {
   const [locationPreset, setLocationPreset] = useState('none')
   const renderFakeBelow = false
   const [upd, setUpd] = useState({ available: false, info: null, downloading: false, percent: 0, error: null, downloaded: false, notes: '' })
+  const [updNotesHtml, setUpdNotesHtml] = useState('')
   const [netLost, setNetLost] = useState(false)
   const [currentNotesOpen, setCurrentNotesOpen] = useState(false)
   const [currentNotes, setCurrentNotes] = useState('')
+  const [currentNotesHtml, setCurrentNotesHtml] = useState('')
   const [aboutOpen, setAboutOpen] = useState(false)
   const [aboutMd, setAboutMd] = useState('')
   const [showNotes, setShowNotes] = useState(false)
@@ -453,7 +484,10 @@ export default function App() {
         try {
           const r = await window.api.getUpdateChangelog().catch(() => ({ ok: false }))
           const notes = (r && r.ok && r.notes) ? r.notes : ''
-          if (notes) setUpd(prev => ({ ...prev, notes }))
+          if (notes) {
+            setUpd(prev => ({ ...prev, notes }))
+            try { setUpdNotesHtml(prepareNotesHtml(notes)) } catch (_) {}
+          }
           try { await window.api.downloadUpdate() } catch (_) {}
         } catch (_) {}
       })()
@@ -959,6 +993,7 @@ export default function App() {
                 const r = await window.api.getUpdateChangelog().catch(()=>({ok:false}))
                 const notes = (r && r.ok && r.notes) ? r.notes : 'Нет заметок'
                 setCurrentNotes(notes)
+                try { setCurrentNotesHtml(prepareNotesHtml(notes)) } catch (_) {}
               }
               setCurrentNotesOpen(v=>!v)
             } catch (_) {
@@ -1011,9 +1046,7 @@ export default function App() {
             <div className="text-sm">Что нового</div>
             <button onClick={()=>setCurrentNotesOpen(false)} className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs">Закрыть</button>
           </div>
-          <div className="mt-2 text-[11px] whitespace-pre-wrap max-h-56 overflow-auto opacity-90">
-            {currentNotes || 'Нет заметок'}
-          </div>
+          <div className="mt-2 text-[11px] max-h-56 overflow-auto opacity-90 prose prose-invert prose-sm" dangerouslySetInnerHTML={{ __html: currentNotesHtml || prepareNotesHtml(currentNotes || 'Нет заметок') }} />
         </div>
       )}
 
@@ -1044,9 +1077,7 @@ export default function App() {
             </div>
           </div>
           {!!upd.notes && showNotes && (
-            <div className="mt-2 text-[11px] whitespace-pre-wrap max-h-48 overflow-auto border-t border-amber-600/20 pt-2 opacity-90">
-              {upd.notes}
-            </div>
+            <div className="mt-2 text-[11px] max-h-48 overflow-auto border-t border-amber-600/20 pt-2 opacity-90 prose prose-invert prose-sm" dangerouslySetInnerHTML={{ __html: updNotesHtml || prepareNotesHtml(upd.notes) }} />
           )}
           {upd.downloading && !upd.downloaded && (
             <div className="w-full flex items-center gap-3 mt-2">
