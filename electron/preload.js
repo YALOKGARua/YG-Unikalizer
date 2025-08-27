@@ -88,6 +88,11 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('process-complete', listener)
     return () => ipcRenderer.removeListener('process-complete', listener)
   },
+  onOsOpenFiles: (cb) => {
+    const listener = (_, files) => cb(files)
+    ipcRenderer.on('os-open-files', listener)
+    return () => ipcRenderer.removeListener('os-open-files', listener)
+  },
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
   downloadUpdate: () => ipcRenderer.invoke('download-update'),
   quitAndInstall: () => ipcRenderer.invoke('quit-and-install'),
@@ -123,6 +128,11 @@ contextBridge.exposeInMainWorld('api', {
   },
   getUpdateChangelog: () => ipcRenderer.invoke('get-update-changelog'),
   getReadme: () => ipcRenderer.invoke('get-readme'),
+  clearStatsCache: () => ipcRenderer.invoke('stats-cache-clear'),
+  ui: {
+    saveState: (data) => ipcRenderer.invoke('ui-state-save', data),
+    loadState: () => ipcRenderer.invoke('ui-state-load')
+  },
   auth: {
     isRequired: () => ipcRenderer.invoke('auth-required'),
     login: (password, remember) => ipcRenderer.invoke('auth-login', { password, remember }),
@@ -251,5 +261,6 @@ contextBridge.exposeInMainWorld('api', {
     clusterByHamming: (hashes, threshold) => { const mod = loadNative(); return mod ? mod.clusterByHamming(hashes, threshold) : [] },
     wicDecodeGray8: (filePath) => { const mod = loadNative(); return mod ? mod.wicDecodeGray8(filePath) : null },
     parseTxtProfilesFromFile: (filePath) => { const mod = loadNative(); return mod ? mod.parseTxtProfilesFromFile(filePath) : null }
-  }
+  },
+  hashFileIncremental: (p) => ipcRenderer.invoke('hash-file-incremental', { path: p })
 })

@@ -53,6 +53,7 @@ npm run dist
 ## Release
 
 1. Update `CHANGELOG.md` and bump version (`npm run release:patch|minor|major`).
+2. Windows Explorer integration: create a shortcut to `PhotoUnikalizer.exe` in `%APPDATA%\Microsoft\Windows\SendTo` or install a context menu entry.
 2. Build prebuilds if native code changed: `npm run native:prebuild`.
 3. Build installer: `npm run dist`.
 4. Publish GitHub Release with notes (we display these in-app).

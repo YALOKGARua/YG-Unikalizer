@@ -1,6 +1,6 @@
 {
   "name": "photounikalizer",
-  "version": "1.27.3",
+  "version": "1.28.0",
   "private": true,
   "main": "electron/main.js",
   "author": "YALOKGAR <yalokgar@gmail.com>",
@@ -36,7 +36,8 @@
     "release:major": "npm version major -m \"release: %s\" && git push",
     "postinstall": "electron-builder install-app-deps && node scripts/build-native.js",
     "native:build": "node scripts/build-native.js",
-    "native:prebuild": "cd native && prebuildify --napi --strip"
+    "native:prebuild": "cd native && prebuildify --napi --strip",
+    "open:sendto": "powershell -NoProfile -Command \"Start-Process explorer.exe ($env:APPDATA+'\\Microsoft\\Windows\\SendTo')\""
   },
   "dependencies": {
     "dotenv": "^16.4.5",
@@ -118,8 +119,9 @@
     },
     "nsis": {
       "oneClick": true,
-      "perMachine": false,
-      "artifactName": "PhotoUnikalizer-Setup-${version}.exe"
+      "perMachine": true,
+      "artifactName": "PhotoUnikalizer-Setup-${version}.exe",
+      "include": "build/installer.nsh"
     },
     "portable": {
       "artifactName": "PhotoUnikalizer-Portable-${version}.exe"

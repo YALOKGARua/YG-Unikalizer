@@ -405,6 +405,20 @@ export default function App() {
 
   useEffect(() => {
     try {
+      const off = window.api.onOsOpenFiles(async (files) => {
+        if (Array.isArray(files) && files.length) {
+          try {
+            const expanded = await window.api.expandPaths(files)
+            if (expanded && expanded.length) setFiles(prev => Array.from(new Set([...prev, ...expanded])))
+          } catch (_) {}
+        }
+      })
+      return () => { try { off && off() } catch (_) {} }
+    } catch (_) {}
+  }, [])
+
+  useEffect(() => {
+    try {
       const m = String(indigoEndpoint||'').match(/:(\d+)(?:$|\/)$/)
       setIndigoPort(m ? m[1] : '')
     } catch (_) {}
@@ -554,6 +568,68 @@ export default function App() {
   useEffect(() => {
     try { document.documentElement.setAttribute('dir', i18n.language === 'ar' ? 'rtl' : 'ltr') } catch (_) {}
   }, [i18n.language])
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await window.api.ui.loadState().catch(() => ({ ok: false }))
+        if (r && r.ok && r.data) {
+          const s = r.data
+          if (typeof s.language === 'string') { try { i18n.changeLanguage(s.language) } catch (_) {} }
+          if (typeof s.outputDir === 'string') setOutputDir(s.outputDir)
+          if (typeof s.profile === 'string') setProfile(s.profile)
+          if (typeof s.format === 'string') setFormat(s.format)
+          if (typeof s.quality === 'number') setQuality(s.quality)
+          if (typeof s.colorDrift === 'number') setColorDrift(s.colorDrift)
+          if (typeof s.resizeDrift === 'number') setResizeDrift(s.resizeDrift)
+          if (typeof s.resizeMaxW === 'number') setResizeMaxW(s.resizeMaxW)
+          if (typeof s.naming === 'string') setNaming(s.naming)
+          if (typeof s.removeGps === 'boolean') setRemoveGps(s.removeGps)
+          if (typeof s.dateStrategy === 'string') setDateStrategy(s.dateStrategy)
+          if (typeof s.dateOffsetMinutes === 'number') setDateOffsetMinutes(s.dateOffsetMinutes)
+          if (typeof s.uniqueId === 'boolean') setUniqueId(s.uniqueId)
+          if (typeof s.removeAllMeta === 'boolean') setRemoveAllMeta(s.removeAllMeta)
+          if (typeof s.filterExt === 'string') setFilterExt(s.filterExt)
+          if (typeof s.searchFiles === 'string') setSearchFiles(s.searchFiles)
+          if (typeof s.sortBy === 'string') setSortBy(s.sortBy)
+          if (typeof s.sortDir === 'string') setSortDir(s.sortDir)
+          if (typeof s.activeTab === 'string') setActiveTab(s.activeTab)
+          if (Array.isArray(s.files) && s.files.length) {
+            try {
+              const expanded = await window.api.expandPaths(s.files)
+              if (expanded && expanded.length) setFiles(Array.from(new Set(expanded)))
+            } catch (_) {}
+          }
+        }
+      } catch (_) {}
+    })()
+  }, [])
+
+  useEffect(() => {
+    const data = {
+      language: i18n.language,
+      outputDir,
+      profile,
+      format,
+      quality,
+      colorDrift,
+      resizeDrift,
+      resizeMaxW,
+      naming,
+      removeGps,
+      dateStrategy,
+      dateOffsetMinutes,
+      uniqueId,
+      removeAllMeta,
+      filterExt,
+      searchFiles,
+      sortBy,
+      sortDir,
+      activeTab,
+      files: Array.isArray(files) ? files.slice(0, 500) : []
+    }
+    try { window.api.ui.saveState(data) } catch (_) {}
+  }, [i18n.language, outputDir, profile, format, quality, colorDrift, resizeDrift, resizeMaxW, naming, removeGps, dateStrategy, dateOffsetMinutes, uniqueId, removeAllMeta, filterExt, searchFiles, sortBy, sortDir, activeTab, files])
 
   const handleAdd = async () => {
     const paths = await window.api.selectImages()

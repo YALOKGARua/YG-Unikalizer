@@ -104,6 +104,11 @@ const PRESET_FILE = path.join(app.getPath('userData'), 'preset.json')
 let lastUpdateInfo = null
 let fallbackUpdateInfo = null
 let downloadedInstallerPath = ''
+let statsCache = null
+let statsCachePath = ''
+let statsCacheDirty = false
+let statsSaveTimer = null
+let uiStatePath = ''
 let devUnlocked = false
 const DEV_PASSWORD = String(process.env.DEV_MENU_PASSWORD || '')
 
@@ -590,6 +595,19 @@ function createWindow() {
   const url = resolveHtmlPath()
   if (url.startsWith('http')) mainWindow.loadURL(url)
   else mainWindow.loadFile(path.join(__dirname, '..', 'dist', 'index.html'))
+}
+
+function collectOsOpenFiles() {
+  const items = []
+  try {
+    const args = (process.argv || []).slice(1)
+    for (const a of args) {
+      const s = String(a || '')
+      if (!s || s.startsWith('--')) continue
+      try { if (fs.existsSync(s)) items.push(s) } catch (_) {}
+    }
+  } catch (_) {}
+  return items
 }
 
 function setAppMenu() {
@@ -1083,6 +1101,30 @@ app.whenReady().then(() => {
   setAppMenu()
   loadAppPasswordSecret()
   initAutoUpdater()
+  try {
+    const hw = Math.max(1, (os.cpus() || []).length - 1)
+    try { sharp.concurrency(Math.min(6, Math.max(1, hw))) } catch (_) {}
+    try { sharp.cache({ memory: 256, files: 100, items: 512 }) } catch (_) {}
+  } catch (_) {}
+
+  try {
+    statsCachePath = path.join(app.getPath('userData'), 'file_stats_cache.json')
+    try {
+      const txt = fs.readFileSync(statsCachePath, 'utf-8')
+      statsCache = JSON.parse(txt)
+    } catch (_) { statsCache = {} }
+  } catch (_) { statsCache = {} }
+  try {
+    uiStatePath = path.join(app.getPath('userData'), 'ui_state.json')
+  } catch (_) { uiStatePath = '' }
+  try {
+    const initial = collectOsOpenFiles()
+    if (initial.length && mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.once('did-finish-load', () => {
+        try { mainWindow.webContents.send('os-open-files', initial) } catch (_) {}
+      })
+    }
+  } catch (_) {}
 
   const devUrl = process.env.VITE_DEV_SERVER_URL
   if (!devUrl) {
@@ -1093,6 +1135,21 @@ app.whenReady().then(() => {
       try { initAutoUpdater(); autoUpdater.checkForUpdates().catch(()=>{}) } catch (_) {}
     }, 10 * 60 * 1000)
   }
+
+  app.on('second-instance', (_e, argv) => {
+    try {
+      const extra = []
+      for (const a of (argv || []).slice(1)) {
+        const ext = path.extname(String(a)).toLowerCase()
+        if (['.jpg', '.jpeg', '.png', '.webp', '.avif', '.tif', '.tiff'].includes(ext)) extra.push(a)
+      }
+      if (extra.length && mainWindow && !mainWindow.isDestroyed()) {
+        if (mainWindow.isMinimized()) mainWindow.restore()
+        mainWindow.focus()
+        mainWindow.webContents.send('os-open-files', extra)
+      }
+    } catch (_) {}
+  })
 
   ipcMain.handle('select-images', async () => {
     const res = await dialog.showOpenDialog(mainWindow, { properties: ['openFile', 'multiSelections'], filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tif', 'tiff'] }] })
@@ -1214,6 +1271,24 @@ app.whenReady().then(() => {
     return { ok: true }
   })
 
+  ipcMain.handle('ui-state-save', async (_e, payload) => {
+    try {
+      if (!uiStatePath) return { ok: false }
+      const data = JSON.stringify(payload || {}, null, 2)
+      await fs.promises.mkdir(path.dirname(uiStatePath), { recursive: true })
+      await fs.promises.writeFile(uiStatePath, data, 'utf-8')
+      return { ok: true }
+    } catch (e) { return { ok: false, error: String(e && e.message ? e.message : e) } }
+  })
+  ipcMain.handle('ui-state-load', async () => {
+    try {
+      if (!uiStatePath || !fs.existsSync(uiStatePath)) return { ok: true, data: {} }
+      const txt = await fs.promises.readFile(uiStatePath, 'utf-8')
+      const data = JSON.parse(txt)
+      return { ok: true, data }
+    } catch (e) { return { ok: false, data: {} } }
+  })
+
   ipcMain.handle('save-preset', async (_e, payload) => {
     try {
       await fs.promises.mkdir(path.dirname(PRESET_FILE), { recursive: true })
@@ -1297,6 +1372,23 @@ app.whenReady().then(() => {
       }
       await autoUpdater.downloadUpdate()
       return { ok: true }
+    } catch (e) {
+      return { ok: false, error: String(e && e.message ? e.message : e) }
+    }
+  })
+
+  ipcMain.handle('hash-file-incremental', async (_e, payload) => {
+    try {
+      const filePath = typeof payload === 'string' ? payload : (payload && payload.path)
+      if (!filePath) return { ok: false }
+      const hash = createHash('sha256')
+      await new Promise((resolve, reject) => {
+        const s = fs.createReadStream(filePath)
+        s.on('data', chunk => hash.update(chunk))
+        s.on('error', reject)
+        s.on('end', resolve)
+      })
+      return { ok: true, algo: 'sha256', hash: hash.digest('hex') }
     } catch (e) {
       return { ok: false, error: String(e && e.message ? e.message : e) }
     }
@@ -1439,12 +1531,13 @@ app.whenReady().then(() => {
         const root = path.join(__dirname, '..')
         const changelogPath = path.join(root, 'CHANGELOG.md')
         const md = await fs.promises.readFile(changelogPath, 'utf-8')
-        const ver = `v${version}`
+        const ver = `v${version}`.toLowerCase()
         const lines = md.split(/\r?\n/)
         let start = -1
         let end = lines.length
         for (let i = 0; i < lines.length; i += 1) {
-          if (lines[i].trim().toLowerCase().startsWith('##') && lines[i].includes(ver)) {
+          const line = lines[i].trim().toLowerCase()
+          if (line.startsWith('##') && line.includes(ver)) {
             start = i + 1
             for (let j = start; j < lines.length; j += 1) {
               if (lines[j].trim().toLowerCase().startsWith('##')) { end = j; break }
@@ -1454,13 +1547,22 @@ app.whenReady().then(() => {
         }
         if (start !== -1) notesChangelog = lines.slice(start, end).join('\n').trim()
         if (!notesChangelog && srcInfo && (srcInfo.version || srcInfo.tag)) {
-          const ver2 = `v${srcInfo.version || srcInfo.tag}`
-          const i2 = lines.findIndex(l => l.trim().toLowerCase().startsWith('##') && l.includes(ver2))
+          const ver2 = `v${srcInfo.version || srcInfo.tag}`.toLowerCase()
+          const i2 = lines.findIndex(l => l.trim().toLowerCase().startsWith('##') && l.toLowerCase().includes(ver2))
           if (i2 !== -1) {
             let j2 = lines.length
             for (let j = i2 + 1; j < lines.length; j += 1) { if (lines[j].trim().toLowerCase().startsWith('##')) { j2 = j; break } }
             notesChangelog = lines.slice(i2 + 1, j2).join('\n').trim()
           }
+        }
+        if (!notesChangelog) {
+          const firstIdx = lines.findIndex(l => l.trim().toLowerCase().startsWith('##'))
+          if (firstIdx !== -1) {
+            let j = firstIdx + 1
+            for (; j < lines.length; j += 1) { if (lines[j].trim().toLowerCase().startsWith('##')) break }
+            notesChangelog = lines.slice(firstIdx + 1, j).join('\n').trim()
+          }
+          if (!notesChangelog) notesChangelog = md.trim()
         }
       } catch (_) {}
       const combined = [notesGithub, notesChangelog].filter(Boolean).join('\n\n')
@@ -1548,26 +1650,49 @@ app.whenReady().then(() => {
       const p = String(filePath || '')
       if (!p) return { ok: false, error: 'bad-args' }
       const st = await fs.promises.stat(p)
+      const key = `${p}|${st.mtimeMs}|${st.size}`
+      if (statsCache && statsCache[key]) return { ok: true, stats: { ...statsCache[key], path: p } }
       let meta = {}
       try { meta = await sharp(p).metadata() } catch (_) {}
-      return {
-        ok: true,
-        stats: {
-          path: p,
-          sizeBytes: Number(st.size) || 0,
-          mtimeMs: Number(st.mtimeMs) || 0,
-          ctimeMs: Number(st.ctimeMs) || 0,
-          width: Number(meta.width) || 0,
-          height: Number(meta.height) || 0,
-          format: meta.format || '',
-          space: meta.space || '',
-          hasAlpha: !!meta.hasAlpha,
-          channels: Number(meta.channels) || 0
-        }
+      const stats = {
+        path: p,
+        sizeBytes: Number(st.size) || 0,
+        mtimeMs: Number(st.mtimeMs) || 0,
+        ctimeMs: Number(st.ctimeMs) || 0,
+        width: Number(meta.width) || 0,
+        height: Number(meta.height) || 0,
+        format: meta.format || '',
+        space: meta.space || '',
+        hasAlpha: !!meta.hasAlpha,
+        channels: Number(meta.channels) || 0
       }
+      try {
+        if (statsCache) {
+          statsCache[key] = stats
+          statsCacheDirty = true
+          clearTimeout(statsSaveTimer)
+          statsSaveTimer = setTimeout(() => {
+            try {
+              if (statsCacheDirty) {
+                fs.writeFileSync(statsCachePath, JSON.stringify(statsCache), 'utf-8')
+                statsCacheDirty = false
+              }
+            } catch (_) {}
+          }, 1000)
+        }
+      } catch (_) {}
+      return { ok: true, stats }
     } catch (e) {
       return { ok: false, error: String(e && e.message ? e.message : e) }
     }
+  })
+
+  ipcMain.handle('stats-cache-clear', async () => {
+    try {
+      statsCache = {}
+      try { fs.writeFileSync(statsCachePath, JSON.stringify(statsCache), 'utf-8') } catch (_) {}
+      return { ok: true }
+    } catch (e) { return { ok: false } }
   })
 
 
