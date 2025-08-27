@@ -5,7 +5,8 @@ const os = require('os')
 const sharp = require('sharp')
 const { randomUUID, createHash } = require('crypto')
 const { autoUpdater } = require('electron-updater')
-const { exec } = require('child_process')
+const { exec, spawn } = require('child_process')
+const https = require('https')
 try {
   const candidates = []
   candidates.push(path.join(__dirname, '..', '.env.local'))
@@ -101,6 +102,8 @@ let currentBatchId = 0
 let cancelRequested = false
 const PRESET_FILE = path.join(app.getPath('userData'), 'preset.json')
 let lastUpdateInfo = null
+let fallbackUpdateInfo = null
+let downloadedInstallerPath = ''
 let devUnlocked = false
 const DEV_PASSWORD = String(process.env.DEV_MENU_PASSWORD || '')
 
@@ -627,6 +630,7 @@ function initAutoUpdater() {
 
   autoUpdater.on('update-available', info => {
     lastUpdateInfo = info
+    fallbackUpdateInfo = null
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('update-available', info)
   })
   autoUpdater.on('update-not-available', info => {
@@ -647,6 +651,68 @@ function initAutoUpdater() {
   autoUpdater.on('update-downloaded', info => {
     lastUpdateInfo = info || lastUpdateInfo
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('update-downloaded', info)
+  })
+}
+
+function compareVersions(a, b) {
+  try {
+    const na = String(a || '').replace(/^v/i, '').split('.').map(x => parseInt(x, 10) || 0)
+    const nb = String(b || '').replace(/^v/i, '').split('.').map(x => parseInt(x, 10) || 0)
+    const len = Math.max(na.length, nb.length)
+    for (let i = 0; i < len; i += 1) {
+      const va = na[i] || 0
+      const vb = nb[i] || 0
+      if (va > vb) return 1
+      if (va < vb) return -1
+    }
+    return 0
+  } catch (_) { return 0 }
+}
+
+async function checkGithubForUpdate() {
+  try {
+    const ownerRepo = 'YALOKGARua/PhotoUnikalizer'
+    const latest = await fetchJson(`https://api.github.com/repos/${ownerRepo}/releases/latest`, 8000).catch(() => null)
+    if (!latest || !latest.tag_name) return null
+    const current = app.getVersion()
+    const tag = String(latest.tag_name).replace(/^v/i, '')
+    if (compareVersions(tag, current) <= 0) return null
+    const assets = Array.isArray(latest.assets) ? latest.assets : []
+    let setup = assets.find(a => /Setup-\d+\.\d+\.\d+\.exe$/i.test(a.name || ''))
+    if (!setup) setup = assets.find(a => /Portable-\d+\.\d+\.\d+\.exe$/i.test(a.name || ''))
+    const info = {
+      version: tag,
+      tag: latest.tag_name,
+      releaseNotes: latest.body || latest.name || '',
+      url: setup ? setup.browser_download_url : ''
+    }
+    return info
+  } catch (_) { return null }
+}
+
+function downloadFile(url, target, onProgress) {
+  return new Promise((resolve, reject) => {
+    try {
+      const file = fs.createWriteStream(target)
+      let received = 0
+      let total = 0
+      https.get(url, res => {
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          const redirect = res.headers.location
+          res.destroy()
+          downloadFile(redirect, target, onProgress).then(resolve).catch(reject)
+          return
+        }
+        if (res.statusCode !== 200) { file.close(); fs.unlink(target, () => {}); reject(new Error('http ' + res.statusCode)); return }
+        total = Number(res.headers['content-length'] || 0)
+        res.on('data', chunk => {
+          received += chunk.length
+          if (typeof onProgress === 'function') onProgress({ transferred: received, total, bytesPerSecond: 0, percent: total ? (received / total) * 100 : 0 })
+        })
+        res.pipe(file)
+        file.on('finish', () => { file.close(() => resolve({ path: target, total })); })
+      }).on('error', err => { try { file.close() } catch (_) {}; fs.unlink(target, () => {}); reject(err) })
+    } catch (e) { reject(e) }
   })
 }
 
@@ -1194,8 +1260,22 @@ app.whenReady().then(() => {
   ipcMain.handle('check-for-updates', async () => {
     try {
       initAutoUpdater()
-      const res = await autoUpdater.checkForUpdates()
-      return { ok: true, info: res && res.updateInfo ? res.updateInfo : null }
+      let info = null
+      try {
+        const res = await autoUpdater.checkForUpdates()
+        info = res && res.updateInfo ? res.updateInfo : null
+      } catch (e) {
+        info = null
+      }
+      if (!info) {
+        const gh = await checkGithubForUpdate().catch(() => null)
+        if (gh && gh.version) {
+          fallbackUpdateInfo = gh
+          if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('update-available', gh)
+          return { ok: true, info: gh }
+        }
+      }
+      return { ok: true, info }
     } catch (e) {
       return { ok: false, error: String(e && e.message ? e.message : e) }
     }
@@ -1204,6 +1284,17 @@ app.whenReady().then(() => {
   ipcMain.handle('download-update', async () => {
     try {
       initAutoUpdater()
+      if (fallbackUpdateInfo && fallbackUpdateInfo.url) {
+        const dir = app.getPath('temp')
+        const name = `PhotoUnikalizer-Setup-${fallbackUpdateInfo.version}.exe`
+        const target = path.join(dir, name)
+        await downloadFile(fallbackUpdateInfo.url, target, p => {
+          if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('update-download-progress', { percent: p.percent, transferred: p.transferred, total: p.total, bytesPerSecond: p.bytesPerSecond })
+        })
+        downloadedInstallerPath = target
+        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('update-downloaded', { version: fallbackUpdateInfo.version, path: target })
+        return { ok: true, path: target }
+      }
       await autoUpdater.downloadUpdate()
       return { ok: true }
     } catch (e) {
@@ -1214,6 +1305,12 @@ app.whenReady().then(() => {
   ipcMain.handle('quit-and-install', async () => {
     try {
       initAutoUpdater()
+      if (downloadedInstallerPath && fs.existsSync(downloadedInstallerPath)) {
+        const child = spawn(downloadedInstallerPath, [], { detached: true, stdio: 'ignore' })
+        child.unref()
+        setTimeout(() => { try { app.quit() } catch (_) {} }, 500)
+        return { ok: true }
+      }
       setImmediate(() => autoUpdater.quitAndInstall())
       return { ok: true }
     } catch (e) {
@@ -1321,8 +1418,9 @@ app.whenReady().then(() => {
         if (typeof rn === 'object' && (rn.note || rn.notes)) return rn.note || rn.notes
         return ''
       }
-      let notesGithub = extract(lastUpdateInfo)
-      const version = (lastUpdateInfo && (lastUpdateInfo.version || lastUpdateInfo.tag)) || app.getVersion()
+      const srcInfo = lastUpdateInfo || fallbackUpdateInfo
+      let notesGithub = extract(srcInfo)
+      const version = (srcInfo && (srcInfo.version || srcInfo.tag)) || app.getVersion()
       const ownerRepo = 'YALOKGARua/PhotoUnikalizer'
       if (!notesGithub) {
         let data = null
@@ -1355,7 +1453,15 @@ app.whenReady().then(() => {
           }
         }
         if (start !== -1) notesChangelog = lines.slice(start, end).join('\n').trim()
-        if (!notesChangelog) notesChangelog = md.trim()
+        if (!notesChangelog && srcInfo && (srcInfo.version || srcInfo.tag)) {
+          const ver2 = `v${srcInfo.version || srcInfo.tag}`
+          const i2 = lines.findIndex(l => l.trim().toLowerCase().startsWith('##') && l.includes(ver2))
+          if (i2 !== -1) {
+            let j2 = lines.length
+            for (let j = i2 + 1; j < lines.length; j += 1) { if (lines[j].trim().toLowerCase().startsWith('##')) { j2 = j; break } }
+            notesChangelog = lines.slice(i2 + 1, j2).join('\n').trim()
+          }
+        }
       } catch (_) {}
       const combined = [notesGithub, notesChangelog].filter(Boolean).join('\n\n')
       return { ok: true, notes: combined, github: notesGithub || '', changelog: notesChangelog || '' }
