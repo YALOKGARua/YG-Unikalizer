@@ -128,7 +128,7 @@ export default function Chat({ url, userId, userName }) {
             onChange={e => setNickEdit(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && e.target.value.trim().length >= MIN_NICK_LEN) setNick(e.target.value.trim()) }}
           />
-          <button disabled={nickEdit.trim().length < MIN_NICK_LEN} onClick={() => { if (nickEdit.trim().length >= MIN_NICK_LEN) setNick(nickEdit.trim()) }} className={`px-3 py-2 rounded ${nickEdit.trim().length >= MIN_NICK_LEN ? 'bg-violet-600 hover:bg-violet-500' : 'bg-slate-800 opacity-50 cursor-not-allowed'} text-sm`}>{t('chat.join')}</button>
+          <button disabled={nickEdit.trim().length < MIN_NICK_LEN} onClick={() => { if (nickEdit.trim().length >= MIN_NICK_LEN) setNick(nickEdit.trim()) }} className={`btn text-sm ${nickEdit.trim().length >= MIN_NICK_LEN ? 'btn-primary' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}>{t('chat.join')}</button>
         </div>
       </div>
     )
@@ -149,7 +149,7 @@ export default function Chat({ url, userId, userName }) {
           <button
             disabled={nickEdit.trim().length < MIN_NICK_LEN || nickEdit.trim() === nick.trim()}
             onClick={() => { if (nickEdit.trim().length >= MIN_NICK_LEN) setNick(nickEdit.trim()) }}
-            className={`px-2 py-1 rounded text-xs ${nickEdit.trim().length >= MIN_NICK_LEN && nickEdit.trim() !== nick.trim() ? 'bg-brand-700 hover:bg-brand-600' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}
+            className={`btn text-xs ${nickEdit.trim().length >= MIN_NICK_LEN && nickEdit.trim() !== nick.trim() ? 'btn-primary' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}
           >{t('chat.set')}</button>
         </div>
         <div className="text-xs opacity-70 ml-auto">{t('chat.users')}: {Math.max(0, usersCount)}</div>
@@ -171,7 +171,7 @@ export default function Chat({ url, userId, userName }) {
           onChange={e => setText(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && status === 'connected' && nick.trim().length >= MIN_NICK_LEN && text.trim()) send() }}
         />
-        <button disabled={nick.trim().length < MIN_NICK_LEN || status !== 'connected' || !text.trim()} onClick={send} className={`px-3 py-2 rounded ${nick.trim().length >= MIN_NICK_LEN && status === 'connected' && text.trim() ? 'bg-brand-600 hover:bg-brand-500' : 'bg-slate-800 opacity-50 cursor-not-allowed'} text-sm`}>{t('chat.send')}</button>
+        <button disabled={nick.trim().length < MIN_NICK_LEN || status !== 'connected' || !text.trim()} onClick={send} className={`btn text-sm ${nick.trim().length >= MIN_NICK_LEN && status === 'connected' && text.trim() ? 'btn-primary' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}>{t('chat.send')}</button>
       </div>
     </div>
   )

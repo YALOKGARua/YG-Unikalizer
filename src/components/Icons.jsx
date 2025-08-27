@@ -105,3 +105,17 @@ export async function initWasm() {
     return null
   }
 }
+
+export async function wasmAhashFromGray(grayBytes, width, height) {
+  try {
+    const wasm = await initWasm()
+    if (!wasm || !wasm.memory || !wasm.aHashGray) return null
+    const mem = new Uint8Array(wasm.memory.buffer)
+    const len = width * height
+    const ptr = wasm.__new ? wasm.__new(len, 0) : 0
+    if (!ptr) return null
+    mem.set(grayBytes, ptr)
+    const v = wasm.aHashGray(ptr, width, height)
+    return typeof v === 'bigint' ? v.toString(16) : v.toString(16)
+  } catch (_) { return null }
+}

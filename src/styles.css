@@ -27,6 +27,18 @@ body {
   @apply px-3 py-2 rounded transition-colors;
 }
 
+.btn-primary {
+  @apply bg-brand-600 hover:bg-brand-500 text-white;
+}
+
+.btn-ghost {
+  @apply bg-slate-800 hover:bg-slate-700 text-xs;
+}
+
+.chip {
+  @apply text-[10px] px-2 py-1 rounded bg-slate-900/70 border border-white/10;
+}
+
 .neon {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   color: #a5b4fc;
@@ -45,6 +57,26 @@ body {
   contain-intrinsic-size: 160px 160px;
 }
 
+.tile {
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+.tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgba(0,0,0,.35);
+}
+.tile.selected {
+  box-shadow: 0 0 0 1px rgba(129,140,248,.35), 0 6px 18px rgba(99,102,241,.25);
+}
+
+.overlay-grad {
+  background: linear-gradient(180deg, rgba(0,0,0,.35), rgba(0,0,0,.45));
+}
+
+*::-webkit-scrollbar { width: 10px; height: 10px }
+*::-webkit-scrollbar-thumb { background: rgba(148,163,184,.3); border-radius: 8px }
+*::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,.45) }
+*::-webkit-scrollbar-track { background: transparent }
+
 .ctx-menu {
   position: absolute;
   min-width: 160px;
@@ -56,3 +88,4 @@ body {
 }
 .ctx-item { padding: 8px 10px; font-size: 12px; cursor: pointer; }
 .ctx-item:hover { background: rgba(99,102,241,.15); }
+

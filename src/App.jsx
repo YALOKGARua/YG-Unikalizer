@@ -2,9 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import indigoScript from '/indigo-script.js?raw'
 import { useTranslation } from 'react-i18next'
 import AuthGate from './components/AuthGate'
+import { initCodecs } from './wasm/codecs'
 import Chat from './components/Chat'
 import AdminPanel from './components/AdminPanel'
-import { IconPlus, IconFolderOpen, IconFolder, IconPlay, IconStop, IconOpenExternal, IconEye, IconTrash, IconFile, IconDownload } from './components/Icons'
+import { IconPlus, IconFolderOpen, IconFolder, IconPlay, IconStop, IconOpenExternal, IconEye, IconTrash, IconFile, IconDownload, IconInfo, IconStar, IconCheck, IconShield } from './components/Icons'
+import * as Tooltip from '@tippyjs/react'
+import 'tippy.js/dist/tippy.css'
+import { Toaster, toast } from 'sonner'
+import { useAutoAnimate } from '@formkit/auto-animate/react'
 
 function toFileUrl(p) {
   let s = p.replace(/\\/g, '/')
@@ -113,6 +118,7 @@ export default function App() {
   const [dragSelecting, setDragSelecting] = useState(false)
   const dragStartRef = useRef({ x: 0, y: 0 })
   const [dragRect, setDragRect] = useState(null)
+  const [listParent] = useAutoAnimate()
   const [activeTab, setActiveTab] = useState('files')
   const [filterExt, setFilterExt] = useState('all')
   const [searchFiles, setSearchFiles] = useState('')
@@ -187,6 +193,7 @@ export default function App() {
   const [dupTargets, setDupTargets] = useState([])
   const [isAdmin, setIsAdmin] = useState(false)
   const [adminToast, setAdminToast] = useState(false)
+  const [codecs, setCodecs] = useState(null)
   const [indigoEndpoint, setIndigoEndpoint] = useState('http://127.0.0.1')
   const [indigoBusy, setIndigoBusy] = useState(false)
   const [indigoResult, setIndigoResult] = useState(null)
@@ -212,6 +219,27 @@ export default function App() {
   const [chatUrl, setChatUrl] = useState(() => {
     try { return localStorage.getItem('chatUrl') || 'ws://10.11.10.101:8081' } catch (_) { return 'ws://10.11.10.101:8081' }
   })
+  const [chipPulse, setChipPulse] = useState({ total: false, selected: false, processed: false, errors: false })
+  useEffect(() => {
+    const id = setTimeout(() => setChipPulse(s => ({ ...s, total: false })), 450)
+    setChipPulse(s => ({ ...s, total: true }))
+    return () => clearTimeout(id)
+  }, [progress.total])
+  useEffect(() => {
+    const id = setTimeout(() => setChipPulse(s => ({ ...s, selected: false })), 450)
+    setChipPulse(s => ({ ...s, selected: true }))
+    return () => clearTimeout(id)
+  }, [selectedIdx.size])
+  useEffect(() => {
+    const id = setTimeout(() => setChipPulse(s => ({ ...s, processed: false })), 450)
+    setChipPulse(s => ({ ...s, processed: true }))
+    return () => clearTimeout(id)
+  }, [progress.current])
+  useEffect(() => {
+    const id = setTimeout(() => setChipPulse(s => ({ ...s, errors: false })), 450)
+    setChipPulse(s => ({ ...s, errors: true }))
+    return () => clearTimeout(id)
+  }, [errorCount])
   useEffect(() => { try { localStorage.setItem('chatUrl', chatUrl) } catch (_) {} }, [chatUrl])
   useEffect(() => { setAdminConnectKey(k=>k+1) }, [chatUrl])
   const indigoCodeRef = useRef(null)
@@ -446,6 +474,21 @@ export default function App() {
         const mod = await import('./components/Icons')
         const wasm = await (mod.initWasm ? mod.initWasm() : null)
         if (wasm && wasm.init) { try { wasm.init() } catch (_) {} }
+      } catch (_) {}
+    })()
+  }, [])
+
+  useEffect(() => {
+    (async () => {
+      try {
+        if (window.api && window.api.wasmCodecs && window.api.wasmCodecs.ensure) {
+          await window.api.wasmCodecs.ensure({ items: [
+            { name: 'mozjpeg.wasm', url: 'https://cdn.jsdelivr.net/npm/@squoosh/lib@latest/mozjpeg/mozjpeg_enc.wasm' },
+            { name: 'libwebp.wasm', url: 'https://cdn.jsdelivr.net/npm/@squoosh/lib@latest/webp/webp_enc.wasm' },
+            { name: 'libavif.wasm', url: 'https://cdn.jsdelivr.net/npm/@squoosh/lib@latest/avif/avif_enc.wasm' }
+          ] })
+        }
+        const c = await initCodecs(); setCodecs(c)
       } catch (_) {}
     })()
   }, [])
@@ -1079,18 +1122,19 @@ export default function App() {
   }
 
   const tabs = [
-    { id: 'files', label: t('tabs.files') },
-    { id: 'ready', label: t('tabs.ready') },
-    { id: 'converter', label: t('tabs.converter') },
-    { id: 'indigo', label: t('tabs.indigo') },
-    { id: 'vision', label: t('tabs.vision') },
-    { id: 'chat', label: t('tabs.chat') }
+    { id: 'files', label: t('tabs.files'), icon: 'folder' },
+    { id: 'ready', label: t('tabs.ready'), icon: 'check' },
+    { id: 'converter', label: t('tabs.converter'), icon: 'play' },
+    { id: 'indigo', label: t('tabs.indigo'), icon: 'star' },
+    { id: 'vision', label: t('tabs.vision'), icon: 'eye' },
+    { id: 'chat', label: t('tabs.chat'), icon: 'info' }
   ]
 
   return (
     <div className="h-full text-slate-100">
+      <Toaster richColors position="top-right" />
       <AuthGate />
-      <header className="px-4 sm:px-6 py-3 flex items-center justify-between gap-2 border-b border-white/10 bg-black/30 backdrop-blur sticky top-0 z-40" role="banner">
+      <header className="px-3 sm:px-5 py-2.5 flex items-center justify-between gap-2 border-b border-white/10 bg-black/30 backdrop-blur sticky top-0 z-40" role="banner">
         <div className="flex items-center gap-3">
           <div className="text-xl sm:text-2xl font-semibold tracking-tight">PhotoUnikalizer</div>
           <div className="text-[10px] sm:text-xs neon">by YALOKGAR</div>
@@ -1119,20 +1163,28 @@ export default function App() {
             <option value="ro">Română</option>
             <option value="ro-MD">Română (MD)</option>
           </select>
-          <div className="hidden sm:flex items-center w-48 h-2 bg-slate-900 rounded border border-white/10 ml-2" aria-live="polite" aria-label="progress">
-            <div className="h-2 bg-brand-600 rounded" style={{ width: (progress.total>0?Math.round(progress.current/progress.total*100):0) + '%' }} />
+          <div className="hidden sm:flex items-center w-40 h-2 bg-slate-900 rounded border border-white/10 ml-2 overflow-hidden" aria-live="polite" aria-label="progress" title={`${Math.round(progress.percent|| (progress.total>0?progress.current/progress.total*100:0))}%`}>
+            <div className="h-2 bg-brand-600 transition-[width] duration-300 ease-out" style={{ width: (progress.percent>0?Math.round(progress.percent): (progress.total>0?Math.round(progress.current/progress.total*100):0)) + '%' }} />
           </div>
           <div className="hidden md:flex items-center gap-2 ml-2">
-            <div className="text-[10px] px-2 py-1 rounded bg-slate-900 border border-white/10">Total: {progress.total}</div>
-            <div className="text-[10px] px-2 py-1 rounded bg-slate-900 border border-white/10">Selected: {selectedIdx.size}</div>
-            <div className="text-[10px] px-2 py-1 rounded bg-slate-900 border border-white/10">Processed: {Math.min(progress.current, progress.total)}</div>
-            <div className="text-[10px] px-2 py-1 rounded bg-slate-900 border border-white/10">Errors: {errorCount}</div>
+            <div className={`chip transition-colors ${chipPulse.total ? 'ring-1 ring-white/20' : ''}`} title={t('common.total', { defaultValue: 'Total' })}>
+              <span className="inline-flex items-center gap-1.5"><IconFolder className="w-3.5 h-3.5" />{t('common.total', { defaultValue: 'Total' })}: {progress.total}</span>
+            </div>
+            <div className={`chip transition-colors ${chipPulse.selected ? 'ring-1 ring-white/20' : ''}`} title={t('common.selected')}>
+              <span className="inline-flex items-center gap-1.5"><IconCheck className="w-3.5 h-3.5" />{t('common.selected')}: {selectedIdx.size}</span>
+            </div>
+            <div className={`chip transition-colors ${chipPulse.processed ? 'ring-1 ring-white/20' : ''}`} title={t('common.processed', { defaultValue: 'Processed' })}>
+              <span className="inline-flex items-center gap-1.5"><IconPlay className="w-3.5 h-3.5" />{t('common.processed', { defaultValue: 'Processed' })}: {Math.min(progress.current, progress.total)}</span>
+            </div>
+            <div className={`chip transition-colors ${chipPulse.errors ? 'ring-1 ring-rose-400/30' : ''}`} title={t('common.errors', { defaultValue: 'Errors' })}>
+              <span className="inline-flex items-center gap-1.5"><IconInfo className="w-3.5 h-3.5" />{t('common.errors', { defaultValue: 'Errors' })}: {errorCount}</span>
+            </div>
           </div>
           <button onClick={async()=>{
             try {
               if (!currentNotes) {
                 const r = await window.api.getUpdateChangelog().catch(()=>({ok:false}))
-                const notes = (r && r.ok && r.notes) ? r.notes : 'Нет заметок'
+                const notes = (r && r.ok && r.notes) ? r.notes : t('notes.none')
                 setCurrentNotes(notes)
                 try { setCurrentNotesHtml(prepareNotesHtml(notes)) } catch (_) {}
               }
@@ -1140,12 +1192,12 @@ export default function App() {
             } catch (_) {
               setCurrentNotesOpen(v=>!v)
             }
-          }} className="px-2 py-1 rounded bg-slate-900 border border-white/10 hover:bg-slate-800 text-xs">{t('actions.whatsNew')}</button>
+          }} className="btn btn-ghost text-xs" title={t('actions.whatsNew')}><span className="inline-flex items-center gap-1.5"><IconStar className="w-3.5 h-3.5" />{t('actions.whatsNew')}</span></button>
           <button onClick={async()=>{
             try {
               if (!aboutMd) {
                 const r = await window.api.getReadme().catch(()=>({ok:false}))
-                const data = (r && r.ok && r.data) ? r.data : 'README not found'
+                const data = (r && r.ok && r.data) ? r.data : t('about.readmeMissing')
                 setAboutMd(data)
                 try { setAboutHtml(markdownToHtml(data)) } catch (_) {}
               }
@@ -1153,10 +1205,10 @@ export default function App() {
             } catch (_) {
               setAboutOpen(v=>!v)
             }
-          }} className="px-2 py-1 rounded bg-slate-900 border border-white/10 hover:bg-slate-800 text-xs">{t('actions.about')}</button>
+          }} className="btn btn-ghost text-xs" title={t('actions.about')}><span className="inline-flex items-center gap-1.5"><IconInfo className="w-3.5 h-3.5" />{t('actions.about')}</span></button>
           {!isAdmin && <button onClick={async()=>{
             try { await window.api.relaunchAsAdmin() } catch (_) {}
-          }} className="px-2 py-1 rounded bg-slate-900 border border-white/10 hover:bg-slate-700 text-xs">Запустить от администратора</button>}
+          }} className="btn btn-ghost text-xs" title={t('actions.runAsAdmin')}><span className="inline-flex items-center gap-1.5"><IconShield className="w-3.5 h-3.5" />{t('actions.runAsAdmin')}</span></button>}
           <button onClick={async()=>{
             try {
               const r = await window.api.dev.isUnlocked().catch(()=>({ok:false,unlocked:false}))
@@ -1164,16 +1216,16 @@ export default function App() {
             } catch (_) {}
             setPendingAdminOpen(true)
             setDevUnlockOpen(true)
-          }} className="px-2 py-1 rounded bg-slate-900 border border-white/10 hover:bg-slate-800 text-xs">Admin</button>
+          }} className="btn btn-ghost text-xs" title="Admin"><span className="inline-flex items-center gap-1.5"><IconInfo className="w-3.5 h-3.5" />Admin</span></button>
         </div>
       </header>
 
       {progress && progress.total > 0 && (
         <div className="px-4 sm:px-6 py-2" aria-live="polite">
-          <div className="w-full h-2 bg-slate-900 rounded border border-white/10 overflow-hidden">
-            <div className="h-2 bg-brand-600" style={{ width: `${Math.max(0, Math.min(100, Math.round((progress.current / Math.max(1, progress.total)) * 100)))}%` }} />
+          <div className="w-full h-2 bg-slate-900 rounded border border-white/10 overflow-hidden" title={`${Math.round(progress.percent|| (progress.total>0?progress.current/progress.total*100:0))}%`}>
+            <div className="h-2 bg-brand-600 transition-[width] duration-300 ease-out" style={{ width: `${Math.max(0, Math.min(100, Math.round((progress.percent>0?progress.percent:(progress.current / Math.max(1, progress.total)) * 100))) )}%` }} />
           </div>
-          <div className="text-xs opacity-80 mt-1">
+          <div className="text-xs opacity-80 mt-1" title={`${t('status.speed')}: ${progress.speedBps ? (progress.speedBps/1024/1024).toFixed(2)+' MB/s' : '—'} • ${t('status.eta')}: ${progress.etaMs ? Math.max(0, Math.floor(progress.etaMs/1000))+'s' : '—'}`}>
             {busy ? t('status.processing') : t('status.ready')} {progress.lastFile ? `• ${progress.lastFile}` : ''}
             {busy && (
               <>
@@ -1188,10 +1240,10 @@ export default function App() {
       {currentNotesOpen && (
         <div className="mx-4 sm:mx-6 mb-4 p-3 rounded bg-slate-900/60 border border-white/10 text-slate-200">
           <div className="flex items-start justify-between gap-3">
-            <div className="text-sm">Что нового</div>
-            <button onClick={()=>setCurrentNotesOpen(false)} className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs">Закрыть</button>
+            <div className="text-sm">{t('panel.whatsNew')}</div>
+            <button onClick={()=>setCurrentNotesOpen(false)} className="btn btn-ghost text-xs">{t('panel.close')}</button>
           </div>
-          <div className="mt-2 text-[11px] max-h-56 overflow-auto opacity-90 prose prose-invert prose-sm" dangerouslySetInnerHTML={{ __html: currentNotesHtml || prepareNotesHtml(currentNotes || 'Нет заметок') }} />
+          <div className="mt-2 text-[11px] max-h-56 overflow-auto opacity-90 prose prose-invert prose-sm" dangerouslySetInnerHTML={{ __html: currentNotesHtml || prepareNotesHtml(currentNotes || t('notes.none')) }} />
         </div>
       )}
 
@@ -1202,10 +1254,10 @@ export default function App() {
       {aboutOpen && (
         <div className="mx-4 sm:mx-6 mb-4 p-3 rounded bg-slate-900/60 border border-white/10 text-slate-200">
           <div className="flex items-start justify-between gap-3">
-            <div className="text-sm">О программе</div>
-            <button onClick={()=>setAboutOpen(false)} className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs">Закрыть</button>
+            <div className="text-sm">{t('panel.about')}</div>
+            <button onClick={()=>setAboutOpen(false)} className="btn btn-ghost text-xs">{t('panel.close')}</button>
           </div>
-          <div className="mt-2 text-[11px] max-h-72 overflow-auto opacity-90 prose prose-invert prose-sm" dangerouslySetInnerHTML={{ __html: aboutHtml || markdownToHtml(aboutMd || 'README not found') }} />
+          <div className="mt-2 text-[11px] max-h-72 overflow-auto opacity-90 prose prose-invert prose-sm" dangerouslySetInnerHTML={{ __html: aboutHtml || markdownToHtml(aboutMd || t('about.readmeMissing')) }} />
         </div>
       )}
 
@@ -1214,7 +1266,7 @@ export default function App() {
           <div className="absolute inset-0 bg-black/70" />
           <div className="relative mx-4 sm:mx-6 mb-4 p-3 rounded bg-amber-900/40 border border-amber-600/40 text-amber-200 w-[720px] max-w-[96vw]">
           <div className="flex items-start justify-between gap-3">
-            <div className="text-sm">Доступно обновление {upd.info && upd.info.version ? `v${upd.info.version}` : ''}</div>
+            <div className="text-sm">{t('update.available')} {upd.info && upd.info.version ? `v${upd.info.version}` : ''}</div>
             <div className="flex gap-2">
               {!upd.downloading && !upd.downloaded && (
                 <button onClick={downloadUpdate} className="px-3 py-1 rounded bg-amber-600 hover:bg-amber-500 text-xs">Скачать</button>
@@ -1222,7 +1274,7 @@ export default function App() {
               {upd.downloaded && (
                 <button onClick={installUpdate} className="px-3 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-xs">Установить</button>
               )}
-              <button onClick={()=>setShowNotes(v=>!v)} className="px-3 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs">{showNotes ? 'Скрыть' : 'Что нового?'}</button>
+              <button onClick={()=>setShowNotes(v=>!v)} className="px-3 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs">{t('update.toggleNotes')}</button>
             </div>
           </div>
           {!!upd.notes && showNotes && (
@@ -1237,27 +1289,48 @@ export default function App() {
             </div>
           )}
           {upd.error && <div className="text-xs opacity-80 mt-2">{upd.error}</div>}
-          <div className="text-[11px] opacity-80 mt-2">Интерфейс заблокирован до установки обновления</div>
+          <div className="text-[11px] opacity-80 mt-2">{t('update.lockedUntilInstall')}</div>
           </div>
         </div>
       )}
 
       <main className="px-4 sm:px-6 pb-6 grid grid-cols-12 gap-4 sm:gap-6">
-        <aside className="col-span-12 lg:col-span-2 glass rounded-xl p-3 border border-white/10 h-fit lg:sticky lg:top-4 self-start">
-          <nav className="flex lg:flex-col gap-2">
+        <aside className="col-span-12 lg:col-span-2 glass rounded-xl p-2.5 border border-white/10 h-fit lg:sticky lg:top-4 self-start">
+          <nav className="flex lg:flex-col gap-1.5">
             {tabs.map(it => (
-              <button key={it.id} onClick={()=>{ setActiveTab(it.id); emitAdminEvent('tab', { tab: it.id }) }} className={`text-sm text-left px-3 py-2 rounded border ${activeTab===it.id ? 'bg-brand-600 hover:bg-brand-500 border-transparent' : 'bg-slate-900/50 hover:bg-slate-800/70 border-white/10'}`}>
-                {it.label}
+              <button key={it.id} title={it.label} onClick={()=>{ setActiveTab(it.id); emitAdminEvent('tab', { tab: it.id }) }} className={`group text-sm text-left px-3 py-2 rounded border transition-all ${activeTab===it.id ? 'bg-brand-600/90 hover:bg-brand-600 text-white border-transparent shadow-inner' : 'bg-slate-900/50 hover:bg-slate-800/70 border-white/10'}`}>
+                <span className={`inline-flex items-center gap-2`}>
+                  {it.icon==='folder' && <IconFolder className={`w-4 h-4 ${activeTab===it.id?'':'opacity-80 group-hover:opacity-100'}`} />}
+                  {it.icon==='check' && <IconCheck className={`w-4 h-4 ${activeTab===it.id?'':'opacity-80 group-hover:opacity-100'}`} />}
+                  {it.icon==='play' && <IconPlay className={`w-4 h-4 ${activeTab===it.id?'':'opacity-80 group-hover:opacity-100'}`} />}
+                  {it.icon==='star' && <IconStar className={`w-4 h-4 ${activeTab===it.id?'':'opacity-80 group-hover:opacity-100'}`} />}
+                  {it.icon==='eye' && <IconEye className={`w-4 h-4 ${activeTab===it.id?'':'opacity-80 group-hover:opacity-100'}`} />}
+                  {it.icon==='info' && <IconInfo className={`w-4 h-4 ${activeTab===it.id?'':'opacity-80 group-hover:opacity-100'}`} />}
+                  <span>{it.label}</span>
+                </span>
               </button>
             ))}
           </nav>
         </aside>
         <section className="col-span-12 lg:col-span-4 glass rounded-xl p-4 sm:p-5 border border-white/10">
           <div className="text-sm font-semibold mb-4">{t('sections.output')}</div>
-          <div className="flex gap-2">
-            <button onClick={handleOutput} className="px-3 py-2 rounded bg-brand-600 hover:bg-brand-500 text-white flex items-center gap-2"><IconFolder className="w-4 h-4" />{t('common.pickFolder')}</button>
+          <div className="flex gap-2 flex-wrap">
+            <button onClick={handleOutput} className="btn btn-primary flex items-center gap-2"><IconFolder className="w-4 h-4" />{t('common.pickFolder')}</button>
             <div className="text-xs truncate opacity-80 self-center max-w-[260px]" title={outputDir}>{outputDir || t('common.notSelected')}</div>
-            {!!outputDir && <button onClick={()=>window.api.openPath(outputDir)} className="px-2 py-2 rounded bg-slate-800 hover:bg-slate-700 text-xs flex items-center gap-1"><IconOpenExternal className="w-3.5 h-3.5" />{t('common.open')}</button>}
+            {!!outputDir && <button onClick={()=>window.api.openPath(outputDir)} className="btn btn-ghost flex items-center gap-1"><IconOpenExternal className="w-3.5 h-3.5" />{t('common.open')}</button>}
+            {!!codecs && (
+              <>
+                <button onClick={async()=>{
+                  try { const f = files[0]; if (!f) return; const dec = await window.api.decodeRgbaFile(f); if (!dec||!dec.data) return; const bytes = await codecs.encodeJpeg(new Uint8Array(dec.data), dec.width, dec.height, quality); if (bytes) await window.api.saveBytes({ data: Array.from(bytes), defaultPath: 'export.jpg' }) } catch (_) {}
+                }} className="btn btn-ghost text-xs">JPEG (mozjpeg)</button>
+                <button onClick={async()=>{
+                  try { const f = files[0]; if (!f) return; const dec = await window.api.decodeRgbaFile(f); if (!dec||!dec.data) return; const bytes = await codecs.encodeWebp(new Uint8Array(dec.data), dec.width, dec.height, 80); if (bytes) await window.api.saveBytes({ data: Array.from(bytes), defaultPath: 'export.webp' }) } catch (_) {}
+                }} className="btn btn-ghost text-xs">WEBP</button>
+                <button onClick={async()=>{
+                  try { const f = files[0]; if (!f) return; const dec = await window.api.decodeRgbaFile(f); if (!dec||!dec.data) return; const bytes = await codecs.encodeAvif(new Uint8Array(dec.data), dec.width, dec.height, 50); if (bytes) await window.api.saveBytes({ data: Array.from(bytes), defaultPath: 'export.avif' }) } catch (_) {}
+                }} className="btn btn-ghost text-xs">AVIF</button>
+              </>
+            )}
           </div>
 
           <div className="h-px bg-white/10 my-5" />
@@ -1350,7 +1423,7 @@ export default function App() {
                 </div>
                 <div className="md:col-span-2 flex items-center justify-between">
                   <div className="text-xs opacity-80">{t('meta.myData')}</div>
-                  <button onClick={fillMyData} className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs">{t('meta.fill')}</button>
+                  <button onClick={fillMyData} className="btn btn-ghost text-xs">{t('meta.fill')}</button>
                 </div>
                 <div>
                   <div className="text-xs mb-1">{t('meta.contactName')}</div>
@@ -1596,17 +1669,17 @@ export default function App() {
               </select>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <button onClick={handleAdd} className="px-3 py-2 rounded bg-brand-600 hover:bg-brand-500 flex items-center gap-2"><IconPlus className="w-4 h-4" />{t('buttons.addFiles')}</button>
-              <button onClick={addFolder} className="px-3 py-2 rounded bg-brand-700 hover:bg-brand-600 flex items-center gap-2"><IconFolderOpen className="w-4 h-4" />{t('buttons.addFolder')}</button>
-              <button onClick={handleClear} className="px-3 py-2 rounded bg-slate-800 hover:bg-slate-700">{t('buttons.clear')}</button>
-              {!busy && <button disabled={!canStart} onClick={start} className={`px-3 py-2 rounded flex items-center gap-2 ${canStart ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-emerald-900 opacity-50 cursor-not-allowed'}`}><IconPlay className="w-4 h-4 fill-current" />{t('buttons.start')}</button>}
-              {busy && <button onClick={cancel} className="px-3 py-2 rounded bg-rose-600 hover:bg-rose-500 flex items-center gap-2"><IconStop className="w-4 h-4" />{t('buttons.cancel')}</button>}
+              <button onClick={handleAdd} className="btn btn-primary flex items-center gap-2"><IconPlus className="w-4 h-4" />{t('buttons.addFiles')}</button>
+              <button onClick={addFolder} className="btn btn-ghost flex items-center gap-2"><IconFolderOpen className="w-4 h-4" />{t('buttons.addFolder')}</button>
+              <button onClick={handleClear} className="btn btn-ghost">{t('buttons.clear')}</button>
+              {!busy && <button disabled={!canStart} onClick={start} className={`btn flex items-center gap-2 ${canStart ? 'btn-primary' : 'bg-emerald-900 opacity-50 cursor-not-allowed'}`}><IconPlay className="w-4 h-4 fill-current" />{t('buttons.start')}</button>}
+              {busy && <button onClick={cancel} className="btn btn-ghost flex items-center gap-2"><IconStop className="w-4 h-4" />{t('buttons.cancel')}</button>}
             </div>
           </div>
 
           {activeTab === 'files' && (
             <>
-              <div ref={gridRef} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-[60vh] sm:max-h-[520px] overflow-auto pr-2 relative" onDrop={onDrop} onDragOver={onDragOver}
+              <div ref={(el)=>{ gridRef.current=el; if (listParent) listParent.current=el }} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-[60vh] sm:max-h-[520px] overflow-auto pr-2 relative" onDrop={onDrop} onDragOver={onDragOver}
                 onMouseDown={e=>{ if (e.target !== e.currentTarget) return; setDragSelecting(true); dragStartRef.current={x:e.nativeEvent.offsetX,y:e.nativeEvent.offsetY}; setDragRect({x:e.nativeEvent.offsetX,y:e.nativeEvent.offsetY,w:0,h:0}) }}
                 onMouseMove={e=>{ if (!dragSelecting) return; const start=dragStartRef.current; const rect={ x:Math.min(start.x,e.nativeEvent.offsetX), y:Math.min(start.y,e.nativeEvent.offsetY), w:Math.abs(e.nativeEvent.offsetX-start.x), h:Math.abs(e.nativeEvent.offsetY-start.y)}; setDragRect(rect) }}
                 onMouseUp={()=>{ setDragSelecting(false); setDragRect(null) }}>
@@ -1624,7 +1697,7 @@ export default function App() {
                     return 0
                   })
                   .map((p, i) => (
-                  <div key={p + i} className={`group bg-slate-900/60 rounded-md overflow-hidden border ${selectedIdx.has(i)?'border-brand-600 ring-1 ring-brand-600/40':'border-white/5'} relative cv-auto`} onClick={e=>{
+                  <div key={p + i} className={`group tile bg-slate-900/60 rounded-md overflow-hidden border ${selectedIdx.has(i)?'border-brand-600 ring-1 ring-brand-600/40 selected':'border-white/5'} relative cv-auto`} onClick={e=>{
                     if (e.shiftKey && lastSelectedIndex>=0) {
                       const [a,b] = [Math.min(lastSelectedIndex,i), Math.max(lastSelectedIndex,i)]
                       setSelectedIdx(prev=>{ const n=new Set(prev); for(let k=a;k<=b;k++) n.add(k); return n })
@@ -1635,11 +1708,11 @@ export default function App() {
                       setSelectedIdx(new Set([i])); setLastSelectedIndex(i)
                     }
                   }}>
-                    <button className="absolute inset-0 z-10 opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 flex items-center justify-center gap-3" onClick={()=>{ setPreviewSrc(toFileUrl(p)); setPreviewOpen(true) }} aria-label="preview image">
-                      <span className="inline-flex items-center gap-1 text-xs bg-slate-900/70 border border-white/10 px-2 py-1 rounded"><IconEye className="w-3.5 h-3.5" />Preview</span>
-                      <span className="inline-flex items-center gap-1 text-xs bg-slate-900/70 border border-white/10 px-2 py-1 rounded" onClick={(e)=>{ e.stopPropagation(); setFiles(prev => prev.filter((_, idx) => idx !== i)); setSelectedIdx(prev=>{ const n=new Set(prev); n.delete(i); return n }) }}><IconTrash className="w-3.5 h-3.5" />Remove</span>
+                    <button className="absolute left-0 right-0 top-0 bottom-10 z-10 opacity-0 group-hover:opacity-100 transition-opacity overlay-grad flex items-center justify-center gap-3" onClick={()=>{ setPreviewSrc(toFileUrl(p)); setPreviewOpen(true) }} aria-label="preview image">
+                      <span className="inline-flex items-center gap-1 text-xs bg-slate-900/70 border border-white/10 px-2 py-1 rounded"><IconEye className="w-3.5 h-3.5" />{t('common.preview')}</span>
+                      <span className="inline-flex items-center gap-1 text-xs bg-slate-900/70 border border-white/10 px-2 py-1 rounded" onClick={(e)=>{ e.stopPropagation(); setFiles(prev => prev.filter((_, idx) => idx !== i)); setSelectedIdx(prev=>{ const n=new Set(prev); n.delete(i); return n }) }}><IconTrash className="w-3.5 h-3.5" />{t('common.remove')}</span>
                     </button>
-                    <label className="absolute top-2 left-2 z-20 inline-flex items-center gap-1 text-[10px] px-1.5 py-1 rounded bg-slate-950/70 border border-white/10 cursor-pointer">
+                    <label className="absolute top-2 left-2 z-20 inline-flex items-center gap-1 text-[10px] px-1.5 py-1 rounded bg-slate-950/70 border border-white/10 cursor-pointer chip">
                       <input type="checkbox" className="accent-brand-600" checked={selectedIdx.has(i)} onChange={e=>{ setSelectedIdx(prev=>{ const n = new Set(prev); if (e.target.checked) n.add(i); else n.delete(i); return n }) }} aria-label="select file" />
                       <span>Select</span>
                     </label>
@@ -1648,39 +1721,40 @@ export default function App() {
                       {progress.lastFile===p && (
                         <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/40">
                           <div className="h-1 bg-brand-600" style={{ width: `${Math.max(0, Math.min(100, Math.round(progress.percent||0)))}%` }} />
-                        </div>
-                      )}
                     </div>
+                      )}
+                  </div>
                     <div className="text-[10px] p-2 truncate opacity-80 flex items-center gap-2" title={p} onContextMenu={e=>{ e.preventDefault(); setCtxMenu({ open: true, x: e.clientX, y: e.clientY, path: p, index: i }) }}>
                       <span className="flex-1 truncate" onMouseEnter={async()=>{ if (!statsByPath[p]) { try { const r = await window.api.fileStats(p); if (r && r.ok) setStatsByPath(prev=>({ ...prev, [p]: r.stats })) } catch (_) {} } }}>{p}</span>
-                      <button className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700" onClick={(e)=>{ e.stopPropagation(); setDetailsPath(p); try { window.api.native && window.api.native.computeFileHash && window.api.native.computeFileHash(p).then(h=>setDetailsHash(String(h||''))) } catch (_) {} }}>Info</button>
-                    </div>
+                      <button className="btn btn-ghost px-2 py-1 text-[10px]" onClick={async (e)=>{ e.stopPropagation(); setDetailsPath(p); try { const dec = await window.api.decodeGray8File(p); if (dec && dec.data) { const mod = await import('./components/Icons'); const h = await (mod.wasmAhashFromGray ? mod.wasmAhashFromGray(new Uint8Array(dec.data), dec.width, dec.height) : null); if (h) { const s=String(h); setDetailsHash(s) } else if (window.api.native && window.api.native.computeFileHash) window.api.native.computeFileHash(p).then(x=>{ const s=String(x||''); setDetailsHash(s) }) } else if (window.api.native && window.api.native.computeFileHash) window.api.native.computeFileHash(p).then(x=>{ const s=String(x||''); setDetailsHash(s) }) } catch (_) {} }}>{t('common.info')}</button>
+              </div>
                   </div>
                 ))}
                 {dragRect && (
                   <div className="absolute border border-brand-600/60 bg-brand-600/10" style={{ left: dragRect.x, top: dragRect.y, width: dragRect.w, height: dragRect.h }} />
-                )}
-              </div>
+                  )}
+                </div>
               {ctxMenu.open && (
                 <div className="ctx-menu" style={{ left: ctxMenu.x, top: ctxMenu.y }} onMouseLeave={()=>setCtxMenu(v=>({ ...v, open: false }))}>
-                  <div className="ctx-item" onClick={()=>{ setPreviewSrc(toFileUrl(ctxMenu.path)); setPreviewOpen(true); setCtxMenu(v=>({ ...v, open: false })) }}>Preview</div>
+                  <div className="ctx-item" onClick={()=>{ setPreviewSrc(toFileUrl(ctxMenu.path)); setPreviewOpen(true); setCtxMenu(v=>({ ...v, open: false })) }}>{t('common.preview')}</div>
                   <div className="ctx-item" onClick={()=>{ window.api.showInFolder(ctxMenu.path); setCtxMenu(v=>({ ...v, open: false })) }}>Open in folder</div>
+                  <div className="ctx-item" onClick={async()=>{ try { setDetailsPath(ctxMenu.path); const dec = await window.api.decodeGray8File(ctxMenu.path); if (dec && dec.data) { const mod = await import('./components/Icons'); const h = await (mod.wasmAhashFromGray ? mod.wasmAhashFromGray(new Uint8Array(dec.data), dec.width, dec.height) : null); if (h) { const s=String(h); setDetailsHash(s) } } } catch (_) {} setCtxMenu(v=>({ ...v, open: false })) }}>{t('common.info')}</div>
                   <div className="ctx-item" onClick={async()=>{ const base = prompt('New name', (ctxMenu.path.split('\\').pop()||ctxMenu.path.split('/').pop()||'').replace(/\.[^.]+$/, '')); if (!base) return; const r = await window.api.renameFile(ctxMenu.path, base); if (r && r.ok) { setFiles(prev=>prev.map(p=>p===ctxMenu.path?r.path:p)) } setCtxMenu(v=>({ ...v, open: false })) }}>Rename</div>
                   <div className="ctx-item" onClick={async()=>{ await window.api.deleteFile(ctxMenu.path); setFiles(prev=>prev.filter(p=>p!==ctxMenu.path)); setCtxMenu(v=>({ ...v, open: false })) }}>Delete</div>
-                </div>
+              </div>
               )}
               <div className="mt-2 flex items-center gap-2">
-                <div className="text-xs opacity-80">Selected: {selectedIdx.size}</div>
+                <div className="text-xs opacity-80">{t('common.selected')}: {selectedIdx.size}</div>
                 <button disabled={!selectedIdx.size} onClick={()=>{
                   const keep = new Set(selectedIdx)
                   setFiles(prev=>prev.filter((_, idx)=>!keep.has(idx)))
                   setSelectedIdx(new Set())
-                }} className={`px-2 py-1 rounded text-xs ${selectedIdx.size? 'bg-rose-600 hover:bg-rose-500' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}>Remove selected</button>
+                }} className={`btn text-xs ${selectedIdx.size? 'btn-ghost' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}>{t('buttons.removeSelected')}</button>
                 <button disabled={!selectedIdx.size} onClick={()=>{
                   const keep = new Set(selectedIdx)
                   setSelectedIdx(new Set())
                   window.api && window.api.showInFolder && files.forEach((p, idx)=>{ if (keep.has(idx)) try { window.api.showInFolder(p) } catch (_) {} })
-                }} className={`px-2 py-1 rounded text-xs ${selectedIdx.size? 'bg-slate-800 hover:bg-slate-700' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}>Open selected</button>
+                }} className={`btn text-xs ${selectedIdx.size? 'btn-ghost' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}>{t('buttons.openSelected')}</button>
               </div>
               
             </>
@@ -1690,21 +1764,22 @@ export default function App() {
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-[60vh] sm:max-h-[600px] overflow-auto pr-2">
               {results.map((r, i) => (
                 <div key={r.out + i} className="group bg-slate-900/60 rounded-md overflow-hidden border border-white/5 relative">
-                  <button className="absolute inset-0 z-10 opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 flex items-center justify-center gap-3" onClick={()=>{ setPreviewSrc(toFileUrl(r.out)); setPreviewOpen(true) }}>
-                    <span className="inline-flex items-center gap-1 text-xs bg-slate-900/70 border border-white/10 px-2 py-1 rounded"><IconEye className="w-3.5 h-3.5" />Preview</span>
-                    <span className="inline-flex items-center gap-1 text-xs bg-slate-900/70 border border-white/10 px-2 py-1 rounded" onClick={(e)=>{ e.stopPropagation(); window.api.showInFolder(r.out) }}><IconOpenExternal className="w-3.5 h-3.5" />Папка</span>
+                  <button className="absolute left-0 right-0 top-0 bottom-10 z-10 opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 flex items-center justify-center gap-3" onClick={()=>{ setPreviewSrc(toFileUrl(r.out)); setPreviewOpen(true) }}>
+                    <span className="inline-flex items-center gap-1 text-xs bg-slate-900/70 border border-white/10 px-2 py-1 rounded"><IconEye className="w-3.5 h-3.5" />{t('common.preview')}</span>
+                    <span className="inline-flex items-center gap-1 text-xs bg-slate-900/70 border border-white/10 px-2 py-1 rounded" onClick={(e)=>{ e.stopPropagation(); window.api.showInFolder(r.out) }}><IconOpenExternal className="w-3.5 h-3.5" />{t('common.folder')}</span>
                   </button>
                   <div className="h-32 sm:h-40 bg-slate-900 flex items-center justify-center overflow-hidden">
                     <img loading="lazy" decoding="async" alt="result" className="max-h-32 sm:max-h-40 transition-transform group-hover:scale-[1.02]" src={toFileUrl(r.out)} />
                   </div>
                   <div className="text-[10px] p-2 truncate opacity-80 flex items-center gap-2" title={r.out}>
                     <span className="flex-1 truncate">{r.out}</span>
-                    <button className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700" onClick={() => window.api.showInFolder(r.out)}>Папка</button>
+                    <button className="btn btn-ghost px-2 py-1 text-[10px]" onClick={() => window.api.showInFolder(r.out)}>{t('common.folder')}</button>
+                    <button className="btn btn-ghost px-2 py-1 text-[10px]" onClick={async()=>{ setDetailsPath(r.out); try { const dec = await window.api.decodeGray8File(r.out); if (dec && dec.data) { const mod = await import('./components/Icons'); const h = await (mod.wasmAhashFromGray ? mod.wasmAhashFromGray(new Uint8Array(dec.data), dec.width, dec.height) : null); if (h) { const s=String(h); setDetailsHash(s) } } } catch (_) {} }}>{t('common.info')}</button>
                   </div>
                 </div>
               ))}
               {results.length === 0 && (
-                <div className="opacity-60 text-xs">Здесь появятся готовые файлы после обработки</div>
+                <div className="opacity-60 text-xs">{t('ready.empty')}</div>
               )}
             </div>
           )}
@@ -1712,25 +1787,25 @@ export default function App() {
           {activeTab === 'converter' && (
             <div className="grid grid-cols-12 gap-4">
               <div className="col-span-12 flex items-center gap-2 flex-wrap">
-                <button onClick={chooseTxtFile} className="px-3 py-2 rounded bg-brand-600 hover:bg-brand-500 flex items-center gap-2"><IconFile className="w-4 h-4" />Выбрать TXT</button>
+                <button onClick={chooseTxtFile} className="btn btn-primary flex items-center gap-2"><IconFile className="w-4 h-4" />{t('converter.selectTxt')}</button>
                 {txtPath && <div className="text-xs opacity-80 truncate" title={txtPath}>{txtPath}</div>}
                 <div className="ml-auto flex items-center gap-2">
-                  <input placeholder="поиск по ID/имени" className="bg-slate-900 border border-white/10 rounded px-2 py-2 text-xs w-56" value={search} onChange={e=>setSearch(e.target.value)} />
-                  <label className="flex items-center gap-2 text-xs opacity-80"><input type="checkbox" checked={autoParse} onChange={e=>setAutoParse(e.target.checked)} /> Автоконверт</label>
-                  <button onClick={parseTxt} className="px-3 py-2 rounded bg-emerald-600 hover:bg-emerald-500 flex items-center gap-2"><IconPlay className="w-4 h-4 fill-current" />Конвертировать</button>
-                  <button onClick={saveJson} disabled={!jsonPreview} className={`px-3 py-2 rounded flex items-center gap-2 ${jsonPreview ? 'bg-sky-600 hover:bg-sky-500' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}><IconDownload className="w-4 h-4" />Сохранить общий JSON</button>
-                  <button onClick={saveJsonPerProfile} disabled={!profiles.length} className={`px-3 py-2 rounded flex items-center gap-2 ${profiles.length ? 'bg-sky-700 hover:bg-sky-600' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}><IconDownload className="w-4 h-4" />Сохранить по профилям</button>
-                  <button onClick={saveCookiesJson} disabled={!profiles.length} className={`px-3 py-2 rounded flex items-center gap-2 ${profiles.length ? 'bg-indigo-600 hover:bg-indigo-500' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}><IconDownload className="w-4 h-4" />Куки одним JSON</button>
-                  <button onClick={saveCookiesPerProfile} disabled={!profiles.length} className={`px-3 py-2 rounded flex items-center gap-2 ${profiles.length ? 'bg-indigo-700 hover:bg-indigo-600' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}><IconDownload className="w-4 h-4" />Куки по профилям</button>
+                  <input placeholder={t('converter.searchPlaceholder')} className="bg-slate-900 border border-white/10 rounded px-2 py-2 text-xs w-56" value={search} onChange={e=>setSearch(e.target.value)} />
+                  <label className="flex items-center gap-2 text-xs opacity-80"><input type="checkbox" checked={autoParse} onChange={e=>setAutoParse(e.target.checked)} /> {t('converter.auto')}</label>
+                  <button onClick={parseTxt} className="btn btn-primary flex items-center gap-2"><IconPlay className="w-4 h-4 fill-current" />{t('converter.convert')}</button>
+                  <button onClick={saveJson} disabled={!jsonPreview} className={`btn flex items-center gap-2 ${jsonPreview ? 'btn-ghost' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}><IconDownload className="w-4 h-4" />{t('converter.saveJsonAll')}</button>
+                  <button onClick={saveJsonPerProfile} disabled={!profiles.length} className={`btn flex items-center gap-2 ${profiles.length ? 'btn-ghost' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}><IconDownload className="w-4 h-4" />{t('converter.saveJsonPer')}</button>
+                  <button onClick={saveCookiesJson} disabled={!profiles.length} className={`btn flex items-center gap-2 ${profiles.length ? 'btn-ghost' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}><IconDownload className="w-4 h-4" />{t('converter.saveCookiesAll')}</button>
+                  <button onClick={saveCookiesPerProfile} disabled={!profiles.length} className={`btn flex items-center gap-2 ${profiles.length ? 'btn-ghost' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}><IconDownload className="w-4 h-4" />{t('converter.saveCookiesPer')}</button>
                 </div>
               </div>
               <div className="col-span-12 md:col-span-4">
                 <div className="text-xs mb-1 flex items-center justify-between">
-                  <span>Профили</span>
+                  <span>{t('converter.list')}</span>
                   {!!profiles.length && (
                     <span className="flex items-center gap-2">
-                      <button onClick={selectAllProfiles} className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700">Выделить все</button>
-                      <button onClick={clearAllProfiles} className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700">Снять</button>
+                      <button onClick={selectAllProfiles} className="btn btn-ghost">{t('converter.selectAll')}</button>
+                      <button onClick={clearAllProfiles} className="btn btn-ghost">{t('converter.clear')}</button>
                     </span>
                   )}
                 </div>
@@ -1754,9 +1829,9 @@ export default function App() {
                       <span className="truncate">{p.profileId || '—'} • {p.account?.firstName || ''} {p.account?.lastName || ''}</span>
                     </label>
                   ))}
-                  {!profiles.length && <div className="text-[11px] p-2 opacity-60">Загрузите TXT и нажмите Конвертировать</div>}
+                  {!profiles.length && <div className="text-[11px] p-2 opacity-60">{t('converter.dropHint')}</div>}
                 </div>
-                <div className="text-[11px] opacity-70 mt-2">Строк: {parseInfo.lines} • Профилей: {parseInfo.ok} • Ошибок: {parseInfo.errors} {parseError && `• ${parseError}`}</div>
+                <div className="text-[11px] opacity-70 mt-2">{t('converter.lines', { defaultValue: 'Строк' })}: {parseInfo.lines} • {t('converter.profiles', { defaultValue: 'Профилей' })}: {parseInfo.ok} • {t('converter.errors', { defaultValue: 'Ошибок' })}: {parseInfo.errors} {parseError && `• ${parseError}`}</div>
               </div>
               <div className="col-span-12 md:col-span-4" onDrop={async e=>{
                 e.preventDefault()
@@ -1806,8 +1881,8 @@ export default function App() {
                       document.body.removeChild(ta)
                     } catch (_) {}
                   }
-                }} className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs">Копировать код</button>
-                <button onClick={()=>{ try { if (indigoCodeRef.current) { indigoCodeRef.current.focus(); indigoCodeRef.current.select() } } catch (_) {} }} className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs">Выделить всё</button>
+                }} className="btn btn-ghost text-xs">{t('common.copy', { defaultValue: 'Copy' })}</button>
+                <button onClick={()=>{ try { if (indigoCodeRef.current) { indigoCodeRef.current.focus(); indigoCodeRef.current.select() } } catch (_) {} }} className="btn btn-ghost text-xs">{t('common.selectAll', { defaultValue: 'Select all' })}</button>
                 <button onClick={()=>{
                   try {
                     const blob = new Blob([indigoScript], { type: 'text/javascript;charset=utf-8' })
@@ -1819,7 +1894,7 @@ export default function App() {
                     a.click()
                     setTimeout(()=>{ URL.revokeObjectURL(url); a.remove() }, 500)
                   } catch (_) {}
-                }} className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs">Скачать .js</button>
+                }} className="btn btn-ghost text-xs">{t('common.download', { defaultValue: 'Download .js' })}</button>
               </div>
               <textarea ref={indigoCodeRef} spellCheck={false} wrap="off" className="mt-2 w-full h-64 bg-slate-950 border border-white/10 rounded p-2 text-[11px] leading-4 font-mono" readOnly value={indigoScript} />
             </div>
@@ -1837,10 +1912,10 @@ export default function App() {
                   <input className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2" value={visionEndpoint} onChange={e => setVisionEndpoint(e.target.value)} placeholder="https://api.example.com/me" />
                 </div>
                 <div className="md:col-span-2 flex items-center gap-2">
-                  <button onClick={checkVision} disabled={!visionToken || visionBusy} className={`px-3 py-2 rounded ${visionToken && !visionBusy ? 'bg-violet-600 hover:bg-violet-500' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}>{visionBusy ? 'Проверка…' : 'Проверить'}</button>
+                  <button onClick={checkVision} disabled={!visionToken || visionBusy} className={`btn ${visionToken && !visionBusy ? 'btn-primary' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}>{visionBusy ? t('vision.checking') : t('vision.check')}</button>
                   {visionResult && (
                     <div className={`text-xs ${visionResult.ok ? 'text-emerald-400' : 'text-rose-400'}`}>
-                      {visionResult.ok ? 'Доступ есть' : 'Нет доступа'} {typeof visionResult.status === 'number' ? `• ${visionResult.status}` : ''} {visionResult.error ? `• ${visionResult.error}` : ''} {typeof visionResult.exp === 'number' ? `• ${new Date(visionResult.exp*1000).toLocaleString()}` : ''}
+                      {visionResult.ok ? t('vision.ok') : t('vision.fail')} {typeof visionResult.status === 'number' ? `• ${visionResult.status}` : ''} {visionResult.error ? `• ${visionResult.error}` : ''} {typeof visionResult.exp === 'number' ? `• ${new Date(visionResult.exp*1000).toLocaleString()}` : ''}
                     </div>
                   )}
                 </div>
@@ -1855,17 +1930,19 @@ export default function App() {
           )}
 
         </section>
+
+        
       </main>
       {adminOpen && <AdminPanel onClose={() => setAdminOpen(false)} chatUrl={chatUrl} />}
       {devUnlockOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/70" onClick={() => setDevUnlockOpen(false)} />
           <div className="relative w-80 glass rounded-xl p-4 border border-white/10 bg-slate-900">
-            <div className="text-sm font-semibold mb-2">Developer Unlock</div>
+            <div className="text-sm font-semibold mb-2">{t('auth.title')}</div>
             <input
               type="password"
               className="w-full bg-slate-900 border border-white/10 rounded px-2 py-2 text-sm"
-              placeholder="Password"
+              placeholder={t('auth.title')}
               value={devPassword}
               onChange={e => setDevPassword(e.target.value)}
               onKeyDown={async e => { if (e.key === 'Enter' && devPassword.trim()) {
@@ -1874,7 +1951,7 @@ export default function App() {
               } }}
             />
             <div className="flex items-center gap-2 mt-3">
-              <button onClick={() => setDevUnlockOpen(false)} className="px-3 py-2 rounded bg-slate-800 hover:bg-slate-700 text-sm">Cancel</button>
+              <button onClick={() => setDevUnlockOpen(false)} className="btn btn-ghost text-sm">{t('buttons.cancel')}</button>
               <button
                 onClick={async () => {
                   if (!devPassword.trim()) return
@@ -1882,8 +1959,8 @@ export default function App() {
                   try { const r = await window.api.dev.unlock(devPassword); if (!r || !r.ok) setDevUnlockError('Invalid password') } catch (_) { setDevUnlockError('Invalid password') } finally { setDevUnlockBusy(false) }
                 }}
                 disabled={!devPassword.trim() || devUnlockBusy}
-                className={`px-3 py-2 rounded ${devPassword.trim() && !devUnlockBusy ? 'bg-violet-600 hover:bg-violet-500' : 'bg-slate-800 opacity-50 cursor-not-allowed'} text-sm`}
-              >Unlock</button>
+                className={`btn text-sm ${devPassword.trim() && !devUnlockBusy ? 'btn-primary' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}
+              >{t('auth.unlock')}</button>
               {!!devUnlockError && <div className="text-xs text-rose-400">{devUnlockError}</div>}
             </div>
           </div>
@@ -1894,7 +1971,7 @@ export default function App() {
           <div className="absolute inset-0 bg-black/80" onClick={()=>setPreviewOpen(false)} />
           <div className="relative max-w-[90vw] max-h-[90vh] rounded-xl overflow-hidden border border-white/10 bg-slate-900">
             <img alt="preview" src={previewSrc} className="max-w-[90vw] max-h-[90vh]" />
-            <button onClick={()=>setPreviewOpen(false)} className="absolute top-2 right-2 px-2 py-1 rounded bg-slate-900/80 border border-white/10 text-xs">Close</button>
+            <button onClick={()=>setPreviewOpen(false)} className="btn btn-ghost absolute top-2 right-2 text-xs">{t('panel.close')}</button>
           </div>
         </div>
       )}

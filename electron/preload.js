@@ -60,6 +60,19 @@ async function decodeGray8(filePath) {
   return { buf, width, height, stride }
 }
 
+async function decodeRgba(filePath) {
+  if (!sharp) {
+    try { sharp = require('sharp') } catch (_) { sharp = null }
+  }
+  if (!sharp) return null
+  const res = await sharp(filePath).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+  const buf = new Uint8Array(res.data.buffer, res.data.byteOffset, res.data.byteLength)
+  const width = res.info.width
+  const height = res.info.height
+  const stride = res.info.width * res.info.channels
+  return { buf, width, height, stride }
+}
+
 contextBridge.exposeInMainWorld('api', {
   selectImages: () => ipcRenderer.invoke('select-images'),
   selectImageDir: () => ipcRenderer.invoke('select-image-dir'),
@@ -131,6 +144,13 @@ contextBridge.exposeInMainWorld('api', {
   clearStatsCache: () => ipcRenderer.invoke('stats-cache-clear'),
   relaunchAsAdmin: () => ipcRenderer.invoke('relaunch-admin'),
   isAdmin: () => ipcRenderer.invoke('is-admin'),
+  decodeGray8File: (p) => decodeGray8(p).then(dec => dec ? ({ width: dec.width, height: dec.height, stride: dec.stride, data: Array.from(dec.buf) }) : null),
+  decodeRgbaFile: (p) => decodeRgba(p).then(dec => dec ? ({ width: dec.width, height: dec.height, stride: dec.stride, data: Array.from(dec.buf) }) : null),
+  wasmCodecs: {
+    ensure: (items) => ipcRenderer.invoke('ensure-wasm-codecs', { items }),
+    load: (name) => ipcRenderer.invoke('load-wasm-file', name)
+  },
+  saveBytes: (payload) => ipcRenderer.invoke('save-bytes', payload),
   ui: {
     saveState: (data) => ipcRenderer.invoke('ui-state-save', data),
     loadState: () => ipcRenderer.invoke('ui-state-load')

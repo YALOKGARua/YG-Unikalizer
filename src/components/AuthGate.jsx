@@ -51,7 +51,7 @@ export default function AuthGate() {
         <input type="password" className="w-full bg-slate-950 border border-white/10 rounded px-2 py-2" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>{ if (e.key==='Enter') login() }} />
         <div className="flex items-center gap-2 mt-3">
           <label className="flex items-center gap-2 text-xs opacity-80"><input type="checkbox" checked={remember} onChange={e=>setRemember(e.target.checked)} /> {t('auth.remember', { defaultValue: 'Remember for 7 days' })}</label>
-          <button onClick={login} disabled={busy || !password} className={`px-3 py-2 rounded ${busy || !password ? 'bg-slate-800 opacity-50 cursor-not-allowed' : 'bg-brand-600 hover:bg-brand-500'}`}>{busy ? '...' : t('auth.unlock', { defaultValue: 'Unlock' })}</button>
+          <button onClick={login} disabled={busy || !password} className={`btn ${busy || !password ? 'bg-slate-800 opacity-50 cursor-not-allowed' : 'btn-primary'}`}>{busy ? '...' : t('auth.unlock', { defaultValue: 'Unlock' })}</button>
           {error && <div className="text-xs text-rose-400">{error}</div>}
         </div>
       </div>

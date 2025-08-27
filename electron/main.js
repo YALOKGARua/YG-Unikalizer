@@ -1,4 +1,5 @@
 const { app, BrowserWindow, ipcMain, dialog, shell, Notification, Menu, session } = require('electron')
+const crypto = require('crypto')
 const path = require('path')
 const fs = require('fs')
 const os = require('os')
@@ -1637,6 +1638,73 @@ app.whenReady().then(() => {
     } catch (e) {
       return { ok: false, error: String(e && e.message ? e.message : e) }
     }
+  })
+
+  ipcMain.handle('ensure-wasm-codecs', async (_e, payload) => {
+    try {
+      const list = Array.isArray(payload && payload.items) ? payload.items : []
+      if (!list.length) return { ok: true, dir: '' }
+      const dir = path.join(app.getPath('userData'), 'wasm-codecs')
+      await fs.promises.mkdir(dir, { recursive: true })
+      async function sha256(p) {
+        const hash = crypto.createHash('sha256')
+        const s = fs.createReadStream(p)
+        return await new Promise((resolve, reject) => {
+          s.on('data', d => hash.update(d)); s.on('end', () => resolve(hash.digest('hex'))); s.on('error', reject)
+        })
+      }
+      async function fetchToFile(url, target) {
+        const ctrl = new AbortController(); const id = setTimeout(() => ctrl.abort(), 30000)
+        try {
+          const res = await fetch(url, { signal: ctrl.signal })
+          if (!res.ok) throw new Error('http ' + res.status)
+          const buf = new Uint8Array(await res.arrayBuffer())
+          await fs.promises.writeFile(target, buf)
+        } finally { clearTimeout(id) }
+      }
+      for (const it of list) {
+        try {
+          const name = String(it && it.name || '')
+          const url = String(it && it.url || '')
+          if (!name || !url) continue
+          const target = path.join(dir, name)
+          let need = true
+          try { const st = await fs.promises.stat(target); if (st && st.size > 0) need = false } catch (_) {}
+          if (!need && it.sha256) {
+            try { const h = await sha256(target); if (h.toLowerCase() !== String(it.sha256).toLowerCase()) need = true } catch (_) { need = true }
+          }
+          if (need) {
+            await fetchToFile(url, target)
+            if (it.sha256) {
+              const h = await sha256(target)
+              if (h.toLowerCase() !== String(it.sha256).toLowerCase()) throw new Error('hash mismatch for ' + name)
+            }
+          }
+        } catch (_) {}
+      }
+      return { ok: true, dir }
+    } catch (e) { return { ok: false, error: String(e && e.message ? e.message : e) } }
+  })
+
+  ipcMain.handle('load-wasm-file', async (_e, name) => {
+    try {
+      const dir = path.join(app.getPath('userData'), 'wasm-codecs')
+      const p = path.join(dir, String(name||''))
+      const buf = await fs.promises.readFile(p)
+      return { ok: true, data: buf }
+    } catch (e) { return { ok: false, error: String(e && e.message ? e.message : e) } }
+  })
+
+  ipcMain.handle('save-bytes', async (_e, payload) => {
+    try {
+      const data = payload && payload.data ? Buffer.from(payload.data) : null
+      const defaultPath = (payload && payload.defaultPath) || 'output.bin'
+      if (!data) return { ok: false }
+      const res = await dialog.showSaveDialog(mainWindow, { defaultPath, filters: [{ name: 'All', extensions: ['*'] }] })
+      if (res.canceled || !res.filePath) return { ok: false }
+      await fs.promises.writeFile(res.filePath, data)
+      return { ok: true, path: res.filePath }
+    } catch (e) { return { ok: false, error: String(e && e.message ? e.message : e) } }
   })
 
   ipcMain.handle('save-json-batch', async (_e, payload) => {

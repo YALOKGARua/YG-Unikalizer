@@ -105,8 +105,8 @@ export default function AdminPanel({ onClose, chatUrl }) {
           <div className="flex items-center gap-2">
             <input className="bg-slate-950 border border-white/10 rounded px-2 py-1 text-xs w-40" type="password" placeholder="admin password" value={adminPassword} onChange={e=>setAdminPassword(e.target.value)} />
             <input className="bg-slate-950 border border-white/10 rounded px-2 py-1 text-xs w-60" placeholder="filter" value={filter} onChange={e=>setFilter(e.target.value)} />
-            <button onClick={requestUsers} disabled={busy || status !== 'connected' || !adminPassword} className={`px-2 py-1 rounded text-xs ${(status==='connected'&&!busy&&adminPassword)?'bg-slate-800 hover:bg-slate-700':'bg-slate-800 opacity-50 cursor-not-allowed'}`}>Refresh</button>
-            <button className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs" onClick={onClose}>Close</button>
+            <button onClick={requestUsers} disabled={busy || status !== 'connected' || !adminPassword} className={`btn text-xs ${(status==='connected'&&!busy&&adminPassword)?'btn-primary':'bg-slate-800 opacity-50 cursor-not-allowed'}`}>{'Refresh'}</button>
+            <button className="btn btn-ghost text-xs" onClick={onClose}>{'Close'}</button>
           </div>
         </div>
         {error && <div className="text-xs text-rose-400 mb-2">{error}</div>}
