@@ -41,6 +41,48 @@ function prepareNotesHtml(s) {
   return escaped.replace(/\r?\n/g, '<br/>')
 }
 
+function markdownToHtml(md) {
+  const input = String(md || '').replace(/\r\n/g, '\n')
+  const blocks = []
+  let s = input.replace(/```(\w+)?\n([\s\S]*?)```/g, (_m, _lang, code) => {
+    const idx = blocks.length
+    const escaped = String(code || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    blocks.push(`<pre class="not-prose"><code>${escaped}</code></pre>`)
+    return `@@CODE_BLOCK_${idx}@@`
+  })
+  s = s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  s = s.replace(/^###\s+(.+)$/gm, '<h3>$1</h3>')
+  s = s.replace(/^##\s+(.+)$/gm, '<h2>$1</h2>')
+  s = s.replace(/^#\s+(.+)$/gm, '<h1>$1</h1>')
+  const lines = s.split('\n')
+  const out = []
+  let inUl = false
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i]
+    if (/^\s*[-*]\s+/.test(line)) {
+      if (!inUl) { out.push('<ul>'); inUl = true }
+      out.push(`<li>${line.replace(/^\s*[-*]\s+/, '')}</li>`)
+      continue
+    }
+    if (inUl) { out.push('</ul>'); inUl = false }
+    out.push(line)
+  }
+  if (inUl) out.push('</ul>')
+  s = out.join('\n')
+  s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+  s = s.replace(/`([^`]+)`/g, '<code>$1</code>')
+  s = s.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<span>$1</span>')
+  s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_m, text, href) => `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`)
+  s = s.split(/\n{2,}/).map(b => {
+    const t = b.trim()
+    if (!t) return ''
+    if (/^<(h\d|ul|pre)/i.test(t)) return t
+    return `<p>${t.replace(/\n/g, '<br/>')}</p>`
+  }).join('\n')
+  s = s.replace(/@@CODE_BLOCK_(\d+)@@/g, (_m, i) => blocks[Number(i)] || '')
+  return sanitizeHtml(s)
+}
+
 export default function App() {
   const { t, i18n } = useTranslation()
   const [files, setFiles] = useState([])
@@ -133,6 +175,7 @@ export default function App() {
   const [currentNotesHtml, setCurrentNotesHtml] = useState('')
   const [aboutOpen, setAboutOpen] = useState(false)
   const [aboutMd, setAboutMd] = useState('')
+  const [aboutHtml, setAboutHtml] = useState('')
   const [showNotes, setShowNotes] = useState(false)
   const [previewSrc, setPreviewSrc] = useState('')
   const [previewOpen, setPreviewOpen] = useState(false)
@@ -1006,6 +1049,7 @@ export default function App() {
                 const r = await window.api.getReadme().catch(()=>({ok:false}))
                 const data = (r && r.ok && r.data) ? r.data : 'README not found'
                 setAboutMd(data)
+                try { setAboutHtml(markdownToHtml(data)) } catch (_) {}
               }
               setAboutOpen(v=>!v)
             } catch (_) {
@@ -1056,7 +1100,7 @@ export default function App() {
             <div className="text-sm">О программе</div>
             <button onClick={()=>setAboutOpen(false)} className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs">Закрыть</button>
           </div>
-          <pre className="mt-2 text-[11px] whitespace-pre-wrap max-h-72 overflow-auto opacity-90">{aboutMd || 'README not found'}</pre>
+          <div className="mt-2 text-[11px] max-h-72 overflow-auto opacity-90 prose prose-invert prose-sm" dangerouslySetInnerHTML={{ __html: aboutHtml || markdownToHtml(aboutMd || 'README not found') }} />
         </div>
       )}
 
