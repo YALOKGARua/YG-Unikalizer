@@ -37,6 +37,7 @@
     "postinstall": "electron-builder install-app-deps && node scripts/build-native.js",
     "native:build": "node scripts/build-native.js",
     "native:prebuild": "cd native && prebuildify --napi --strip",
+    "assets:icons": "node scripts/make-icons.js",
     "open:sendto": "powershell -NoProfile -Command \"Start-Process explorer.exe ($env:APPDATA+'\\Microsoft\\Windows\\SendTo')\""
   },
   "dependencies": {
@@ -63,7 +64,8 @@
     "prebuildify": "^6.0.1",
     "tailwindcss": "^3.4.4",
     "vite": "^5.2.0",
-    "wait-on": "^7.0.1"
+    "wait-on": "^7.0.1",
+    "png-to-ico": "^2.1.8"
   },
   "overrides": {
     "wrappy": "1.0.2",
@@ -102,6 +104,7 @@
       "buildResources": "build"
     },
     "win": {
+      "icon": "build/icon.ico",
       "target": [
         {
           "target": "nsis",
