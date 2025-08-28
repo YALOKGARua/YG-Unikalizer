@@ -6,6 +6,17 @@ const initialLng = saved || 'ru'
 
 const resources = {
   en: { translation: {
+    'tabs.photoMeta': 'Photo & Metadata',
+    'tabs.other': 'Other',
+    'tabs.admin': 'Admin',
+    'admin.open': 'Open Admin',
+    'date.title': 'Date',
+    'location.none': '— No preset —',
+    'indigo.title': 'Indigo — export profile settings',
+    'indigo.hint': 'Copy the script and paste it into Indigo console',
+    'vision.token': 'Token',
+    'vision.endpoint': 'Endpoint',
+    'files.empty': 'Add files or drop here',
     'tabs.files': 'Files',
     'tabs.ready': 'Ready',
     'tabs.converter': 'Converter TXT→JSON',
@@ -170,6 +181,17 @@ const resources = {
     'vision.fail': 'No access'
   }},
   ru: { translation: {
+    'tabs.photoMeta': 'Фото и метаданные',
+    'tabs.other': 'Остальное',
+    'tabs.admin': 'Админ',
+    'admin.open': 'Открыть админку',
+    'date.title': 'Дата',
+    'location.none': '— Без пресета —',
+    'indigo.title': 'Indigo — экспорт настроек профилей',
+    'indigo.hint': 'Скопируй код и вставь в консоль Indigo',
+    'vision.token': 'Токен',
+    'vision.endpoint': 'Endpoint',
+    'files.empty': 'Добавьте файлы или перетащите сюда',
     'tabs.files': 'Файлы',
     'tabs.ready': 'Готовое',
     'tabs.converter': 'Конвертер TXT→JSON',
@@ -335,6 +357,17 @@ const resources = {
     'vision.fail': 'Нет доступа'
   }},
   uk: { translation: {
+    'tabs.photoMeta': 'Фото та метадані',
+    'tabs.other': 'Інше',
+    'tabs.admin': 'Адмін',
+    'admin.open': 'Відкрити адмінку',
+    'date.title': 'Дата',
+    'location.none': '— Без пресету —',
+    'indigo.title': 'Indigo — експорт налаштувань профілів',
+    'indigo.hint': 'Скопіюй код і встав у консоль Indigo',
+    'vision.token': 'Токен',
+    'vision.endpoint': 'Endpoint',
+    'files.empty': 'Додайте файли або перетягніть сюди',
     'tabs.files': 'Файли',
     'tabs.ready': 'Готово',
     'tabs.converter': 'Конвертер TXT→JSON',

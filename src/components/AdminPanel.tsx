@@ -17,6 +17,12 @@ export default function AdminPanel({ onClose, chatUrl }: { onClose: () => void; 
   useEffect(() => {
     (async () => {
       try {
+        if (!adminPassword) {
+          try {
+            const saved = localStorage.getItem('adminPassword')
+            if (saved) setAdminPassword(saved)
+          } catch {}
+        }
         if (!adminPassword && window.api?.admin?.getPassword) {
           const r = await window.api.admin.getPassword()
           if (r && (r as any).ok && (r as any).password) setAdminPassword((r as any).password)
@@ -24,6 +30,12 @@ export default function AdminPanel({ onClose, chatUrl }: { onClose: () => void; 
       } catch {}
     })()
   }, [])
+
+  useEffect(() => {
+    try {
+      if (adminPassword) localStorage.setItem('adminPassword', adminPassword)
+    } catch {}
+  }, [adminPassword])
 
   useEffect(() => {
     let cancelled = false

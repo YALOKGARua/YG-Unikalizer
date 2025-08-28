@@ -97,3 +97,9 @@ body {
 .ctx-item { padding: 8px 10px; font-size: 12px; cursor: pointer; }
 .ctx-item:hover { background: rgba(99,102,241,.15); }
 
+.nav-btn {
+  @apply w-full text-left px-2 py-2 rounded text-sm hover:bg-white/5 transition-colors;
+}
+.nav-btn.active {
+  @apply bg-white/10;
+}
