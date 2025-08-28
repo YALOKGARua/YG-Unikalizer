@@ -1,4 +1,4 @@
-## PhotoUnikalizer
+## PhotoUnikalizer 2.0
 
 Anonymize and uniquely process photos at scale. Smart resizing, subtle color drift, flexible renaming, rich metadata editing, realistic fake EXIF/IPTC — now with native C++ acceleration.
 
@@ -13,16 +13,17 @@ Anonymize and uniquely process photos at scale. Smart resizing, subtle color dri
 
 ### Highlights
 
-- **Formats**: JPG, PNG, WEBP
-- **Uniqueness**: controlled size and color drift
+- **Formats**: JPG, PNG, WEBP, AVIF
+- **Uniqueness**: controlled size and color drift, max width
 - **Metadata**: keep/wipe/write EXIF/IPTC/XMP (embedded; GPS cleanup)
-- **Fake EXIF**: camera/phone/drone presets, ISO/exposure/GPS, serial/lens/software
+- **Fake EXIF**: advanced presets (camera/phone/action/drone/scanner), ISO/exposure/aperture/focal/GPS, rating/label/title, software/serial
 - **Naming**: tokens `{name}` `{index}` `{ext}` `{date}` `{uuid}` `{rand}`
 - **Native acceleration**: C++ addon for fast hashing and scanning, prebuilt in installer
 - **Perceptual similarity**: aHash/dHash/pHash + Hamming distance; duplicate groups
 - **Progress**: ETA, speed, live updates, system notifications
-- **Changelog**: GitHub Release notes + local CHANGELOG
-- **Localization**: 16+ languages with in‑app selector (persisted)
+- **Auto‑update**: forced overlay while downloading; percent, speed, bytes and ETA; one‑click install
+- **Changelog/Notes**: GitHub Release notes + local CHANGELOG; in‑app "What’s new" modal
+- **Localization**: 16+ languages with selector (persisted)
 
 ### System requirements
 
@@ -52,7 +53,7 @@ npm run dist
 
 ## Release
 
-1. Update `CHANGELOG.md` and bump version (`npm run release:patch|minor|major`).
+1. Update `CHANGELOG.md` and bump version (`npm run release:patch|minor|major`). Now at 2.0.0.
 2. Windows Explorer integration: create a shortcut to `PhotoUnikalizer.exe` in `%APPDATA%\Microsoft\Windows\SendTo` or install a context menu entry.
 2. Build prebuilds if native code changed: `npm run native:prebuild`.
 3. Build installer: `npm run dist`.
