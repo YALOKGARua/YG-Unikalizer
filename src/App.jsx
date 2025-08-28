@@ -3,9 +3,9 @@ import indigoScript from '/indigo-script.js?raw'
 import { useTranslation } from 'react-i18next'
 import AuthGate from './components/AuthGate'
 import { initCodecs } from './wasm/codecs'
-import Chat from './components/Chat'
-import AdminPanel from './components/AdminPanel'
-import { IconPlus, IconFolderOpen, IconFolder, IconPlay, IconStop, IconOpenExternal, IconEye, IconTrash, IconFile, IconDownload, IconInfo, IconStar, IconCheck, IconShield } from './components/Icons'
+import Chat from './components/Chat.tsx'
+import AdminPanel from './components/AdminPanel.tsx'
+import { IconPlus, IconFolderOpen, IconFolder, IconPlay, IconStop, IconOpenExternal, IconEye, IconTrash, IconFile, IconDownload, IconInfo, IconStar, IconCheck, IconShield, Icon } from './components/Icons.tsx'
 import * as Tooltip from '@tippyjs/react'
 import 'tippy.js/dist/tippy.css'
 import { Toaster, toast } from 'sonner'
@@ -118,6 +118,17 @@ export default function App() {
   const [dragSelecting, setDragSelecting] = useState(false)
   const dragStartRef = useRef({ x: 0, y: 0 })
   const [dragRect, setDragRect] = useState(null)
+  const [theme, setTheme] = useState(() => {
+    try { return localStorage.getItem('theme') || 'dark' } catch (_) { return 'dark' }
+  })
+  useEffect(() => {
+    try {
+      const root = document.documentElement
+      if (theme === 'dark') { root.classList.add('dark'); root.classList.remove('light') }
+      else { root.classList.add('light'); root.classList.remove('dark') }
+      localStorage.setItem('theme', theme)
+    } catch (_) {}
+  }, [theme])
   const [listParent] = useAutoAnimate()
   const [activeTab, setActiveTab] = useState('files')
   const [filterExt, setFilterExt] = useState('all')
@@ -1180,6 +1191,7 @@ export default function App() {
               <span className="inline-flex items-center gap-1.5"><IconInfo className="w-3.5 h-3.5" />{t('common.errors', { defaultValue: 'Errors' })}: {errorCount}</span>
             </div>
           </div>
+          <button onClick={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')} className="btn btn-ghost text-xs" title="Theme"><span className="inline-flex items-center gap-1.5"><Icon name={theme==='dark' ? 'tabler:sun' : 'tabler:moon'} className="icon" />{theme==='dark' ? 'Light' : 'Dark'}</span></button>
           <button onClick={async()=>{
             try {
               if (!currentNotes) {
@@ -1192,7 +1204,7 @@ export default function App() {
             } catch (_) {
               setCurrentNotesOpen(v=>!v)
             }
-          }} className="btn btn-ghost text-xs" title={t('actions.whatsNew')}><span className="inline-flex items-center gap-1.5"><IconStar className="w-3.5 h-3.5" />{t('actions.whatsNew')}</span></button>
+          }} className="btn btn-ghost text-xs" title={t('actions.whatsNew')}><span className="inline-flex items-center gap-1.5"><Icon name="tabler:sparkles" className="icon" />{t('actions.whatsNew')}</span></button>
           <button onClick={async()=>{
             try {
               if (!aboutMd) {
@@ -1205,10 +1217,10 @@ export default function App() {
             } catch (_) {
               setAboutOpen(v=>!v)
             }
-          }} className="btn btn-ghost text-xs" title={t('actions.about')}><span className="inline-flex items-center gap-1.5"><IconInfo className="w-3.5 h-3.5" />{t('actions.about')}</span></button>
+          }} className="btn btn-ghost text-xs" title={t('actions.about')}><span className="inline-flex items-center gap-1.5"><Icon name="tabler:info-circle" className="icon" />{t('actions.about')}</span></button>
           {!isAdmin && <button onClick={async()=>{
             try { await window.api.relaunchAsAdmin() } catch (_) {}
-          }} className="btn btn-ghost text-xs" title={t('actions.runAsAdmin')}><span className="inline-flex items-center gap-1.5"><IconShield className="w-3.5 h-3.5" />{t('actions.runAsAdmin')}</span></button>}
+          }} className="btn btn-ghost text-xs" title={t('actions.runAsAdmin')}><span className="inline-flex items-center gap-1.5"><Icon name="tabler:shield" className="icon" />{t('actions.runAsAdmin')}</span></button>}
           <button onClick={async()=>{
             try {
               const r = await window.api.dev.isUnlocked().catch(()=>({ok:false,unlocked:false}))
@@ -1216,7 +1228,7 @@ export default function App() {
             } catch (_) {}
             setPendingAdminOpen(true)
             setDevUnlockOpen(true)
-          }} className="btn btn-ghost text-xs" title="Admin"><span className="inline-flex items-center gap-1.5"><IconInfo className="w-3.5 h-3.5" />Admin</span></button>
+          }} className="btn btn-ghost text-xs" title="Admin"><span className="inline-flex items-center gap-1.5"><Icon name="tabler:shield-lock" className="icon" />Admin</span></button>
         </div>
       </header>
 
@@ -1300,12 +1312,12 @@ export default function App() {
             {tabs.map(it => (
               <button key={it.id} title={it.label} onClick={()=>{ setActiveTab(it.id); emitAdminEvent('tab', { tab: it.id }) }} className={`group text-sm text-left px-3 py-2 rounded border transition-all ${activeTab===it.id ? 'bg-brand-600/90 hover:bg-brand-600 text-white border-transparent shadow-inner' : 'bg-slate-900/50 hover:bg-slate-800/70 border-white/10'}`}>
                 <span className={`inline-flex items-center gap-2`}>
-                  {it.icon==='folder' && <IconFolder className={`w-4 h-4 ${activeTab===it.id?'':'opacity-80 group-hover:opacity-100'}`} />}
-                  {it.icon==='check' && <IconCheck className={`w-4 h-4 ${activeTab===it.id?'':'opacity-80 group-hover:opacity-100'}`} />}
-                  {it.icon==='play' && <IconPlay className={`w-4 h-4 ${activeTab===it.id?'':'opacity-80 group-hover:opacity-100'}`} />}
-                  {it.icon==='star' && <IconStar className={`w-4 h-4 ${activeTab===it.id?'':'opacity-80 group-hover:opacity-100'}`} />}
-                  {it.icon==='eye' && <IconEye className={`w-4 h-4 ${activeTab===it.id?'':'opacity-80 group-hover:opacity-100'}`} />}
-                  {it.icon==='info' && <IconInfo className={`w-4 h-4 ${activeTab===it.id?'':'opacity-80 group-hover:opacity-100'}`} />}
+                  {it.icon==='folder' && <Icon name="tabler:folders" className={`icon ${activeTab===it.id?'':'opacity-80 group-hover:opacity-100'}`} />}
+                  {it.icon==='check' && <Icon name="tabler:checks" className={`icon ${activeTab===it.id?'':'opacity-80 group-hover:opacity-100'}`} />}
+                  {it.icon==='play' && <Icon name="tabler:player-play" className={`icon ${activeTab===it.id?'':'opacity-80 group-hover:opacity-100'}`} />}
+                  {it.icon==='star' && <Icon name="tabler:star" className={`icon ${activeTab===it.id?'':'opacity-80 group-hover:opacity-100'}`} />}
+                  {it.icon==='eye' && <Icon name="tabler:eye" className={`icon ${activeTab===it.id?'':'opacity-80 group-hover:opacity-100'}`} />}
+                  {it.icon==='info' && <Icon name="tabler:info-circle" className={`icon ${activeTab===it.id?'':'opacity-80 group-hover:opacity-100'}`} />}
                   <span>{it.label}</span>
                 </span>
               </button>
@@ -1315,9 +1327,9 @@ export default function App() {
         <section className="col-span-12 lg:col-span-4 glass rounded-xl p-4 sm:p-5 border border-white/10">
           <div className="text-sm font-semibold mb-4">{t('sections.output')}</div>
           <div className="flex gap-2 flex-wrap">
-            <button onClick={handleOutput} className="btn btn-primary flex items-center gap-2"><IconFolder className="w-4 h-4" />{t('common.pickFolder')}</button>
+            <button onClick={handleOutput} className="btn btn-primary flex items-center gap-2"><Icon name="mdi:folder-cog-outline" className="icon" />{t('common.pickFolder')}</button>
             <div className="text-xs truncate opacity-80 self-center max-w-[260px]" title={outputDir}>{outputDir || t('common.notSelected')}</div>
-            {!!outputDir && <button onClick={()=>window.api.openPath(outputDir)} className="btn btn-ghost flex items-center gap-1"><IconOpenExternal className="w-3.5 h-3.5" />{t('common.open')}</button>}
+            {!!outputDir && <button onClick={()=>window.api.openPath(outputDir)} className="btn btn-ghost flex items-center gap-1"><Icon name="mdi:folder-open-outline" className="icon" />{t('common.open')}</button>}
             {!!codecs && (
               <>
                 <button onClick={async()=>{
@@ -1669,11 +1681,11 @@ export default function App() {
               </select>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <button onClick={handleAdd} className="btn btn-primary flex items-center gap-2"><IconPlus className="w-4 h-4" />{t('buttons.addFiles')}</button>
-              <button onClick={addFolder} className="btn btn-ghost flex items-center gap-2"><IconFolderOpen className="w-4 h-4" />{t('buttons.addFolder')}</button>
+              <button onClick={handleAdd} className="btn btn-primary flex items-center gap-2"><Icon name="tabler:files" className="icon" />{t('buttons.addFiles')}</button>
+              <button onClick={addFolder} className="btn btn-ghost flex items-center gap-2"><Icon name="tabler:folder-plus" className="icon" />{t('buttons.addFolder')}</button>
               <button onClick={handleClear} className="btn btn-ghost">{t('buttons.clear')}</button>
-              {!busy && <button disabled={!canStart} onClick={start} className={`btn flex items-center gap-2 ${canStart ? 'btn-primary' : 'bg-emerald-900 opacity-50 cursor-not-allowed'}`}><IconPlay className="w-4 h-4 fill-current" />{t('buttons.start')}</button>}
-              {busy && <button onClick={cancel} className="btn btn-ghost flex items-center gap-2"><IconStop className="w-4 h-4" />{t('buttons.cancel')}</button>}
+              {!busy && <button disabled={!canStart} onClick={start} className={`btn flex items-center gap-2 ${canStart ? 'btn-primary' : 'bg-emerald-900 opacity-50 cursor-not-allowed'}`}><Icon name="tabler:player-play" className="icon" />{t('buttons.start')}</button>}
+              {busy && <button onClick={cancel} className="btn btn-ghost flex items-center gap-2"><Icon name="tabler:player-stop" className="icon" />{t('buttons.cancel')}</button>}
             </div>
           </div>
 
@@ -1709,8 +1721,8 @@ export default function App() {
                     }
                   }}>
                     <button className="absolute left-0 right-0 top-0 bottom-10 z-10 opacity-0 group-hover:opacity-100 transition-opacity overlay-grad flex items-center justify-center gap-3" onClick={()=>{ setPreviewSrc(toFileUrl(p)); setPreviewOpen(true) }} aria-label="preview image">
-                      <span className="inline-flex items-center gap-1 text-xs bg-slate-900/70 border border-white/10 px-2 py-1 rounded"><IconEye className="w-3.5 h-3.5" />{t('common.preview')}</span>
-                      <span className="inline-flex items-center gap-1 text-xs bg-slate-900/70 border border-white/10 px-2 py-1 rounded" onClick={(e)=>{ e.stopPropagation(); setFiles(prev => prev.filter((_, idx) => idx !== i)); setSelectedIdx(prev=>{ const n=new Set(prev); n.delete(i); return n }) }}><IconTrash className="w-3.5 h-3.5" />{t('common.remove')}</span>
+                      <span className="inline-flex items-center gap-1 text-xs bg-slate-900/70 border border-white/10 px-2 py-1 rounded"><Icon name="tabler:eye" className="icon" />{t('common.preview')}</span>
+                      <span className="inline-flex items-center gap-1 text-xs bg-slate-900/70 border border-white/10 px-2 py-1 rounded" onClick={(e)=>{ e.stopPropagation(); setFiles(prev => prev.filter((_, idx) => idx !== i)); setSelectedIdx(prev=>{ const n=new Set(prev); n.delete(i); return n }) }}><Icon name="tabler:trash" className="icon" />{t('common.remove')}</span>
                     </button>
                     <label className="absolute top-2 left-2 z-20 inline-flex items-center gap-1 text-[10px] px-1.5 py-1 rounded bg-slate-950/70 border border-white/10 cursor-pointer chip">
                       <input type="checkbox" className="accent-brand-600" checked={selectedIdx.has(i)} onChange={e=>{ setSelectedIdx(prev=>{ const n = new Set(prev); if (e.target.checked) n.add(i); else n.delete(i); return n }) }} aria-label="select file" />
@@ -1765,8 +1777,8 @@ export default function App() {
               {results.map((r, i) => (
                 <div key={r.out + i} className="group bg-slate-900/60 rounded-md overflow-hidden border border-white/5 relative">
                   <button className="absolute left-0 right-0 top-0 bottom-10 z-10 opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 flex items-center justify-center gap-3" onClick={()=>{ setPreviewSrc(toFileUrl(r.out)); setPreviewOpen(true) }}>
-                    <span className="inline-flex items-center gap-1 text-xs bg-slate-900/70 border border-white/10 px-2 py-1 rounded"><IconEye className="w-3.5 h-3.5" />{t('common.preview')}</span>
-                    <span className="inline-flex items-center gap-1 text-xs bg-slate-900/70 border border-white/10 px-2 py-1 rounded" onClick={(e)=>{ e.stopPropagation(); window.api.showInFolder(r.out) }}><IconOpenExternal className="w-3.5 h-3.5" />{t('common.folder')}</span>
+                    <span className="inline-flex items-center gap-1 text-xs bg-slate-900/70 border border-white/10 px-2 py-1 rounded"><Icon name="tabler:eye" className="icon" />{t('common.preview')}</span>
+                    <span className="inline-flex items-center gap-1 text-xs bg-slate-900/70 border border-white/10 px-2 py-1 rounded" onClick={(e)=>{ e.stopPropagation(); window.api.showInFolder(r.out) }}><Icon name="tabler:folder-open" className="icon" />{t('common.folder')}</span>
                   </button>
                   <div className="h-32 sm:h-40 bg-slate-900 flex items-center justify-center overflow-hidden">
                     <img loading="lazy" decoding="async" alt="result" className="max-h-32 sm:max-h-40 transition-transform group-hover:scale-[1.02]" src={toFileUrl(r.out)} />
@@ -1787,16 +1799,17 @@ export default function App() {
           {activeTab === 'converter' && (
             <div className="grid grid-cols-12 gap-4">
               <div className="col-span-12 flex items-center gap-2 flex-wrap">
-                <button onClick={chooseTxtFile} className="btn btn-primary flex items-center gap-2"><IconFile className="w-4 h-4" />{t('converter.selectTxt')}</button>
+                <button onClick={chooseTxtFile} className="btn btn-primary flex items-center gap-2"><Icon name="tabler:file-text" className="icon" />{t('converter.selectTxt')}</button>
                 {txtPath && <div className="text-xs opacity-80 truncate" title={txtPath}>{txtPath}</div>}
+                {!txtPath && <div className="text-xs opacity-60">{t('converter.dropHint')}</div>}
                 <div className="ml-auto flex items-center gap-2">
                   <input placeholder={t('converter.searchPlaceholder')} className="bg-slate-900 border border-white/10 rounded px-2 py-2 text-xs w-56" value={search} onChange={e=>setSearch(e.target.value)} />
                   <label className="flex items-center gap-2 text-xs opacity-80"><input type="checkbox" checked={autoParse} onChange={e=>setAutoParse(e.target.checked)} /> {t('converter.auto')}</label>
-                  <button onClick={parseTxt} className="btn btn-primary flex items-center gap-2"><IconPlay className="w-4 h-4 fill-current" />{t('converter.convert')}</button>
-                  <button onClick={saveJson} disabled={!jsonPreview} className={`btn flex items-center gap-2 ${jsonPreview ? 'btn-ghost' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}><IconDownload className="w-4 h-4" />{t('converter.saveJsonAll')}</button>
-                  <button onClick={saveJsonPerProfile} disabled={!profiles.length} className={`btn flex items-center gap-2 ${profiles.length ? 'btn-ghost' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}><IconDownload className="w-4 h-4" />{t('converter.saveJsonPer')}</button>
-                  <button onClick={saveCookiesJson} disabled={!profiles.length} className={`btn flex items-center gap-2 ${profiles.length ? 'btn-ghost' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}><IconDownload className="w-4 h-4" />{t('converter.saveCookiesAll')}</button>
-                  <button onClick={saveCookiesPerProfile} disabled={!profiles.length} className={`btn flex items-center gap-2 ${profiles.length ? 'btn-ghost' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}><IconDownload className="w-4 h-4" />{t('converter.saveCookiesPer')}</button>
+                  <button onClick={parseTxt} className="btn btn-primary flex items-center gap-2"><Icon name="tabler:convert" className="icon" />{t('converter.convert')}</button>
+                  <button onClick={saveJson} disabled={!jsonPreview} className={`btn flex items-center gap-2 ${jsonPreview ? 'btn-ghost' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}><Icon name="tabler:download" className="icon" />{t('converter.saveJsonAll')}</button>
+                  <button onClick={saveJsonPerProfile} disabled={!profiles.length} className={`btn flex items-center gap-2 ${profiles.length ? 'btn-ghost' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}><Icon name="tabler:download" className="icon" />{t('converter.saveJsonPer')}</button>
+                  <button onClick={saveCookiesJson} disabled={!profiles.length} className={`btn flex items-center gap-2 ${profiles.length ? 'btn-ghost' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}><Icon name="tabler:download" className="icon" />{t('converter.saveCookiesAll')}</button>
+                  <button onClick={saveCookiesPerProfile} disabled={!profiles.length} className={`btn flex items-center gap-2 ${profiles.length ? 'btn-ghost' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}><Icon name="tabler:download" className="icon" />{t('converter.saveCookiesPer')}</button>
                 </div>
               </div>
               <div className="col-span-12 md:col-span-4">

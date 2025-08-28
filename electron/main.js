@@ -24,6 +24,12 @@ try {
   candidates.push(path.join(process.cwd(), '.env'))
   const dotenv = require('dotenv')
   const seen = new Set()
+  let userData = ''
+  try { userData = app.getPath('userData') } catch (_) { userData = '' }
+  if (userData) {
+    candidates.push(path.join(userData, '.env.local'))
+    candidates.push(path.join(userData, '.env'))
+  }
   for (const p of candidates) {
     if (!p || seen.has(p)) continue
     seen.add(p)
@@ -42,7 +48,9 @@ try {
       path.join(path.dirname(process.execPath || ''), '.env.local'),
       path.join(path.dirname(process.execPath || ''), '.env'),
       path.join(process.cwd(), '.env.local'),
-      path.join(process.cwd(), '.env')
+      path.join(process.cwd(), '.env'),
+      (userData ? path.join(userData, '.env.local') : ''),
+      (userData ? path.join(userData, '.env') : '')
     ].filter(Boolean)
     for (const fp of files) {
       try {
@@ -98,6 +106,7 @@ function reloadEnvFromCandidates() {
 }
 
 let mainWindow
+// Python integration removed
 let didInitUpdater = false
 let currentBatchId = 0
 let cancelRequested = false
@@ -1144,6 +1153,7 @@ app.whenReady().then(() => {
   }
   createWindow()
   setAppMenu()
+  
   loadAppPasswordSecret()
   initAutoUpdater()
   try {
@@ -1412,6 +1422,8 @@ app.whenReady().then(() => {
       return { ok: false, error: String(e && e.message ? e.message : e) }
     }
   })
+
+  
 
   ipcMain.handle('download-update', async () => {
     try {

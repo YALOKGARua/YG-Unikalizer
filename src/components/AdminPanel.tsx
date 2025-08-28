@@ -1,17 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-export default function AdminPanel({ onClose, chatUrl }) {
-  const [users, setUsers] = useState([])
+export default function AdminPanel({ onClose, chatUrl }: { onClose: () => void; chatUrl: string }) {
+  const [users, setUsers] = useState<any[]>([])
   const [selectedId, setSelectedId] = useState('')
-  const [eventsById, setEventsById] = useState(new Map())
+  const [eventsById, setEventsById] = useState<Map<string, any[]>>(new Map())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [filter, setFilter] = useState('')
   const [adminPassword, setAdminPassword] = useState('')
-  const wsRef = useRef(null)
+  const wsRef = useRef<WebSocket|null>(null)
   const [connectKey, setConnectKey] = useState(0)
-  const [status, setStatus] = useState('idle')
-  const [globalEvents, setGlobalEvents] = useState([])
+  const [status, setStatus] = useState<'idle'|'connecting'|'connected'|'disconnected'|'invalid'>('idle')
+  const [globalEvents, setGlobalEvents] = useState<any[]>([])
 
   useEffect(() => { setConnectKey(k => k + 1) }, [chatUrl])
   useEffect(() => {
@@ -19,9 +19,9 @@ export default function AdminPanel({ onClose, chatUrl }) {
       try {
         if (!adminPassword && window.api?.admin?.getPassword) {
           const r = await window.api.admin.getPassword()
-          if (r && r.ok && r.password) setAdminPassword(r.password)
+          if (r && (r as any).ok && (r as any).password) setAdminPassword((r as any).password)
         }
-      } catch (_) {}
+      } catch {}
     })()
   }, [])
 
@@ -30,7 +30,7 @@ export default function AdminPanel({ onClose, chatUrl }) {
     if (!connectKey) return
     setStatus('connecting')
     setError('')
-    let ws
+    let ws: WebSocket
     try { ws = new WebSocket(chatUrl) } catch (e) { setStatus('invalid'); setError('bad url'); return }
     wsRef.current = ws
     ws.addEventListener('open', () => { setStatus('connected') })
@@ -38,13 +38,13 @@ export default function AdminPanel({ onClose, chatUrl }) {
     ws.addEventListener('error', () => {})
     ws.addEventListener('message', ev => {
       if (cancelled) return
-      let msg = null
-      try { msg = JSON.parse(String(ev.data)) } catch (_) { return }
+      let msg: any = null
+      try { msg = JSON.parse(String(ev.data)) } catch { return }
       if (!msg || typeof msg !== 'object') return
       if (msg.type === 'admin_users' && msg.ok && Array.isArray(msg.users)) setUsers(msg.users)
       if (msg.type === 'admin_event' && msg.user) {
         setUsers(prev => {
-          const map = new Map(prev.map(u => [String(u.id||''), u]))
+          const map = new Map(prev.map(u => [String((u as any).id||''), u]))
           map.set(String(msg.user.id||''), msg.user)
           return Array.from(map.values())
         })
@@ -63,10 +63,10 @@ export default function AdminPanel({ onClose, chatUrl }) {
         })
       }
       if (msg.type === 'admin_history' && msg.ok && Array.isArray(msg.events)) {
-        setGlobalEvents(msg.events.map(ev => ({ ts: ev.ts, kind: ev.kind, id: ev.user?.id, name: ev.user?.name, ip: ev.user?.ip, text: ev.text, client: ev.name, data: ev.data })))
+        setGlobalEvents(msg.events.map((ev: any) => ({ ts: ev.ts, kind: ev.kind, id: ev.user?.id, name: ev.user?.name, ip: ev.user?.ip, text: ev.text, client: ev.name, data: ev.data })))
       }
     })
-    return () => { cancelled = true; try { ws && ws.close() } catch (_) {} }
+    return () => { cancelled = true; try { ws && ws.close() } catch {} }
   }, [connectKey, chatUrl])
 
   const requestUsers = async () => {
@@ -86,14 +86,14 @@ export default function AdminPanel({ onClose, chatUrl }) {
     const f = String(filter || '').trim().toLowerCase()
     if (!f) return users
     return users.filter(u =>
-      String(u.id||'').toLowerCase().includes(f) ||
-      String(u.name||'').toLowerCase().includes(f) ||
-      String(u.ip||'').toLowerCase().includes(f) ||
-      String(u.userAgent||'').toLowerCase().includes(f)
+      String((u as any).id||'').toLowerCase().includes(f) ||
+      String((u as any).name||'').toLowerCase().includes(f) ||
+      String((u as any).ip||'').toLowerCase().includes(f) ||
+      String((u as any).userAgent||'').toLowerCase().includes(f)
     )
   }, [users, filter])
 
-  const fmt = (ts) => ts ? new Date(ts).toLocaleString() : ''
+  const fmt = (ts: number) => ts ? new Date(ts).toLocaleString() : ''
   const selectedEvents = useMemo(() => eventsById.get(String(selectedId||'')) || [], [eventsById, selectedId])
 
   return (
@@ -128,7 +128,7 @@ export default function AdminPanel({ onClose, chatUrl }) {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((u, i) => (
+              {filtered.map((u: any, i: number) => (
                 <tr key={(u.id||'') + i} onClick={()=>setSelectedId(u.id)} className={`cursor-pointer ${String(selectedId)===String(u.id)?'ring-1 ring-violet-500':''} odd:bg-slate-900 even:bg-slate-800/40`}>
                   <td className="px-2 py-2 border-b border-white/5 truncate" title={u.id}>{u.id}</td>
                   <td className="px-2 py-2 border-b border-white/5 truncate" title={u.name}>{u.name}</td>

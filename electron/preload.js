@@ -1,288 +1,366 @@
-const { contextBridge, ipcRenderer } = require('electron')
-const path = require('path')
-const fs = require('fs')
-let sharp = null
-let native = null
+"use strict";
+var __create = Object.create;
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
+
+// electron/preload.ts
+var import_electron = require("electron");
+var import_path = __toESM(require("path"));
+var import_fs = __toESM(require("fs"));
+var sharp = null;
+var nativeMod = null;
 function loadNative() {
-  if (native) return native
+  if (nativeMod) return nativeMod;
   try {
     try {
-      const ngb = require('node-gyp-build')
-      native = ngb(path.join(__dirname, '..', 'native'))
-      if (native) return native
-    } catch (_) {}
-    const candidate = path.join(process.cwd(), 'native', 'build', 'Release', 'photounikalizer_native.node')
-    if (fs.existsSync(candidate)) {
-      native = require(candidate)
-      return native
+      const ngb = require("node-gyp-build");
+      nativeMod = ngb(import_path.default.join(__dirname, "..", "native"));
+      if (nativeMod) return nativeMod;
+    } catch {
     }
-  } catch (_) {}
-  try {
-    const asarUnpacked = path.join(process.resourcesPath || '', 'app.asar.unpacked', 'native', 'build', 'Release', 'photounikalizer_native.node')
-    if (asarUnpacked && fs.existsSync(asarUnpacked)) {
-      native = require(asarUnpacked)
-      return native
+    const candidate = import_path.default.join(process.cwd(), "native", "build", "Release", "photounikalizer_native.node");
+    if (import_fs.default.existsSync(candidate)) {
+      nativeMod = require(candidate);
+      return nativeMod;
     }
-  } catch (_) {}
-  try {
-    const platArch = `${process.platform}-${process.arch}`
-    const prebuildA = path.join(__dirname, '..', 'native', 'prebuilds', platArch, 'node.napi.node')
-    if (fs.existsSync(prebuildA)) { native = require(prebuildA); return native }
-    const prebuildB = path.join(__dirname, '..', 'native', 'prebuilds', platArch, 'photounikalizer-native.node')
-    if (fs.existsSync(prebuildB)) { native = require(prebuildB); return native }
-  } catch (_) {}
-  try {
-    const platArch = `${process.platform}-${process.arch}`
-    const base = path.join(process.resourcesPath || '', 'app.asar.unpacked', 'native', 'prebuilds', platArch)
-    const prebuildA = path.join(base, 'node.napi.node')
-    const prebuildB = path.join(base, 'photounikalizer-native.node')
-    if (fs.existsSync(prebuildA)) { native = require(prebuildA); return native }
-    if (fs.existsSync(prebuildB)) { native = require(prebuildB); return native }
-  } catch (_) {}
-  try {
-    native = require('photounikalizer_native')
-  } catch (_) {
-    native = null
+  } catch {
   }
-  return native
+  try {
+    const asarUnpacked = import_path.default.join(process.resourcesPath || "", "app.asar.unpacked", "native", "build", "Release", "photounikalizer_native.node");
+    if (asarUnpacked && import_fs.default.existsSync(asarUnpacked)) {
+      nativeMod = require(asarUnpacked);
+      return nativeMod;
+    }
+  } catch {
+  }
+  try {
+    const platArch = `${process.platform}-${process.arch}`;
+    const prebuildA = import_path.default.join(__dirname, "..", "native", "prebuilds", platArch, "node.napi.node");
+    if (import_fs.default.existsSync(prebuildA)) {
+      nativeMod = require(prebuildA);
+      return nativeMod;
+    }
+    const prebuildB = import_path.default.join(__dirname, "..", "native", "prebuilds", platArch, "photounikalizer-native.node");
+    if (import_fs.default.existsSync(prebuildB)) {
+      nativeMod = require(prebuildB);
+      return nativeMod;
+    }
+  } catch {
+  }
+  try {
+    nativeMod = require("photounikalizer_native");
+  } catch {
+    nativeMod = null;
+  }
+  return nativeMod;
 }
-
 async function decodeGray8(filePath) {
   if (!sharp) {
-    try { sharp = require('sharp') } catch (_) { sharp = null }
+    try {
+      sharp = require("sharp");
+    } catch {
+      sharp = null;
+    }
   }
-  if (!sharp) return null
-  const res = await sharp(filePath).grayscale().raw().toBuffer({ resolveWithObject: true })
-  const buf = new Uint8Array(res.data.buffer, res.data.byteOffset, res.data.byteLength)
-  const width = res.info.width
-  const height = res.info.height
-  const stride = res.info.width * res.info.channels
-  return { buf, width, height, stride }
+  if (!sharp) return null;
+  const res = await sharp(filePath).grayscale().raw().toBuffer({ resolveWithObject: true });
+  const buf = new Uint8Array(res.data.buffer, res.data.byteOffset, res.data.byteLength);
+  const width = res.info.width;
+  const height = res.info.height;
+  const stride = res.info.width * res.info.channels;
+  return { buf, width, height, stride };
 }
-
 async function decodeRgba(filePath) {
   if (!sharp) {
-    try { sharp = require('sharp') } catch (_) { sharp = null }
+    try {
+      sharp = require("sharp");
+    } catch {
+      sharp = null;
+    }
   }
-  if (!sharp) return null
-  const res = await sharp(filePath).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
-  const buf = new Uint8Array(res.data.buffer, res.data.byteOffset, res.data.byteLength)
-  const width = res.info.width
-  const height = res.info.height
-  const stride = res.info.width * res.info.channels
-  return { buf, width, height, stride }
+  if (!sharp) return null;
+  const res = await sharp(filePath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  const buf = new Uint8Array(res.data.buffer, res.data.byteOffset, res.data.byteLength);
+  const width = res.info.width;
+  const height = res.info.height;
+  const stride = res.info.width * res.info.channels;
+  return { buf, width, height, stride };
 }
-
-contextBridge.exposeInMainWorld('api', {
-  selectImages: () => ipcRenderer.invoke('select-images'),
-  selectImageDir: () => ipcRenderer.invoke('select-image-dir'),
-  selectOutputDir: () => ipcRenderer.invoke('select-output-dir'),
-  processImages: payload => ipcRenderer.invoke('process-images', payload),
-  selectTextFile: () => ipcRenderer.invoke('select-text-file'),
-  readTextFileByPath: (p) => ipcRenderer.invoke('read-text-file-by-path', p),
-  saveJson: payload => ipcRenderer.invoke('save-json', payload),
-  saveJsonBatch: payload => ipcRenderer.invoke('save-json-batch', payload),
-  savePreset: payload => ipcRenderer.invoke('save-preset', payload),
-  loadPreset: () => ipcRenderer.invoke('load-preset'),
-  cancel: () => ipcRenderer.invoke('cancel-process'),
-  expandPaths: paths => ipcRenderer.invoke('expand-paths', paths),
-  openPath: p => ipcRenderer.invoke('open-path', p),
-  showInFolder: p => ipcRenderer.invoke('show-item-in-folder', p),
-  renameFile: (path, newName) => ipcRenderer.invoke('file-rename', { path, newName }),
-  deleteFile: (path) => ipcRenderer.invoke('file-delete', path),
-  fileStats: (path) => ipcRenderer.invoke('file-stats', path),
-  onProgress: cb => {
-    const listener = (_, data) => cb(data)
-    ipcRenderer.on('process-progress', listener)
-    return () => ipcRenderer.removeListener('process-progress', listener)
+import_electron.contextBridge.exposeInMainWorld("api", {
+  selectImages: () => import_electron.ipcRenderer.invoke("select-images"),
+  selectImageDir: () => import_electron.ipcRenderer.invoke("select-image-dir"),
+  selectOutputDir: () => import_electron.ipcRenderer.invoke("select-output-dir"),
+  processImages: (payload) => import_electron.ipcRenderer.invoke("process-images", payload),
+  selectTextFile: () => import_electron.ipcRenderer.invoke("select-text-file"),
+  readTextFileByPath: (p) => import_electron.ipcRenderer.invoke("read-text-file-by-path", p),
+  saveJson: (payload) => import_electron.ipcRenderer.invoke("save-json", payload),
+  saveJsonBatch: (payload) => import_electron.ipcRenderer.invoke("save-json-batch", payload),
+  savePreset: (payload) => import_electron.ipcRenderer.invoke("save-preset", payload),
+  loadPreset: () => import_electron.ipcRenderer.invoke("load-preset"),
+  cancel: () => import_electron.ipcRenderer.invoke("cancel-process"),
+  expandPaths: (paths) => import_electron.ipcRenderer.invoke("expand-paths", paths),
+  openPath: (p) => import_electron.ipcRenderer.invoke("open-path", p),
+  showInFolder: (p) => import_electron.ipcRenderer.invoke("show-item-in-folder", p),
+  renameFile: (path2, newName) => import_electron.ipcRenderer.invoke("file-rename", { path: path2, newName }),
+  deleteFile: (path2) => import_electron.ipcRenderer.invoke("file-delete", path2),
+  fileStats: (path2) => import_electron.ipcRenderer.invoke("file-stats", path2),
+  onProgress: (cb) => {
+    const listener = (_, data) => cb(data);
+    import_electron.ipcRenderer.on("process-progress", listener);
+    return () => import_electron.ipcRenderer.removeListener("process-progress", listener);
   },
-  onComplete: cb => {
-    const listener = () => cb()
-    ipcRenderer.on('process-complete', listener)
-    return () => ipcRenderer.removeListener('process-complete', listener)
+  onComplete: (cb) => {
+    const listener = () => cb();
+    import_electron.ipcRenderer.on("process-complete", listener);
+    return () => import_electron.ipcRenderer.removeListener("process-complete", listener);
   },
   onOsOpenFiles: (cb) => {
-    const listener = (_, files) => cb(files)
-    ipcRenderer.on('os-open-files', listener)
-    return () => ipcRenderer.removeListener('os-open-files', listener)
+    const listener = (_, files) => cb(files);
+    import_electron.ipcRenderer.on("os-open-files", listener);
+    return () => import_electron.ipcRenderer.removeListener("os-open-files", listener);
   },
-  checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
-  downloadUpdate: () => ipcRenderer.invoke('download-update'),
-  quitAndInstall: () => ipcRenderer.invoke('quit-and-install'),
-  onUpdateAvailable: cb => {
-    const listener = (_, info) => cb(info)
-    ipcRenderer.on('update-available', listener)
-    return () => ipcRenderer.removeListener('update-available', listener)
+  checkForUpdates: () => import_electron.ipcRenderer.invoke("check-for-updates"),
+  downloadUpdate: () => import_electron.ipcRenderer.invoke("download-update"),
+  quitAndInstall: () => import_electron.ipcRenderer.invoke("quit-and-install"),
+  onUpdateAvailable: (cb) => {
+    const listener = (_, info) => cb(info);
+    import_electron.ipcRenderer.on("update-available", listener);
+    return () => import_electron.ipcRenderer.removeListener("update-available", listener);
   },
-  onUpdateNotAvailable: cb => {
-    const listener = (_, info) => cb(info)
-    ipcRenderer.on('update-not-available', listener)
-    return () => ipcRenderer.removeListener('update-not-available', listener)
+  onUpdateNotAvailable: (cb) => {
+    const listener = (_, info) => cb(info);
+    import_electron.ipcRenderer.on("update-not-available", listener);
+    return () => import_electron.ipcRenderer.removeListener("update-not-available", listener);
   },
-  onUpdateError: cb => {
-    const listener = (_, err) => cb(err)
-    ipcRenderer.on('update-error', listener)
-    return () => ipcRenderer.removeListener('update-error', listener)
+  onUpdateError: (cb) => {
+    const listener = (_, err) => cb(err);
+    import_electron.ipcRenderer.on("update-error", listener);
+    return () => import_electron.ipcRenderer.removeListener("update-error", listener);
   },
-  onUpdateProgress: cb => {
-    const listener = (_, p) => cb(p)
-    ipcRenderer.on('update-download-progress', listener)
-    return () => ipcRenderer.removeListener('update-download-progress', listener)
+  onUpdateProgress: (cb) => {
+    const listener = (_, p) => cb(p);
+    import_electron.ipcRenderer.on("update-download-progress", listener);
+    return () => import_electron.ipcRenderer.removeListener("update-download-progress", listener);
   },
-  onUpdateDownloaded: cb => {
-    const listener = (_, info) => cb(info)
-    ipcRenderer.on('update-downloaded', listener)
-    return () => ipcRenderer.removeListener('update-downloaded', listener)
+  onUpdateDownloaded: (cb) => {
+    const listener = (_, info) => cb(info);
+    import_electron.ipcRenderer.on("update-downloaded", listener);
+    return () => import_electron.ipcRenderer.removeListener("update-downloaded", listener);
   },
-  onStep: cb => {
-    const listener = (_, s) => cb(s)
-    ipcRenderer.on('process-step', listener)
-    return () => ipcRenderer.removeListener('process-step', listener)
+  onStep: (cb) => {
+    const listener = (_, s) => cb(s);
+    import_electron.ipcRenderer.on("process-step", listener);
+    return () => import_electron.ipcRenderer.removeListener("process-step", listener);
   },
-  getUpdateChangelog: () => ipcRenderer.invoke('get-update-changelog'),
-  getReadme: () => ipcRenderer.invoke('get-readme'),
-  clearStatsCache: () => ipcRenderer.invoke('stats-cache-clear'),
-  relaunchAsAdmin: () => ipcRenderer.invoke('relaunch-admin'),
-  isAdmin: () => ipcRenderer.invoke('is-admin'),
-  decodeGray8File: (p) => decodeGray8(p).then(dec => dec ? ({ width: dec.width, height: dec.height, stride: dec.stride, data: Array.from(dec.buf) }) : null),
-  decodeRgbaFile: (p) => decodeRgba(p).then(dec => dec ? ({ width: dec.width, height: dec.height, stride: dec.stride, data: Array.from(dec.buf) }) : null),
+  getUpdateChangelog: () => import_electron.ipcRenderer.invoke("get-update-changelog"),
+  getReadme: () => import_electron.ipcRenderer.invoke("get-readme"),
+  clearStatsCache: () => import_electron.ipcRenderer.invoke("stats-cache-clear"),
+  relaunchAsAdmin: () => import_electron.ipcRenderer.invoke("relaunch-admin"),
+  isAdmin: () => import_electron.ipcRenderer.invoke("is-admin"),
+  decodeGray8File: (p) => decodeGray8(p).then((dec) => dec ? { width: dec.width, height: dec.height, stride: dec.stride, data: Array.from(dec.buf) } : null),
+  decodeRgbaFile: (p) => decodeRgba(p).then((dec) => dec ? { width: dec.width, height: dec.height, stride: dec.stride, data: Array.from(dec.buf) } : null),
   wasmCodecs: {
-    ensure: (items) => ipcRenderer.invoke('ensure-wasm-codecs', { items }),
-    load: (name) => ipcRenderer.invoke('load-wasm-file', name)
+    ensure: (items) => import_electron.ipcRenderer.invoke("ensure-wasm-codecs", { items }),
+    load: (name) => import_electron.ipcRenderer.invoke("load-wasm-file", name)
   },
-  saveBytes: (payload) => ipcRenderer.invoke('save-bytes', payload),
+  saveBytes: (payload) => import_electron.ipcRenderer.invoke("save-bytes", payload),
   ui: {
-    saveState: (data) => ipcRenderer.invoke('ui-state-save', data),
-    loadState: () => ipcRenderer.invoke('ui-state-load')
+    saveState: (data) => import_electron.ipcRenderer.invoke("ui-state-save", data),
+    loadState: () => import_electron.ipcRenderer.invoke("ui-state-load")
   },
   auth: {
-    isRequired: () => ipcRenderer.invoke('auth-required'),
-    login: (password, remember) => ipcRenderer.invoke('auth-login', { password, remember }),
-    logout: () => ipcRenderer.invoke('auth-logout'),
+    isRequired: () => import_electron.ipcRenderer.invoke("auth-required"),
+    login: (password, remember) => import_electron.ipcRenderer.invoke("auth-login", { password, remember }),
+    logout: () => import_electron.ipcRenderer.invoke("auth-logout")
   },
   dev: {
     onToggleAdminPanel: (cb) => {
-      const listener = () => cb()
-      ipcRenderer.on('dev-admin-toggle', listener)
-      return () => ipcRenderer.removeListener('dev-admin-toggle', listener)
+      const listener = () => cb();
+      import_electron.ipcRenderer.on("dev-admin-toggle", listener);
+      return () => import_electron.ipcRenderer.removeListener("dev-admin-toggle", listener);
     },
     onShowAdminPanel: (cb) => {
-      const listener = () => cb()
-      ipcRenderer.on('dev-admin-show', listener)
-      return () => ipcRenderer.removeListener('dev-admin-show', listener)
+      const listener = () => cb();
+      import_electron.ipcRenderer.on("dev-admin-show", listener);
+      return () => import_electron.ipcRenderer.removeListener("dev-admin-show", listener);
     },
     onHideAdminPanel: (cb) => {
-      const listener = () => cb()
-      ipcRenderer.on('dev-admin-hide', listener)
-      return () => ipcRenderer.removeListener('dev-admin-hide', listener)
+      const listener = () => cb();
+      import_electron.ipcRenderer.on("dev-admin-hide", listener);
+      return () => import_electron.ipcRenderer.removeListener("dev-admin-hide", listener);
     },
     onRequestUnlock: (cb) => {
-      const listener = () => cb()
-      ipcRenderer.on('dev-admin-request-unlock', listener)
-      return () => ipcRenderer.removeListener('dev-admin-request-unlock', listener)
+      const listener = () => cb();
+      import_electron.ipcRenderer.on("dev-admin-request-unlock", listener);
+      return () => import_electron.ipcRenderer.removeListener("dev-admin-request-unlock", listener);
     },
     onUnlocked: (cb) => {
-      const listener = () => cb()
-      ipcRenderer.on('dev-admin-unlocked', listener)
-      return () => ipcRenderer.removeListener('dev-admin-unlocked', listener)
+      const listener = () => cb();
+      import_electron.ipcRenderer.on("dev-admin-unlocked", listener);
+      return () => import_electron.ipcRenderer.removeListener("dev-admin-unlocked", listener);
     },
-    toggleAdminPanel: () => ipcRenderer.invoke('dev-toggle-admin'),
-    showAdminPanel: () => ipcRenderer.invoke('dev-show-admin'),
-    hideAdminPanel: () => ipcRenderer.invoke('dev-hide-admin'),
-    unlock: (password) => ipcRenderer.invoke('dev-unlock', password),
-    isUnlocked: () => ipcRenderer.invoke('dev-is-unlocked'),
-    lock: () => ipcRenderer.invoke('dev-lock')
+    toggleAdminPanel: () => import_electron.ipcRenderer.invoke("dev-toggle-admin"),
+    showAdminPanel: () => import_electron.ipcRenderer.invoke("dev-show-admin"),
+    hideAdminPanel: () => import_electron.ipcRenderer.invoke("dev-hide-admin"),
+    unlock: (password) => import_electron.ipcRenderer.invoke("dev-unlock", password),
+    isUnlocked: () => import_electron.ipcRenderer.invoke("dev-is-unlocked"),
+    lock: () => import_electron.ipcRenderer.invoke("dev-lock")
   },
   admin: {
-    getPassword: () => ipcRenderer.invoke('get-admin-password')
+    getPassword: () => import_electron.ipcRenderer.invoke("get-admin-password")
   },
-  checkTokenVision: (payload) => ipcRenderer.invoke('check-token-vision', payload),
+  checkTokenVision: (payload) => import_electron.ipcRenderer.invoke("check-token-vision", payload),
   native: {
-    parseTxtProfiles: (text) => { const mod = loadNative(); return mod ? mod.parseTxtProfiles(String(text||'')) : null },
-    computeFileHash: async p => {
-      const mod = loadNative()
-      if (!mod) return null
-      const res = mod.computeFileHash(p)
-      return typeof res === 'bigint' ? res.toString() : res
+    parseTxtProfiles: (text) => {
+      const mod = loadNative();
+      return mod ? mod.parseTxtProfiles(String(text || "")) : null;
+    },
+    computeFileHash: async (p) => {
+      const mod = loadNative();
+      if (!mod) return null;
+      const res = mod.computeFileHash(p);
+      return typeof res === "bigint" ? res.toString() : res;
     },
     hammingDistance: (a, b) => {
-      const mod = loadNative()
-      if (!mod) return null
-      return mod.hammingDistance(a, b)
+      const mod = loadNative();
+      if (!mod) return null;
+      return mod.hammingDistance(a, b);
     },
     scanDirectory: (dir, recursive = true) => {
-      const mod = loadNative()
-      if (!mod) return []
-      return mod.scanDirectory(dir, !!recursive)
+      const mod = loadNative();
+      if (!mod) return [];
+      return mod.scanDirectory(dir, !!recursive);
     },
     scanDirectoryFiltered: (dir, recursive = true, excludes = []) => {
-      const mod = loadNative()
-      if (!mod) return []
-      return mod.scanDirectoryFiltered(dir, !!recursive, Array.isArray(excludes) ? excludes : [])
+      const mod = loadNative();
+      if (!mod) return [];
+      return mod.scanDirectoryFiltered(dir, !!recursive, Array.isArray(excludes) ? excludes : []);
     },
     aHashFromGray8: (buf, w, h, stride) => {
-      const mod = loadNative()
-      if (!mod) return null
-      const res = mod.aHashFromGray8(new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength), w, h, stride)
-      return typeof res === 'bigint' ? res.toString() : res
+      const mod = loadNative();
+      if (!mod) return null;
+      const res = mod.aHashFromGray8(new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength), w, h, stride);
+      return typeof res === "bigint" ? res.toString() : res;
     },
     dHashFromGray8: (buf, w, h, stride) => {
-      const mod = loadNative()
-      if (!mod) return null
-      const res = mod.dHashFromGray8(new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength), w, h, stride)
-      return typeof res === 'bigint' ? res.toString() : res
+      const mod = loadNative();
+      if (!mod) return null;
+      const res = mod.dHashFromGray8(new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength), w, h, stride);
+      return typeof res === "bigint" ? res.toString() : res;
     },
     pHashFromGray8: (buf, w, h, stride) => {
-      const mod = loadNative()
-      if (!mod) return null
-      const res = mod.pHashFromGray8(new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength), w, h, stride)
-      return typeof res === 'bigint' ? res.toString() : res
+      const mod = loadNative();
+      if (!mod) return null;
+      const res = mod.pHashFromGray8(new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength), w, h, stride);
+      return typeof res === "bigint" ? res.toString() : res;
     },
     topKHamming: (hashes, query, k) => {
-      const mod = loadNative()
-      if (!mod) return []
-      return mod.topKHamming(hashes, query, k)
+      const mod = loadNative();
+      if (!mod) return [];
+      return mod.topKHamming(hashes, query, k);
     },
     fileAHash: async (filePath) => {
-      const mod = loadNative()
-      if (!mod) return null
-      const dec = await decodeGray8(filePath)
-      if (!dec) return null
-      const res = mod.aHashFromGray8(dec.buf, dec.width, dec.height, dec.stride)
-      return typeof res === 'bigint' ? res.toString() : res
+      const mod = loadNative();
+      if (!mod) return null;
+      const dec = await decodeGray8(filePath);
+      if (!dec) return null;
+      const res = mod.aHashFromGray8(dec.buf, dec.width, dec.height, dec.stride);
+      return typeof res === "bigint" ? res.toString() : res;
     },
     fileDHash: async (filePath) => {
-      const mod = loadNative()
-      if (!mod) return null
-      const dec = await decodeGray8(filePath)
-      if (!dec) return null
-      const res = mod.dHashFromGray8(dec.buf, dec.width, dec.height, dec.stride)
-      return typeof res === 'bigint' ? res.toString() : res
+      const mod = loadNative();
+      if (!mod) return null;
+      const dec = await decodeGray8(filePath);
+      if (!dec) return null;
+      const res = mod.dHashFromGray8(dec.buf, dec.width, dec.height, dec.stride);
+      return typeof res === "bigint" ? res.toString() : res;
     },
     filePHash: async (filePath) => {
-      const mod = loadNative()
-      if (!mod) return null
-      const dec = await decodeGray8(filePath)
-      if (!dec) return null
-      const res = mod.pHashFromGray8(dec.buf, dec.width, dec.height, dec.stride)
-      return typeof res === 'bigint' ? res.toString() : res
+      const mod = loadNative();
+      if (!mod) return null;
+      const dec = await decodeGray8(filePath);
+      if (!dec) return null;
+      const res = mod.pHashFromGray8(dec.buf, dec.width, dec.height, dec.stride);
+      return typeof res === "bigint" ? res.toString() : res;
     },
     gpu: {
-      init: () => { const mod = loadNative(); if (mod) mod.gpuInit() },
-      shutdown: () => { const mod = loadNative(); if (mod) mod.gpuShutdown() },
-      setEnabled: (v) => { const mod = loadNative(); if (mod) mod.gpuSetEnabled(!!v) },
-      isEnabled: () => { const mod = loadNative(); return mod ? !!mod.gpuIsEnabled() : false },
-      isSupported: () => { const mod = loadNative(); return mod ? !!mod.gpuSupported() : false },
-      adapterName: () => { const mod = loadNative(); return mod && mod.gpuAdapterName ? String(mod.gpuAdapterName()) : '' }
+      init: () => {
+        const mod = loadNative();
+        if (mod) mod.gpuInit();
+      },
+      shutdown: () => {
+        const mod = loadNative();
+        if (mod) mod.gpuShutdown();
+      },
+      setEnabled: (v) => {
+        const mod = loadNative();
+        if (mod) mod.gpuSetEnabled(!!v);
+      },
+      isEnabled: () => {
+        const mod = loadNative();
+        return mod ? !!mod.gpuIsEnabled() : false;
+      },
+      isSupported: () => {
+        const mod = loadNative();
+        return mod ? !!mod.gpuSupported() : false;
+      },
+      adapterName: () => {
+        const mod = loadNative();
+        return mod && mod.gpuAdapterName ? String(mod.gpuAdapterName()) : "";
+      }
     },
-    writeMetadata: (p, meta) => { const mod = loadNative(); return mod ? !!mod.writeMetadata(p, meta) : false },
-    stripMetadata: (p) => { const mod = loadNative(); return mod ? !!mod.stripMetadata(p) : false },
-    createHammingIndex: (hashes) => { const mod = loadNative(); return mod ? mod.createHammingIndex(hashes) : -1 },
-    queryHammingIndex: (id, query, k, maxDistance) => { const mod = loadNative(); return mod ? mod.queryHammingIndex(id, query, k, maxDistance) : [] },
-    freeHammingIndex: (id) => { const mod = loadNative(); if (mod) mod.freeHammingIndex(id) },
-    clusterByHamming: (hashes, threshold) => { const mod = loadNative(); return mod ? mod.clusterByHamming(hashes, threshold) : [] },
-    wicDecodeGray8: (filePath) => { const mod = loadNative(); return mod ? mod.wicDecodeGray8(filePath) : null },
-    parseTxtProfilesFromFile: (filePath) => { const mod = loadNative(); return mod ? mod.parseTxtProfilesFromFile(filePath) : null }
+    writeMetadata: (p, meta) => {
+      const mod = loadNative();
+      return mod ? !!mod.writeMetadata(p, meta) : false;
+    },
+    stripMetadata: (p) => {
+      const mod = loadNative();
+      return mod ? !!mod.stripMetadata(p) : false;
+    },
+    createHammingIndex: (hashes) => {
+      const mod = loadNative();
+      return mod ? mod.createHammingIndex(hashes) : -1;
+    },
+    queryHammingIndex: (id, query, k, maxDistance) => {
+      const mod = loadNative();
+      return mod ? mod.queryHammingIndex(id, query, k, maxDistance) : [];
+    },
+    freeHammingIndex: (id) => {
+      const mod = loadNative();
+      if (mod) mod.freeHammingIndex(id);
+    },
+    clusterByHamming: (hashes, threshold) => {
+      const mod = loadNative();
+      return mod ? mod.clusterByHamming(hashes, threshold) : [];
+    },
+    wicDecodeGray8: (filePath) => {
+      const mod = loadNative();
+      return mod ? mod.wicDecodeGray8(filePath) : null;
+    },
+    parseTxtProfilesFromFile: (filePath) => {
+      const mod = loadNative();
+      return mod ? mod.parseTxtProfilesFromFile(filePath) : null;
+    }
   },
-  hashFileIncremental: (p) => ipcRenderer.invoke('hash-file-incremental', { path: p })
-})
+  hashFileIncremental: (p) => import_electron.ipcRenderer.invoke("hash-file-incremental", { path: p })
+});
+//# sourceMappingURL=preload.js.map

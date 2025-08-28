@@ -36,8 +36,9 @@
     "release:patch": "npm version patch -m \"release: %s\" && git push",
     "release:minor": "npm version minor -m \"release: %s\" && git push",
     "release:major": "npm version major -m \"release: %s\" && git push",
-    "postinstall": "electron-builder install-app-deps && node scripts/build-native.js",
+    "postinstall": "electron-builder install-app-deps && node scripts/build-native.js && node scripts/build-electron.js",
     "native:build": "node scripts/build-native.js",
+    "electron:build": "node scripts/build-electron.js",
     "native:prebuild": "cd native && prebuildify --napi --strip",
     "assets:icons": "node scripts/make-icons.js",
     "open:sendto": "powershell -NoProfile -Command \"Start-Process explorer.exe ($env:APPDATA+'\\Microsoft\\Windows\\SendTo')\""
@@ -45,6 +46,7 @@
   "dependencies": {
     "@formkit/auto-animate": "0.8.4",
     "@headlessui/react": "2.2.7",
+    "@iconify/react": "^6.0.0",
     "@tippyjs/react": "4.2.6",
     "clsx": "2.1.1",
     "dotenv": "^16.4.5",
@@ -66,6 +68,9 @@
   "devDependencies": {
     "@tailwindcss/forms": "^0.5.10",
     "@tailwindcss/typography": "^0.5.16",
+    "@types/node": "^24.3.0",
+    "@types/react": "^19.1.12",
+    "@types/react-dom": "^19.1.8",
     "@vitejs/plugin-react": "^4.3.0",
     "asc": "npm:assemblyscript@^0.27.27",
     "assemblyscript": "^0.27.27",
@@ -74,6 +79,7 @@
     "cross-env": "^7.0.3",
     "electron": "^33.2.1",
     "electron-builder": "^24.13.3",
+    "esbuild": "^0.25.9",
     "node-gyp": "^10.2.0",
     "png-to-ico": "^2.1.8",
     "postcss": "^8.4.38",
@@ -81,6 +87,7 @@
     "tailwind-scrollbar": "^3.1.0",
     "tailwindcss": "^3.4.4",
     "tailwindcss-animate": "^1.0.7",
+    "typescript": "^5.9.2",
     "vite": "^5.2.0",
     "wait-on": "^7.0.1"
   },
