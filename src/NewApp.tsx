@@ -311,7 +311,7 @@ export default function NewApp() {
 
   return (
     <div className="h-full text-slate-100">
-      <div className="px-4 py-3 border-b border-white/10 bg-black/20 backdrop-blur">
+      <div className="px-4 py-3 border-b border-white/10 bg-black/20 backdrop-blur overflow-x-auto with-gutter">
         <div className="flex items-center gap-2 flex-wrap">
           <button onClick={selectImages} className="btn btn-primary"><Icon name="tabler:files" className="icon" />{t('buttons.addFiles')}</button>
           <button onClick={selectFolder} className="btn btn-ghost"><Icon name="tabler:folder-plus" className="icon" />{t('buttons.addFolder')}</button>
@@ -348,7 +348,7 @@ export default function NewApp() {
             <span className="opacity-70">{t('maxWidth.title', { defaultValue: 'Max width' })}</span>
             <input type="number" min={0} value={resizeMaxW} onChange={e=>setResizeMaxW(Number(e.target.value)||0)} className="bg-slate-900 border border-white/10 rounded px-2 py-2" />
           </label>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <label className="inline-flex items-center gap-2"><input type="checkbox" checked={removeGps} onChange={e=>setRemoveGps(e.target.checked)} />{t('meta.removeGps', { defaultValue: 'Remove GPS' })}</label>
             <label className="inline-flex items-center gap-2"><input type="checkbox" checked={uniqueId} onChange={e=>setUniqueId(e.target.checked)} />{t('meta.uniqueId', { defaultValue: 'Unique ID' })}</label>
             <label className="inline-flex items-center gap-2"><input type="checkbox" checked={removeAll} onChange={e=>setRemoveAll(e.target.checked)} />{t('meta.removeAll', { defaultValue: 'Remove all metadata' })}</label>
@@ -364,7 +364,7 @@ export default function NewApp() {
             <span className="opacity-70">{t('meta.offsetMinutes', { defaultValue: 'Offset, min' })}</span>
             <input type="number" value={dateOffsetMinutes} onChange={e=>setDateOffsetMinutes(Number(e.target.value)||0)} className="bg-slate-900 border border-white/10 rounded px-2 py-2" />
           </label>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <label className="inline-flex items-center gap-2"><input type="checkbox" checked={softwareTag} onChange={e=>setSoftwareTag(e.target.checked)} />Software</label>
             <label className="inline-flex items-center gap-2"><input type="checkbox" checked={fake} onChange={e=>setFake(e.target.checked)} />Fake</label>
           </div>
@@ -470,13 +470,15 @@ export default function NewApp() {
               <label className="flex flex-col gap-1 md:col-span-2 xl:col-span-1"><span className="opacity-70">{t('fake.label', { defaultValue: 'Label' })}</span><input value={fakeLabel} onChange={e=>setFakeLabel(e.target.value)} className="bg-slate-900 border border-white/10 rounded px-2 py-2" /></label>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2 text-xs">
-              <div className="flex items-center gap-3 col-span-2 xl:col-span-2">
+              <div className="flex flex-wrap items-center gap-3 col-span-2 xl:col-span-2">
                 <label className="inline-flex items-center gap-2"><input type="checkbox" checked={fakeGps} onChange={e=>setFakeGps(e.target.checked)} />GPS</label>
                 <label className="inline-flex items-center gap-2"><input type="checkbox" checked={!!locationPreset && locationPreset!=='none'} onChange={e=>{ if (!e.target.checked) setLocationPreset('none') }} />Preset</label>
               </div>
               <label className="flex flex-col gap-1"><span className="opacity-70">Preset</span>
                 <select value={locationPreset} onChange={e=>setLocationPreset(e.target.value)} className="bg-slate-900 border border-white/10 rounded px-2 py-2">
-                  {LOCATION_PRESETS.map(x => <option key={x.id} value={x.id}>{t('location.none', { defaultValue: x.label })}</option>)}
+                  {LOCATION_PRESETS.map(x => (
+                    <option key={x.id} value={x.id}>{x.id==='none' ? t('location.none', { defaultValue: x.label }) : x.label}</option>
+                  ))}
                 </select>
               </label>
               <label className="flex flex-col gap-1"><span className="opacity-70">Lat</span><input value={fakeLat} onChange={e=>setFakeLat(e.target.value)} placeholder="50.45" className="bg-slate-900 border border-white/10 rounded px-2 py-2" /></label>
@@ -515,14 +517,14 @@ export default function NewApp() {
             <button onClick={()=>setActive('ready')} className={`nav-btn ${active==='ready'?'active':''}`}><span className="inline-flex items-center gap-2"><Icon name="tabler:checks" className="icon" />{t('tabs.ready')}</span></button>
           </nav>
         </aside>
-        <section className="col-span-10 xl:col-span-10 p-4 overflow-auto">
+        <section className="col-span-10 xl:col-span-10 p-4 overflow-auto with-gutter">
           {active==='files' && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3" ref={gridRef} onDrop={async e=>{ e.preventDefault(); const items = Array.from(e.dataTransfer.files||[]); if (!items.length) return; const paths = items.map(f=>(f as any).path); const expanded = await window.api.expandPaths(paths); if (expanded && expanded.length) setFiles(prev=>Array.from(new Set([...prev, ...expanded]))) }} onDragOver={e=>e.preventDefault()}>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 @[app]:grid-cols-5 @[app]:gap-2" ref={gridRef} onDrop={async e=>{ e.preventDefault(); const items = Array.from(e.dataTransfer.files||[]); if (!items.length) return; const paths = items.map(f=>(f as any).path); const expanded = await window.api.expandPaths(paths); if (expanded && expanded.length) setFiles(prev=>Array.from(new Set([...prev, ...expanded]))) }} onDragOver={e=>e.preventDefault()}>
                 {files.map((p, i) => (
                   <div key={p+i} className={`group tile bg-slate-900/60 rounded-md overflow-hidden border ${selected.has(i)?'border-brand-600 ring-1 ring-brand-600/40':'border-white/5'} relative`} onClick={e=>{ if ((e as any).metaKey || (e as any).ctrlKey) { setSelected(prev=>{ const n=new Set(prev); if (n.has(i)) n.delete(i); else n.add(i); return n }) } else { setSelected(new Set([i])) } }}>
-                    <div className="h-36 bg-slate-900 flex items-center justify-center overflow-hidden">
-                      <img loading="lazy" decoding="async" alt="file" className="max-h-36 transition-transform group-hover:scale-[1.02]" src={toFileUrl(p)} />
+                    <div className="h-36 @[app]:h-32 bg-slate-900 flex items-center justify-center overflow-hidden">
+                      <img loading="lazy" decoding="async" alt="file" className="max-h-36 @[app]:max-h-32 transition-transform group-hover:scale-[1.02]" src={toFileUrl(p)} />
                     </div>
                     <div className="text-[10px] p-2 truncate opacity-80 flex items-center gap-2" title={p}>
                       <span className="flex-1 truncate">{p}</span>
@@ -538,7 +540,7 @@ export default function NewApp() {
           {active==='ready' && (
             <div className="space-y-4">
               {!!results.length && (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 @[app]:grid-cols-5 @[app]:gap-2">
                   {results.map((r, i) => (
                     <div key={r.out+i} className="group bg-slate-900/60 rounded-md overflow-hidden border border-white/5 relative">
                       <div className="h-36 bg-slate-900 flex items-center justify-center overflow-hidden">

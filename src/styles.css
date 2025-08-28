@@ -12,6 +12,11 @@ html, body, #root {
   height: 100%;
 }
 
+.app-container {
+  container-type: inline-size;
+  container-name: app;
+}
+
 body {
   background: radial-gradient(1200px 600px at 90% -10%, rgba(99,102,241,.12), transparent 60%),
               radial-gradient(900px 500px at 0% 20%, rgba(2,132,199,.10), transparent 60%),
@@ -100,9 +105,13 @@ body {
 }
 
 *::-webkit-scrollbar { width: 10px; height: 10px }
-*::-webkit-scrollbar-thumb { background: rgba(148,163,184,.3); border-radius: 8px }
+*::-webkit-scrollbar-thumb { background: rgba(148,163,184,.3); border-radius: 8px; border: 2px solid rgba(2,6,23,.6) }
 *::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,.45) }
-*::-webkit-scrollbar-track { background: transparent }
+*::-webkit-scrollbar-track { background: rgba(2,6,23,.25) }
+
+.with-gutter {
+  scrollbar-gutter: stable both-edges;
+}
 
 .ctx-menu {
   position: absolute;

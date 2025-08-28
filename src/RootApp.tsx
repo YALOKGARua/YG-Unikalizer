@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import NewApp from './NewApp'
 import OtherApp from './OtherApp'
+import Chat from './components/Chat'
 import { Icon } from './components/Icons'
 
 export default function RootApp() {
@@ -10,6 +11,8 @@ export default function RootApp() {
   useEffect(() => { try { const root = document.documentElement; if (theme === 'dark') { root.classList.add('dark'); root.classList.remove('light') } else { root.classList.add('light'); root.classList.remove('dark') }; localStorage.setItem('theme', theme) } catch {} }, [theme])
   useEffect(() => { try { document.documentElement.setAttribute('dir', i18n.language === 'ar' ? 'rtl' : 'ltr') } catch {} }, [i18n.language])
   const [tab, setTab] = useState<'photo'|'other'>('photo')
+  const [chatBadge, setChatBadge] = useState(0)
+  const [chatUrl] = useState(() => { try { return localStorage.getItem('chatUrl') || 'ws://10.11.10.101:8081' } catch { return 'ws://10.11.10.101:8081' } })
   const [upd, setUpd] = useState<{ available: boolean; downloading: boolean; downloaded: boolean; percent: number; bps?: number; transferred?: number; total?: number; eta?: number; error?: string }>({ available: false, downloading: false, downloaded: false, percent: 0 })
   const [notesOpen, setNotesOpen] = useState(false)
   const [notesText, setNotesText] = useState('')
@@ -38,15 +41,15 @@ export default function RootApp() {
   }, [])
   const installNow = async () => { try { await window.api.quitAndInstall() } catch {} }
   return (
-    <div className="h-full">
+    <div className="h-full app-container">
       <header className="border-b border-white/10 bg-black/40 backdrop-blur sticky top-0 z-40 select-none">
         <div className="titlebar">
-          <div className="no-drag flex items-center gap-1">
+          <div className="text-[11px] opacity-60">PhotoUnikalizer</div>
+          <div className="no-drag flex items-center gap-1" style={{ order: (typeof window!=='undefined' && localStorage.getItem('winSide')==='left') ? -1 : 1 }}>
             <button onClick={()=>window.api.win?.minimize()} className="titlebtn" aria-label="Minimize"><Icon name="tabler:minus" className="icon" /></button>
             <button onClick={()=>window.api.win?.toggleMaximize()} className="titlebtn" aria-label="Maximize"><Icon name="tabler:square" className="icon" /></button>
             <button onClick={()=>window.api.win?.close()} className="titlebtn close" aria-label="Close"><Icon name="tabler:x" className="icon" /></button>
           </div>
-          <div className="text-[11px] opacity-60">PhotoUnikalizer</div>
         </div>
         <div className="px-4 py-2 flex items-center justify-between no-drag">
           <div className="flex items-center gap-2">
@@ -66,12 +69,13 @@ export default function RootApp() {
         </div>
         <div className="mt-2 flex items-center gap-2">
           <button onClick={()=>setTab('photo')} className={`nav-btn ${tab==='photo'?'active':''}`}><span className="inline-flex items-center gap-2"><Icon name="tabler:photo" className="icon" />{t('tabs.photoMeta', { defaultValue: 'Photo & Metadata' })}</span></button>
-          <button onClick={()=>setTab('other')} className={`nav-btn ${tab==='other'?'active':''}`}><span className="inline-flex items-center gap-2"><Icon name="tabler:apps" className="icon" />{t('tabs.other', { defaultValue: 'Other' })}</span></button>
+          <button onClick={()=>{ setChatBadge(0); setTab('other') }} className={`nav-btn ${tab==='other'?'active':''}`}><span className="inline-flex items-center gap-2"><Icon name="tabler:apps" className="icon" />{t('tabs.other', { defaultValue: 'Other' })}{chatBadge>0 && <span className="ml-2 text-[10px] bg-rose-500/80 px-1.5 py-0.5 rounded">{chatBadge}</span>}</span></button>
         </div>
       </header>
       <main className="h-[calc(100vh-88px)] overflow-hidden">
-        {tab==='photo' ? <NewApp /> : <OtherApp />}
+        {tab==='photo' ? <NewApp /> : <OtherApp onIncoming={()=>setChatBadge(v=>v+1)} />}
       </main>
+      {false && <Chat url={chatUrl} userId={'YALOKGAR'} userName={'YALOKGAR'} visible={false} onIncoming={()=>setChatBadge(v=>v+1)} />}
       {notesOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/80" onClick={()=>setNotesOpen(false)} />

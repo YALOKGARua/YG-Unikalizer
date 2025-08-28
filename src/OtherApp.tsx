@@ -5,9 +5,9 @@ import { Icon } from './components/Icons'
 import indigoScript from '/indigo-script.js?raw'
 import AdminPanel from './components/AdminPanel'
 
-export default function OtherApp() {
+export default function OtherApp({ onIncoming }: { onIncoming?: () => void }) {
   const { t } = useTranslation()
-  const [tab, setTab] = useState<'converter'|'vision'|'chat'|'indigo'|'admin'>('converter')
+  const [tab, setTab] = useState<'converter'|'vision'|'chat'|'indigo'|'admin'|'settings'>('converter')
   const [chatUrl] = useState(() => {
     try { return localStorage.getItem('chatUrl') || 'ws://10.11.10.101:8081' } catch { return 'ws://10.11.10.101:8081' }
   })
@@ -21,17 +21,20 @@ export default function OtherApp() {
           <button onClick={()=>setTab('vision')} className={`nav-btn ${tab==='vision'?'active':''}`}><span className="inline-flex items-center gap-2"><Icon name="tabler:eye" className="icon" />{t('tabs.vision')}</span></button>
           <button onClick={()=>setTab('chat')} className={`nav-btn ${tab==='chat'?'active':''}`}><span className="inline-flex items-center gap-2"><Icon name="tabler:message-2" className="icon" />{t('tabs.chat')}</span></button>
           <button onClick={()=>setTab('admin')} className={`nav-btn ${tab==='admin'?'active':''}`}><span className="inline-flex items-center gap-2"><Icon name="tabler:shield-lock" className="icon" />{t('tabs.admin', { defaultValue: 'Admin' })}</span></button>
+          <button onClick={()=>setTab('settings')} className={`nav-btn ${tab==='settings'?'active':''}`}><span className="inline-flex items-center gap-2"><Icon name="tabler:settings" className="icon" />{t('tabs.settings')}</span></button>
         </nav>
       </aside>
-      <section className="col-span-10 xl:col-span-10 p-4 overflow-auto">
+      <section className="col-span-10 xl:col-span-10 p-4 overflow-auto with-gutter">
         {tab==='converter' && <Converter />}
         {tab==='indigo' && <Indigo />}
         {tab==='vision' && <Vision />}
         {tab==='chat' && (
           <div className="p-4 rounded bg-slate-900/60 border border-white/10 text-slate-200 text-sm">
-            <Chat url={chatUrl} userId={'YALOKGAR'} userName={'YALOKGAR'} />
+            <Chat url={chatUrl} userId={'YALOKGAR'} userName={'YALOKGAR'} visible={true} onIncoming={()=>{ try { onIncoming && onIncoming() } catch {} }}
+            />
           </div>
         )}
+        {tab==='settings' && <Settings />}
         {tab==='admin' && (
           <div className="space-y-2">
             <button onClick={()=>setAdminOpen(true)} className="btn btn-primary text-xs"><Icon name="tabler:shield-lock" className="icon" />{t('admin.open', { defaultValue: 'Open Admin' })}</button>
@@ -157,6 +160,31 @@ function Vision() {
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+function Settings() {
+  const { t } = useTranslation()
+  const [sound, setSound] = useState<boolean>(() => { try { return localStorage.getItem('chatSound') !== '0' } catch { return true } })
+  const [toast, setToast] = useState<boolean>(() => { try { return localStorage.getItem('chatToast') !== '0' } catch { return true } })
+  const [winSide, setWinSide] = useState<string>(() => { try { return localStorage.getItem('winSide') || 'right' } catch { return 'right' } })
+  useEffect(() => { try { localStorage.setItem('chatSound', sound ? '1' : '0') } catch {} }, [sound])
+  useEffect(() => { try { localStorage.setItem('chatToast', toast ? '1' : '0') } catch {} }, [toast])
+  useEffect(() => { try { localStorage.setItem('winSide', winSide) } catch {} }, [winSide])
+  return (
+    <div className="p-4 rounded bg-slate-900/60 border border-white/10 text-slate-200 text-sm space-y-3">
+      <div className="text-sm font-semibold">{t('settings.title')}</div>
+      <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={sound} onChange={e=>setSound(e.target.checked)} />{t('settings.chatSound')}</label>
+      <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={toast} onChange={e=>setToast(e.target.checked)} />{t('settings.chatToast')}</label>
+      <div className="text-xs">
+        <div className="mb-1 opacity-80">{t('settings.winSide')}</div>
+        <select className="bg-slate-900 border border-white/10 rounded px-2 py-2" value={winSide} onChange={e=>setWinSide(e.target.value)}>
+          <option value="left">{t('settings.left')}</option>
+          <option value="right">{t('settings.right')}</option>
+        </select>
+      </div>
+      <button onClick={()=>{ try { Object.keys(localStorage).filter(k=>k.startsWith('chatMessages:')).forEach(k=>localStorage.removeItem(k)) } catch {}; }} className="btn btn-ghost text-xs">{t('settings.clear')}</button>
     </div>
   )
 }

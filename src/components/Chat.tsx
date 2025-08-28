@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
-export default function Chat({ url, userId, userName }: { url: string; userId?: string; userName?: string }) {
+export default function Chat({ url, userId, userName, visible = true, onIncoming }: { url: string; userId?: string; userName?: string; visible?: boolean; onIncoming?: (msg: any) => void }) {
   const { t } = useTranslation()
   const [status, setStatus] = useState<'connecting'|'connected'|'disconnected'|'invalid-url'>('connecting')
   const [messages, setMessages] = useState<any[]>([])
@@ -25,6 +26,22 @@ export default function Chat({ url, userId, userName }: { url: string; userId?: 
   }, [])
 
   useEffect(() => { endpointRef.current = url }, [url])
+
+  const storageKey = useMemo(() => {
+    try { return 'chatMessages:' + String(url || '') } catch { return 'chatMessages' }
+  }, [url])
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(storageKey)
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed)) setMessages(parsed)
+      }
+    } catch {}
+  }, [storageKey])
+  useEffect(() => {
+    try { localStorage.setItem(storageKey, JSON.stringify(messages.slice(-1000))) } catch {}
+  }, [messages, storageKey])
 
   const didInitUrlRef = useRef(false)
   useEffect(() => {
@@ -81,7 +98,9 @@ export default function Chat({ url, userId, userName }: { url: string; userId?: 
         if (msg.type === 'message') {
           setMessages(prev => [...prev, msg])
           if (msg.userId !== myId) {
-            try { audioRef.current && audioRef.current.play().catch(() => {}) } catch (_) {}
+            try { if ((localStorage.getItem('chatSound')||'1') !== '0') audioRef.current && audioRef.current.play().catch(() => {}) } catch (_) {}
+            try { if ((localStorage.getItem('chatToast')||'1') !== '0') toast(`${msg.name || 'User'}: ${msg.text}`, { position: 'top-right' }) } catch {}
+            try { if (!visible && typeof onIncoming === 'function') onIncoming(msg) } catch {}
           }
           if (listRef.current) {
             try { listRef.current.scrollTop = listRef.current.scrollHeight } catch (_) {}
@@ -115,6 +134,8 @@ export default function Chat({ url, userId, userName }: { url: string; userId?: 
     ws.send(JSON.stringify({ type: 'message', text: t, userId: myId, name }))
     setText('')
   }
+
+  if (!visible) return <div style={{ display: 'none' }} />
 
   if (nick.trim().length < MIN_NICK_LEN) {
     return (
