@@ -166,6 +166,18 @@ import_electron.contextBridge.exposeInMainWorld("api", {
     import_electron.ipcRenderer.on("update-downloaded", listener);
     return () => import_electron.ipcRenderer.removeListener("update-downloaded", listener);
   },
+  win: {
+    minimize: () => import_electron.ipcRenderer.invoke("win-minimize"),
+    maximize: () => import_electron.ipcRenderer.invoke("win-maximize"),
+    toggleMaximize: () => import_electron.ipcRenderer.invoke("win-toggle-maximize"),
+    close: () => import_electron.ipcRenderer.invoke("win-close"),
+    isMaximized: () => import_electron.ipcRenderer.invoke("win-is-maximized"),
+    onMaximizeState: (cb) => {
+      const listener = (_, v) => cb(v);
+      import_electron.ipcRenderer.on("win-maximize-state", listener);
+      return () => import_electron.ipcRenderer.removeListener("win-maximize-state", listener);
+    }
+  },
   onStep: (cb) => {
     const listener = (_, s) => cb(s);
     import_electron.ipcRenderer.on("process-step", listener);

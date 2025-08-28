@@ -594,6 +594,9 @@ function createWindow() {
     minHeight: 700,
     title: 'PhotoUnikalizer',
     backgroundColor: '#0b1020',
+    frame: false,
+    titleBarStyle: 'hidden',
+    autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -605,6 +608,11 @@ function createWindow() {
   const url = resolveHtmlPath()
   if (url.startsWith('http')) mainWindow.loadURL(url)
   else mainWindow.loadFile(path.join(__dirname, '..', 'dist', 'index.html'))
+
+  try {
+    mainWindow.on('maximize', () => { try { mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents.send('win-maximize-state', { maximized: true }) } catch (_) {} })
+    mainWindow.on('unmaximize', () => { try { mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents.send('win-maximize-state', { maximized: false }) } catch (_) {} })
+  } catch (_) {}
 }
 
 function collectOsOpenFiles() {
@@ -1223,6 +1231,12 @@ app.whenReady().then(() => {
     if (res.canceled) return []
     return res.filePaths
   })
+
+  ipcMain.handle('win-minimize', async () => { try { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.minimize(); return { ok: true } } catch (e) { return { ok: false, error: String((e as any)?.message || e) } } })
+  ipcMain.handle('win-maximize', async () => { try { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.maximize(); return { ok: true } } catch (e) { return { ok: false, error: String((e as any)?.message || e) } } })
+  ipcMain.handle('win-toggle-maximize', async () => { try { if (mainWindow && !mainWindow.isDestroyed()) { if (mainWindow.isMaximized()) mainWindow.unmaximize(); else mainWindow.maximize() }; return { ok: true } } catch (e) { return { ok: false, error: String((e as any)?.message || e) } } })
+  ipcMain.handle('win-close', async () => { try { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close(); return { ok: true } } catch (e) { return { ok: false, error: String((e as any)?.message || e) } } })
+  ipcMain.handle('win-is-maximized', async () => { try { return { ok: true, maximized: !!(mainWindow && !mainWindow.isDestroyed() && mainWindow.isMaximized()) } } catch (e) { return { ok: false, maximized: false } } })
 
   async function collectAllowedFromDir(dir) {
     const allowed = new Set(['.jpg', '.jpeg', '.png', '.webp', '.avif', '.tif', '.tiff'])

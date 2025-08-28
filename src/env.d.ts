@@ -98,5 +98,13 @@ interface Window {
       parseTxtProfilesFromFile?: (filePath: string) => any
     }
     hashFileIncremental?: (payload: { path: string } | string) => Promise<{ ok: boolean; algo?: string; hash?: string }>
+    win?: {
+      minimize: () => Promise<{ ok: boolean }>
+      maximize: () => Promise<{ ok: boolean }>
+      toggleMaximize: () => Promise<{ ok: boolean }>
+      close: () => Promise<{ ok: boolean }>
+      isMaximized: () => Promise<{ ok: boolean; maximized: boolean }>
+      onMaximizeState: (cb: (v: { maximized: boolean }) => void) => () => void
+    }
   }
 }

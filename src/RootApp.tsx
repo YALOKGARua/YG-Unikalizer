@@ -39,11 +39,19 @@ export default function RootApp() {
   const installNow = async () => { try { await window.api.quitAndInstall() } catch {} }
   return (
     <div className="h-full">
-      <header className="px-4 py-2.5 border-b border-white/10 bg-black/30 backdrop-blur sticky top-0 z-40">
-        <div className="flex items-center justify-between">
+      <header className="border-b border-white/10 bg-black/40 backdrop-blur sticky top-0 z-40 select-none">
+        <div className="titlebar">
+          <div className="no-drag flex items-center gap-1">
+            <button onClick={()=>window.api.win?.minimize()} className="titlebtn" aria-label="Minimize"><Icon name="tabler:minus" className="icon" /></button>
+            <button onClick={()=>window.api.win?.toggleMaximize()} className="titlebtn" aria-label="Maximize"><Icon name="tabler:square" className="icon" /></button>
+            <button onClick={()=>window.api.win?.close()} className="titlebtn close" aria-label="Close"><Icon name="tabler:x" className="icon" /></button>
+          </div>
+          <div className="text-[11px] opacity-60">PhotoUnikalizer</div>
+        </div>
+        <div className="px-4 py-2 flex items-center justify-between no-drag">
           <div className="flex items-center gap-2">
             <div className="text-lg font-semibold">PhotoUnikalizer</div>
-            <div className="text-[10px] opacity-70">by YALOKGAR</div>
+            <div className="text-[10px] neon neon-glow">by YALOKGAR</div>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={async()=>{ try { const r = await window.api.getUpdateChangelog(); setNotesText((r && (r as any).notes) || t('notes.none') as string); setNotesOpen(true) } catch { setNotesText(t('notes.none') as string); setNotesOpen(true) } }} className="btn btn-ghost text-xs"><span className="inline-flex items-center gap-1.5"><Icon name="tabler:sparkles" className="icon" />{t('actions.whatsNew')}</span></button>

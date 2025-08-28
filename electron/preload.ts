@@ -140,6 +140,18 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('update-downloaded', listener as any)
     return () => ipcRenderer.removeListener('update-downloaded', listener as any)
   },
+  win: {
+    minimize: () => ipcRenderer.invoke('win-minimize'),
+    maximize: () => ipcRenderer.invoke('win-maximize'),
+    toggleMaximize: () => ipcRenderer.invoke('win-toggle-maximize'),
+    close: () => ipcRenderer.invoke('win-close'),
+    isMaximized: () => ipcRenderer.invoke('win-is-maximized'),
+    onMaximizeState: (cb: (v: { maximized: boolean }) => void) => {
+      const listener = (_: unknown, v: { maximized: boolean }) => cb(v)
+      ipcRenderer.on('win-maximize-state', listener as any)
+      return () => ipcRenderer.removeListener('win-maximize-state', listener as any)
+    }
+  },
   onStep: (cb: (s: unknown) => void) => {
     const listener = (_: unknown, s: unknown) => cb(s)
     ipcRenderer.on('process-step', listener as any)
