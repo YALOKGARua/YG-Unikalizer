@@ -109,6 +109,7 @@
     "appId": "com.yalokgar.photounikalizer",
     "productName": "PhotoUnikalizer",
     "artifactName": "PhotoUnikalizer-${version}-${os}-${arch}.${ext}",
+    "copyright": "Copyright (C) 2025 YALOKGAR",
     "files": [
       "dist/**",
       "electron/**",
@@ -134,6 +135,7 @@
       "buildResources": "build"
     },
     "win": {
+      "executableName": "PhotoUnikalizer",
       "icon": "build/icon.ico",
       "requestedExecutionLevel": "requireAdministrator",
       "target": [
