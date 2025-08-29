@@ -1731,6 +1731,50 @@ app.whenReady().then(() => {
     } catch (e) { return { ok: false, error: String(e && e.message ? e.message : e) } }
   })
 
+  ipcMain.handle('native-ahash-batch', async (_e, payload) => {
+    try {
+      const paths = (payload && Array.isArray(payload.paths)) ? payload.paths : []
+      if (!paths.length) return { ok: true, hashes: [] }
+      const nat = loadNative()
+      if (!nat) return { ok: false, error: 'native-unavailable' }
+      const limit = Math.max(1, Math.min(((os.cpus() || []).length - 1) || 1, 4))
+      const hashes = new Array(paths.length).fill(null)
+      let idx = 0
+      async function worker() {
+        while (true) {
+          const i = idx
+          idx += 1
+          if (i >= paths.length) break
+          const p = paths[i]
+          try {
+            let dec = null
+            try { dec = nat.wicDecodeGray8 ? nat.wicDecodeGray8(p) : null } catch (_) { dec = null }
+            if (dec && dec.buffer && typeof dec.width === 'number' && typeof dec.height === 'number' && typeof dec.stride === 'number') {
+              const u8 = new Uint8Array(dec.buffer.buffer, dec.buffer.byteOffset, dec.buffer.byteLength)
+              let h = nat.aHashFromGray8(u8, dec.width, dec.height, dec.stride)
+              if (typeof h === 'bigint') h = h.toString()
+              hashes[i] = h
+            } else {
+              try {
+                const res = await sharp(p).grayscale().raw().toBuffer({ resolveWithObject: true })
+                const u8 = new Uint8Array(res.data.buffer, res.data.byteOffset, res.data.byteLength)
+                let h = nat.aHashFromGray8(u8, res.info.width, res.info.height, res.info.width * res.info.channels)
+                if (typeof h === 'bigint') h = h.toString()
+                hashes[i] = h
+              } catch (_) { hashes[i] = null }
+            }
+          } catch (_) { hashes[i] = null }
+          if ((i & 7) === 0) { await new Promise(resolve => setImmediate(resolve)) }
+        }
+      }
+      const workers = new Array(limit).fill(0).map(() => worker())
+      await Promise.all(workers)
+      return { ok: true, hashes }
+    } catch (e) {
+      return { ok: false, error: String((e as any)?.message || e) }
+    }
+  })
+
   ipcMain.handle('save-json-batch', async (_e, payload) => {
     try {
       const items = (payload && Array.isArray(payload.items)) ? payload.items : []

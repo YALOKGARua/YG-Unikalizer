@@ -36,6 +36,7 @@ interface Window {
     isAdmin: () => Promise<{ ok: boolean; admin: boolean }>
     decodeGray8File: (p: string) => Promise<{ width: number; height: number; stride: number; data: number[] } | null>
     decodeRgbaFile: (p: string) => Promise<{ width: number; height: number; stride: number; data: number[] } | null>
+    hashAHashBatch: (paths: string[]) => Promise<{ ok: boolean; hashes?: Array<string | number | null>; error?: string }>
     wasmCodecs: {
       ensure: (payload: { items: { name: string; url: string; sha256?: string }[] }) => Promise<{ ok: boolean; dir?: string; error?: string }>
       load: (name: string) => Promise<{ ok: boolean; data?: Uint8Array; error?: string }>

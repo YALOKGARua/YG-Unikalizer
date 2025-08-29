@@ -718,7 +718,26 @@ export default function App() {
     const nat = window.api.native
     const targets = results.length ? results.map(r => r.out) : files
     setDupTargets(targets)
-    const hashes = (await Promise.all(targets.map(p => nat.fileAHash(p)))).filter(Boolean)
+    let hashes: any[] = []
+    try {
+      const r = await window.api.hashAHashBatch(targets)
+      if (r && (r as any).ok && Array.isArray((r as any).hashes)) hashes = (r as any).hashes.filter(Boolean)
+    } catch {}
+    if (!hashes.length) {
+      const limit = Math.min(6, Math.max(1, (navigator.hardwareConcurrency || 4) - 1))
+      let idx = 0
+      const out = new Array(targets.length).fill(null)
+      await Promise.all(new Array(limit).fill(0).map(async () => {
+        while (true) {
+          const i = idx
+          idx += 1
+          if (i >= targets.length) break
+          const p = targets[i]
+          try { out[i] = await nat.fileAHash(p) } catch { out[i] = null }
+        }
+      }))
+      hashes = out.filter(Boolean)
+    }
     const id = nat.createHammingIndex(hashes)
     setDupIndex(id)
     const groupsRaw = nat.clusterByHamming(hashes, 5) || []
@@ -764,9 +783,7 @@ export default function App() {
   }, [profile])
 
   const dedupeByContent = async (paths) => {
-    const nat = window.api?.native
-    if (!nat || typeof nat.computeFileHash !== 'function') return Array.from(new Set(paths))
-    const limit = Math.min(8, Math.max(1, (navigator.hardwareConcurrency || 4)))
+    const limit = Math.min(6, Math.max(1, (navigator.hardwareConcurrency || 4) - 1))
     const seen = new Set()
     const unique = []
     let idx = 0
@@ -776,8 +793,11 @@ export default function App() {
         idx += 1
         if (i >= paths.length) break
         const p = paths[i]
-        let h = await nat.computeFileHash(p)
-        if (typeof h === 'number') h = String(h)
+        let h = ''
+        try {
+          const res = await window.api.hashFileIncremental({ path: p })
+          h = res && res.ok && res.hash ? String(res.hash) : ''
+        } catch {}
         const key = h ? ('hash:' + h) : ('path:' + p)
         if (!seen.has(key)) {
           seen.add(key)

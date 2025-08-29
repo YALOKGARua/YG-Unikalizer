@@ -37,7 +37,7 @@ class AsyncHashWorker : public Napi::AsyncWorker {
   AsyncHashWorker(const Napi::Function& cb, std::string path)
     : Napi::AsyncWorker(cb), path_(std::move(path)), ok_(false), hash_(0ull) {}
   void Execute() override {
-    hash_ = fnv1a64_file(path_, ok_);
+    hash_ = xxh64_file(path_, ok_);
   }
   void OnOK() override {
     Napi::Env env = Env();
@@ -85,7 +85,7 @@ Napi::Value ComputeFileHash(const Napi::CallbackInfo& info) {
     return env.Null();
   }
   std::string path = info[0].As<Napi::String>().Utf8Value();
-  std::string algo = "fnv";
+  std::string algo = "xxh64";
   if (info.Length() >= 2 && info[1].IsString()) algo = info[1].As<Napi::String>().Utf8Value();
   if (info.Length() >= 2 && info[1].IsFunction()) {
     Napi::Function cb = info[1].As<Napi::Function>();
@@ -94,8 +94,8 @@ Napi::Value ComputeFileHash(const Napi::CallbackInfo& info) {
   }
   bool ok = false;
   uint64_t h = 0;
-  if (algo == "xxh64") h = xxh64_file(path, ok);
-  else h = fnv1a64_file(path, ok);
+  if (algo == "fnv" || algo == "fnv1a" || algo == "fnv1a64") h = fnv1a64_file(path, ok);
+  else h = xxh64_file(path, ok);
   if (!ok) return env.Null();
   return Napi::BigInt::New(env, h);
 }

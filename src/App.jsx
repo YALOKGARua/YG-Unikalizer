@@ -718,7 +718,26 @@ export default function App() {
     const nat = window.api.native
     const targets = results.length ? results.map(r => r.out) : files
     setDupTargets(targets)
-    const hashes = (await Promise.all(targets.map(p => nat.fileAHash(p)))).filter(Boolean)
+    let hashes = []
+    try {
+      const r = await window.api.hashAHashBatch(targets)
+      if (r && r.ok && Array.isArray(r.hashes)) hashes = r.hashes.filter(Boolean)
+    } catch {}
+    if (!hashes.length) {
+      const limit = Math.min(6, Math.max(1, (navigator.hardwareConcurrency || 4) - 1))
+      let idx = 0
+      const out = new Array(targets.length).fill(null)
+      await Promise.all(new Array(limit).fill(0).map(async () => {
+        while (true) {
+          const i = idx
+          idx += 1
+          if (i >= targets.length) break
+          const p = targets[i]
+          try { out[i] = await nat.fileAHash(p) } catch { out[i] = null }
+        }
+      }))
+      hashes = out.filter(Boolean)
+    }
     const id = nat.createHammingIndex(hashes)
     setDupIndex(id)
     const groupsRaw = nat.clusterByHamming(hashes, 5) || []
