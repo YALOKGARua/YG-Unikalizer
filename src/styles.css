@@ -40,6 +40,10 @@ body {
   @apply bg-brand-600 hover:bg-brand-500 text-white;
 }
 
+.btn-secondary {
+  @apply bg-emerald-600 hover:bg-emerald-500 text-white;
+}
+
 .btn-ghost {
   @apply bg-slate-800 hover:bg-slate-700 text-xs;
 }

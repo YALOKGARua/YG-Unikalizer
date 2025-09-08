@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import NewApp from './NewApp'
 import OtherApp from './OtherApp'
+import CrashGame from './components/CrashGame'
 import Chat from './components/Chat'
 import { Icon } from './components/Icons'
 
@@ -10,7 +11,7 @@ export default function RootApp() {
   const [theme, setTheme] = useState<'dark'|'light'>(() => { try { return (localStorage.getItem('theme') as any) || 'dark' } catch { return 'dark' } })
   useEffect(() => { try { const root = document.documentElement; if (theme === 'dark') { root.classList.add('dark'); root.classList.remove('light') } else { root.classList.add('light'); root.classList.remove('dark') }; localStorage.setItem('theme', theme) } catch {} }, [theme])
   useEffect(() => { try { document.documentElement.setAttribute('dir', i18n.language === 'ar' ? 'rtl' : 'ltr') } catch {} }, [i18n.language])
-  const [tab, setTab] = useState<'photo'|'other'>('photo')
+  const [tab, setTab] = useState<'photo'|'fun'|'other'>('photo')
   const [chatBadge, setChatBadge] = useState(0)
   const [chatUrl] = useState(() => { try { return localStorage.getItem('chatUrl') || 'ws://10.11.10.101:8081' } catch { return 'ws://10.11.10.101:8081' } })
   const [upd, setUpd] = useState<{ available: boolean; downloading: boolean; downloaded: boolean; percent: number; bps?: number; transferred?: number; total?: number; eta?: number; error?: string }>({ available: false, downloading: false, downloaded: false, percent: 0 })
@@ -69,11 +70,14 @@ export default function RootApp() {
         </div>
         <div className="mt-2 flex items-center gap-2">
           <button onClick={()=>setTab('photo')} className={`nav-btn ${tab==='photo'?'active':''}`}><span className="inline-flex items-center gap-2"><Icon name="tabler:photo" className="icon" />{t('tabs.photoMeta', { defaultValue: 'Photo & Metadata' })}</span></button>
+          <button onClick={()=>setTab('fun')} className={`nav-btn ${tab==='fun'?'active':''}`}><span className="inline-flex items-center gap-2"><Icon name="tabler:plane" className="icon" />{t('tabs.fun', { defaultValue: 'Fun' })}</span></button>
           <button onClick={()=>{ setChatBadge(0); setTab('other') }} className={`nav-btn ${tab==='other'?'active':''}`}><span className="inline-flex items-center gap-2"><Icon name="tabler:apps" className="icon" />{t('tabs.other', { defaultValue: 'Other' })}{chatBadge>0 && <span className="ml-2 text-[10px] bg-rose-500/80 px-1.5 py-0.5 rounded">{chatBadge}</span>}</span></button>
         </div>
       </header>
       <main className="h-[calc(100vh-88px)] overflow-hidden">
-        {tab==='photo' ? <NewApp /> : <OtherApp onIncoming={()=>setChatBadge(v=>v+1)} />}
+        {tab==='photo' && <NewApp />}
+        {tab==='fun' && <CrashGame />}
+        {tab==='other' && <OtherApp onIncoming={()=>setChatBadge(v=>v+1)} />}
       </main>
       {false && <Chat url={chatUrl} userId={'YALOKGAR'} userName={'YALOKGAR'} visible={false} onIncoming={()=>setChatBadge(v=>v+1)} />}
       {notesOpen && (
