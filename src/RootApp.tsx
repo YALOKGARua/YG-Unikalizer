@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import NewApp from './NewApp'
 import OtherApp from './OtherApp'
 import CrashGame from './components/CrashGame'
+import SlotsGame from './components/SlotsGame'
 import Chat from './components/Chat'
 import { Icon } from './components/Icons'
 
@@ -12,6 +13,7 @@ export default function RootApp() {
   useEffect(() => { try { const root = document.documentElement; if (theme === 'dark') { root.classList.add('dark'); root.classList.remove('light') } else { root.classList.add('light'); root.classList.remove('dark') }; localStorage.setItem('theme', theme) } catch {} }, [theme])
   useEffect(() => { try { document.documentElement.setAttribute('dir', i18n.language === 'ar' ? 'rtl' : 'ltr') } catch {} }, [i18n.language])
   const [tab, setTab] = useState<'photo'|'fun'|'other'>('photo')
+  const [funGame, setFunGame] = useState<'crash'|'slots'>('crash')
   const [chatBadge, setChatBadge] = useState(0)
   const [chatUrl] = useState(() => { try { return localStorage.getItem('chatUrl') || 'ws://10.11.10.101:8081' } catch { return 'ws://10.11.10.101:8081' } })
   const [upd, setUpd] = useState<{ available: boolean; downloading: boolean; downloaded: boolean; percent: number; bps?: number; transferred?: number; total?: number; eta?: number; error?: string }>({ available: false, downloading: false, downloaded: false, percent: 0 })
@@ -76,7 +78,18 @@ export default function RootApp() {
       </header>
       <main className="h-[calc(100vh-88px)] overflow-hidden">
         {tab==='photo' && <NewApp />}
-        {tab==='fun' && <CrashGame />}
+        {tab==='fun' && (
+          <div className="h-full w-full flex flex-col">
+            <div className="p-2 border-b border-white/10 bg-black/30 flex items-center gap-2">
+              <button onClick={()=>setFunGame('crash')} className={`btn btn-ghost text-xs ${funGame==='crash'?'opacity-100':'opacity-70'}`}>Crash</button>
+              <button onClick={()=>setFunGame('slots')} className={`btn btn-ghost text-xs ${funGame==='slots'?'opacity-100':'opacity-70'}`}>Slots</button>
+            </div>
+            <div className="flex-1 min-h-0">
+              {funGame==='crash' && <CrashGame />}
+              {funGame==='slots' && <SlotsGame />}
+            </div>
+          </div>
+        )}
         {tab==='other' && <OtherApp onIncoming={()=>setChatBadge(v=>v+1)} />}
       </main>
       {false && <Chat url={chatUrl} userId={'YALOKGAR'} userName={'YALOKGAR'} visible={false} onIncoming={()=>setChatBadge(v=>v+1)} />}

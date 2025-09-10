@@ -18,9 +18,9 @@ function rng(seed: number) {
 
 function generateCrashPoint(seed: number) {
   const r = rng(seed)()
-  const min = 1.01
-  const max = 10
-  const t = Math.pow(r, 2)
+  const min = 0.15
+  const max = 0.95
+  const t = Math.pow(r, 1.2)
   return min + (max - min) * t
 }
 
@@ -29,7 +29,7 @@ export default function CrashGame() {
   const [phase, setPhase] = useState<Phase>('idle')
   const [mult, setMult] = useState(1)
   const [seed, setSeed] = useState(() => Date.now())
-  const [targetCashout, setTargetCashout] = useState<number | null>(2)
+  const [targetCashout, setTargetCashout] = useState<number | null>(null)
   const [balance, setBalance] = useState(1000)
   const [bet, setBet] = useState(10)
   const [payout, setPayout] = useState(0)
@@ -160,15 +160,14 @@ export default function CrashGame() {
       if (startTsRef.current == null) startTsRef.current = ts
       const elapsed = (ts - startTsRef.current) / 1000
       const t = Math.min(1, elapsed / 8)
-      const k = 1 + Math.pow(t, 2.2) * (crashPoint - 1)
+      const k = 1 + Math.pow(t, 2.2) * (10 - 1)
       setMult(k)
       resize()
       drawBackground()
-      const nx = Math.min(1, (k - 1) / (crashPoint - 1))
-      plotCurve(nx)
-      drawPlane(nx, ts)
-      if (targetCashout && phase === 'flying' && k >= targetCashout) doCashout(k)
-      if (k >= crashPoint) {
+      plotCurve(t)
+      drawPlane(t, ts)
+      
+      if (t >= crashPoint) {
         setPhase('crashed')
         cancelAnimationFrame(rafRef.current || 0)
         rafRef.current = null
@@ -181,7 +180,7 @@ export default function CrashGame() {
       rafRef.current = requestAnimationFrame(loop)
     }
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }
-  }, [phase, seed, crashPoint, targetCashout])
+  }, [phase, seed, crashPoint])
 
   function start() {
     if (phase !== 'idle') return
@@ -222,9 +221,7 @@ export default function CrashGame() {
       <div className="flex-1 relative flex items-center justify-center p-4">
         <div className="relative w-full max-w-[1100px] aspect-[16/9] h-[60vh] max-h-[560px] rounded-xl overflow-hidden border border-white/10 bg-slate-950 shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
           <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
-          <div className="absolute inset-0 flex items-start justify-end p-2 text-[10px] pointer-events-none">
-            <div className="px-2 py-1 rounded bg-black/40 border border-white/10">Crash {formatMultiplier(crashPoint)}</div>
-          </div>
+          
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="text-white text-7xl font-extrabold tracking-tight drop-shadow-[0_6px_24px_rgba(255,45,85,0.35)]">
               {formatMultiplier(mult)}
@@ -235,17 +232,11 @@ export default function CrashGame() {
       <div className="p-3 border-t border-white/10 bg-black/40">
         <div className="flex items-center gap-3">
           <input type="number" min={1} step={1} inputMode="numeric" className="bg-slate-900 border border-white/10 rounded px-2 py-1 text-sm w-28" value={bet} onChange={e=>setBet(Math.max(1, Math.floor(Number(e.target.value)||0)))} disabled={phase==='flying'} />
-          <select className="bg-slate-900 border border-white/10 rounded px-2 py-1 text-sm" value={String(targetCashout||'manual')} onChange={e=>{ const v=e.target.value; setTargetCashout(v==='manual'?null:Math.max(1.01, Number(v))) }} disabled={phase==='crashed'}>
-            <option value="manual">Manual cashout</option>
-            <option value="1.2">Auto 1.2x</option>
-            <option value="1.5">Auto 1.5x</option>
-            <option value="2">Auto 2x</option>
-            <option value="3">Auto 3x</option>
-          </select>
+          
           {phase==='idle' && <button className="btn btn-primary text-sm" onClick={start}>Start</button>}
           {phase==='flying' && <button className="btn btn-secondary text-sm" onClick={()=>doCashout(mult)}>Cashout</button>}
           {phase!=='flying' && <button className="btn btn-ghost text-sm" onClick={next}>Next</button>}
-          <div className="ml-auto text-xs opacity-80">Crash at {formatMultiplier(crashPoint)}</div>
+          
           {payout>0 && <div className="text-emerald-400 text-sm font-semibold">+{payout}$</div>}
         </div>
       </div>
