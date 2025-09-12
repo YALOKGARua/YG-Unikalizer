@@ -1,3 +1,11 @@
+## v2.3.1
+
+### Улучшено
+- JPG: запись Windows‑видимых EXIF полей (XPTitle/XPAuthor/XPKeywords/XPComment/XPSubject) и базовых EXIF (ImageDescription/Artist/Make/Model/Software/DateTime). Проводник корректно отображает Заголовок/Автор/Ключевые слова/Комментарии.
+
+### Исправлено
+- Совместимость чтения/записи: корректная кодировка UTF‑16LE для XP* тегов, безопасная ASCII для базовых EXIF.
+
 ## v2.3.0
 
 ### Добавлено
