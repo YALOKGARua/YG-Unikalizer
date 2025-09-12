@@ -232,47 +232,97 @@ static bool write_webp_xmp(const std::vector<uint8_t>& in, const std::string& xm
 static void write_le16(std::vector<uint8_t>& v, uint16_t x) { v.push_back(static_cast<uint8_t>(x & 0xFF)); v.push_back(static_cast<uint8_t>((x >> 8) & 0xFF)); }
 static void write_le32(std::vector<uint8_t>& v, uint32_t x) { v.push_back(static_cast<uint8_t>(x & 0xFF)); v.push_back(static_cast<uint8_t>((x >> 8) & 0xFF)); v.push_back(static_cast<uint8_t>((x >> 16) & 0xFF)); v.push_back(static_cast<uint8_t>((x >> 24) & 0xFF)); }
 
+static std::string ascii_clean(const std::string& s) {
+  std::string out; out.reserve(s.size());
+  for (unsigned char ch : s) { out.push_back((ch >= 32 && ch <= 126) ? ch : '?'); }
+  return out;
+}
+
+static void utf8_to_utf16le_bytes(const std::string& s, std::vector<uint8_t>& out) {
+  size_t i = 0;
+  while (i < s.size()) {
+    uint32_t cp = 0;
+    unsigned char c = static_cast<unsigned char>(s[i]);
+    if (c < 0x80) { cp = c; i += 1; }
+    else if ((c >> 5) == 0x6 && i + 1 < s.size()) { cp = ((c & 0x1F) << 6) | (static_cast<unsigned char>(s[i+1]) & 0x3F); i += 2; }
+    else if ((c >> 4) == 0xE && i + 2 < s.size()) { cp = ((c & 0x0F) << 12) | ((static_cast<unsigned char>(s[i+1]) & 0x3F) << 6) | (static_cast<unsigned char>(s[i+2]) & 0x3F); i += 3; }
+    else if ((c >> 3) == 0x1E && i + 3 < s.size()) { cp = ((c & 0x07) << 18) | ((static_cast<unsigned char>(s[i+1]) & 0x3F) << 12) | ((static_cast<unsigned char>(s[i+2]) & 0x3F) << 6) | (static_cast<unsigned char>(s[i+3]) & 0x3F); i += 4; }
+    else { cp = 0xFFFD; i += 1; }
+    if (cp >= 0xD800 && cp <= 0xDFFF) cp = 0xFFFD;
+    if (cp <= 0xFFFF) {
+      uint16_t u = static_cast<uint16_t>(cp);
+      out.push_back(static_cast<uint8_t>(u & 0xFF));
+      out.push_back(static_cast<uint8_t>((u >> 8) & 0xFF));
+    } else {
+      uint32_t v = cp - 0x10000;
+      uint16_t hi = static_cast<uint16_t>(0xD800 | ((v >> 10) & 0x3FF));
+      uint16_t lo = static_cast<uint16_t>(0xDC00 | (v & 0x3FF));
+      out.push_back(static_cast<uint8_t>(hi & 0xFF)); out.push_back(static_cast<uint8_t>((hi >> 8) & 0xFF));
+      out.push_back(static_cast<uint8_t>(lo & 0xFF)); out.push_back(static_cast<uint8_t>((lo >> 8) & 0xFF));
+    }
+  }
+  out.push_back(0x00); out.push_back(0x00);
+}
+
 static bool build_jpeg_exif_app1(const MetaInput& m, std::vector<uint8_t>& app1) {
-  std::vector<std::pair<uint16_t,std::string>> tags;
-  if (!m.artist.empty()) tags.emplace_back(0x013B, m.artist);
-  if (!m.creatorTool.empty()) tags.emplace_back(0x0131, m.creatorTool);
-  if (!m.make.empty()) tags.emplace_back(0x010F, m.make);
-  if (!m.model.empty()) tags.emplace_back(0x0110, m.model);
-  if (!m.dateCreated.empty()) tags.emplace_back(0x0132, m.dateCreated);
-  if (tags.empty()) return false;
+  struct Entry { uint16_t tag; uint16_t type; std::vector<uint8_t> data; };
+  std::vector<Entry> entries;
+  auto addAscii = [&](uint16_t tag, const std::string& val){ if (val.empty()) return; std::string v = ascii_clean(val); std::vector<uint8_t> d(v.begin(), v.end()); d.push_back(0); entries.push_back({ tag, 2, std::move(d) }); };
+  auto addXP = [&](uint16_t tag, const std::string& val){ if (val.empty()) return; std::vector<uint8_t> d; d.reserve(val.size()*2 + 2); utf8_to_utf16le_bytes(val, d); entries.push_back({ tag, 1, std::move(d) }); };
+
+  if (!m.title.empty()) addAscii(0x010E, m.title);
+  else if (!m.description.empty()) addAscii(0x010E, m.description);
+  if (!m.artist.empty()) addAscii(0x013B, m.artist);
+  if (!m.creatorTool.empty()) addAscii(0x0131, m.creatorTool);
+  if (!m.make.empty()) addAscii(0x010F, m.make);
+  if (!m.model.empty()) addAscii(0x0110, m.model);
+  if (!m.dateCreated.empty()) addAscii(0x0132, m.dateCreated);
+
+  if (!m.title.empty()) addXP(0x9C9B, m.title);
+  if (!m.description.empty()) addXP(0x9C9C, m.description);
+  if (!m.artist.empty()) addXP(0x9C9D, m.artist);
+  if (!m.label.empty()) addXP(0x9C9F, m.label);
+  if (!m.keywords.empty()) {
+    std::string kw; for (size_t i=0;i<m.keywords.size();++i) { if (i) kw.push_back(';'); kw += m.keywords[i]; }
+    addXP(0x9C9E, kw);
+  }
+
+  if (entries.empty()) return false;
   std::vector<uint8_t> tiff;
   tiff.push_back('I'); tiff.push_back('I');
   write_le16(tiff, 42);
   write_le32(tiff, 8);
   size_t ifdPos = tiff.size();
-  write_le16(tiff, static_cast<uint16_t>(tags.size()));
+  write_le16(tiff, static_cast<uint16_t>(entries.size()));
   size_t entriesPos = tiff.size();
-  tiff.resize(tiff.size() + tags.size() * 12);
+  tiff.resize(tiff.size() + entries.size() * 12);
   write_le32(tiff, 0);
-  uint32_t dataOffset = static_cast<uint32_t>(8 + 2 + tags.size() * 12 + 4);
-  for (size_t i = 0; i < tags.size(); ++i) {
-    uint16_t tag = tags[i].first;
-    const std::string& s = tags[i].second;
-    uint32_t count = static_cast<uint32_t>(s.size() + 1);
+  uint32_t dataOffset = static_cast<uint32_t>(8 + 2 + entries.size() * 12 + 4);
+  for (size_t i = 0; i < entries.size(); ++i) {
+    const Entry& e = entries[i];
     size_t base = entriesPos + i * 12;
-    tiff[base + 0] = static_cast<uint8_t>(tag & 0xFF);
-    tiff[base + 1] = static_cast<uint8_t>((tag >> 8) & 0xFF);
-    tiff[base + 2] = 2;
-    tiff[base + 3] = 0;
+    tiff[base + 0] = static_cast<uint8_t>(e.tag & 0xFF);
+    tiff[base + 1] = static_cast<uint8_t>((e.tag >> 8) & 0xFF);
+    tiff[base + 2] = static_cast<uint8_t>(e.type & 0xFF);
+    tiff[base + 3] = static_cast<uint8_t>((e.type >> 8) & 0xFF);
+    uint32_t count = static_cast<uint32_t>(e.data.size());
     tiff[base + 4] = static_cast<uint8_t>(count & 0xFF);
     tiff[base + 5] = static_cast<uint8_t>((count >> 8) & 0xFF);
     tiff[base + 6] = static_cast<uint8_t>((count >> 16) & 0xFF);
     tiff[base + 7] = static_cast<uint8_t>((count >> 24) & 0xFF);
-    tiff[base + 8] = static_cast<uint8_t>(dataOffset & 0xFF);
-    tiff[base + 9] = static_cast<uint8_t>((dataOffset >> 8) & 0xFF);
-    tiff[base + 10] = static_cast<uint8_t>((dataOffset >> 16) & 0xFF);
-    tiff[base + 11] = static_cast<uint8_t>((dataOffset >> 24) & 0xFF);
-    dataOffset += count;
+    if (count <= 4) {
+      uint8_t buf[4] = {0,0,0,0};
+      for (uint32_t j=0;j<count && j<4;++j) buf[j] = e.data[j];
+      tiff[base + 8] = buf[0]; tiff[base + 9] = buf[1]; tiff[base + 10] = buf[2]; tiff[base + 11] = buf[3];
+    } else {
+      tiff[base + 8] = static_cast<uint8_t>(dataOffset & 0xFF);
+      tiff[base + 9] = static_cast<uint8_t>((dataOffset >> 8) & 0xFF);
+      tiff[base + 10] = static_cast<uint8_t>((dataOffset >> 16) & 0xFF);
+      tiff[base + 11] = static_cast<uint8_t>((dataOffset >> 24) & 0xFF);
+      dataOffset += count;
+    }
   }
-  for (const auto& p : tags) {
-    tiff.insert(tiff.end(), p.second.begin(), p.second.end());
-    tiff.push_back(0);
-  }
+  for (const Entry& e : entries) { if (e.data.size() > 4) tiff.insert(tiff.end(), e.data.begin(), e.data.end()); }
   std::vector<uint8_t> payload;
   payload.insert(payload.end(), {'E','x','i','f',0,0});
   payload.insert(payload.end(), tiff.begin(), tiff.end());
