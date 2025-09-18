@@ -1383,6 +1383,7 @@ export default function App() {
                 <option value="png">PNG</option>
                 <option value="webp">WEBP</option>
                 <option value="avif">AVIF</option>
+                <option value="heic">HEIC</option>
               </select>
             </div>
             <div>
@@ -1687,6 +1688,7 @@ export default function App() {
                 <option value="webp">WEBP</option>
                 <option value="avif">AVIF</option>
                 <option value="tif">TIF</option>
+                <option value="heic">HEIC</option>
               </select>
               <input placeholder="search..." className="bg-slate-900 border border-white/10 rounded px-2 py-2 text-xs w-40" value={searchFiles} onChange={e=>setSearchFiles(e.target.value)} />
               <select className="bg-slate-900 border border-white/10 rounded px-2 py-2 text-xs" value={sortBy} onChange={e=>setSortBy(e.target.value)}>
@@ -1716,7 +1718,7 @@ export default function App() {
                 onMouseUp={()=>{ setDragSelecting(false); setDragRect(null) }}>
                 {files
                   .filter(p=>{
-                    if (filterExt !== 'all') { const ext = (p.split('.').pop()||'').toLowerCase(); if (ext !== filterExt && !(filterExt==='tif' && (ext==='tif'||ext==='tiff'))) return false }
+                    if (filterExt !== 'all') { const ext = (p.split('.').pop()||'').toLowerCase(); if (ext !== filterExt && !(filterExt==='tif' && (ext==='tif'||ext==='tiff')) && !(filterExt==='heic' && (ext==='heic'||ext==='heif'))) return false }
                     if (searchFiles.trim()) { const q = searchFiles.trim().toLowerCase(); if (!p.toLowerCase().includes(q)) return false }
                     return true
                   })

@@ -909,6 +909,13 @@ async function processOne(inputPath, index, total, options, progressContext) {
     pipeline = pipeline.png({ compressionLevel: level, palette: true })
   } else if (options.format === 'webp') pipeline = pipeline.webp({ quality: options.quality, effort: 6 })
   else if (options.format === 'avif') pipeline = pipeline.avif({ quality: options.quality, effort: 6 })
+  else if (options.format === 'heic' || options.format === 'heif') {
+    try {
+      pipeline = pipeline.heif ? pipeline.heif({ quality: options.quality, effort: 6 }) : pipeline.avif({ quality: options.quality, effort: 6 })
+    } catch (_) {
+      pipeline = pipeline.avif({ quality: options.quality, effort: 6 })
+    }
+  }
 
   await fs.promises.mkdir(options.outputDir, { recursive: true })
   if (!/\.[^.]+$/.test(outPath)) outPath = outPath + '.' + ext
@@ -1216,7 +1223,7 @@ app.whenReady().then(() => {
       const extra = []
       for (const a of (argv || []).slice(1)) {
         const ext = path.extname(String(a)).toLowerCase()
-        if (['.jpg', '.jpeg', '.png', '.webp', '.avif', '.tif', '.tiff'].includes(ext)) extra.push(a)
+        if (['.jpg', '.jpeg', '.png', '.webp', '.avif', '.tif', '.tiff', '.heic', '.heif'].includes(ext)) extra.push(a)
       }
       if (extra.length && mainWindow && !mainWindow.isDestroyed()) {
         if (mainWindow.isMinimized()) mainWindow.restore()
@@ -1227,7 +1234,7 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('select-images', async () => {
-    const res = await dialog.showOpenDialog(mainWindow, { properties: ['openFile', 'multiSelections'], filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tif', 'tiff'] }] })
+    const res = await dialog.showOpenDialog(mainWindow, { properties: ['openFile', 'multiSelections'], filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tif', 'tiff', 'heic', 'heif'] }] })
     if (res.canceled) return []
     return res.filePaths
   })
@@ -1239,7 +1246,7 @@ app.whenReady().then(() => {
   ipcMain.handle('win-is-maximized', async () => { try { return { ok: true, maximized: !!(mainWindow && !mainWindow.isDestroyed() && mainWindow.isMaximized()) } } catch (e) { return { ok: false, maximized: false } } })
 
   async function collectAllowedFromDir(dir) {
-    const allowed = new Set(['.jpg', '.jpeg', '.png', '.webp', '.avif', '.tif', '.tiff'])
+    const allowed = new Set(['.jpg', '.jpeg', '.png', '.webp', '.avif', '.tif', '.tiff', '.heic', '.heif'])
     async function walk(d) {
       const out = []
       const items = await fs.promises.readdir(d, { withFileTypes: true })
@@ -1268,7 +1275,7 @@ app.whenReady().then(() => {
         out.push(...nested)
       } else {
         const ext = path.extname(it.p).toLowerCase()
-        if (['.jpg', '.jpeg', '.png', '.webp', '.avif', '.tif', '.tiff'].includes(ext)) out.push(it.p)
+        if (['.jpg', '.jpeg', '.png', '.webp', '.avif', '.tif', '.tiff', '.heic', '.heif'].includes(ext)) out.push(it.p)
       }
     }
     return out

@@ -120,7 +120,7 @@ export default function NewApp() {
   const [active, setActive] = useState<'files'|'ready'>('files')
   const [files, setFiles] = useState<string[]>([])
   const [outputDir, setOutputDir] = useState('')
-  const [format, setFormat] = useState<'jpg'|'png'|'webp'|'avif'>('jpg')
+  const [format, setFormat] = useState<'jpg'|'png'|'webp'|'avif'|'heic'>('jpg')
   const [quality, setQuality] = useState(85)
   const [colorDrift, setColorDrift] = useState(2)
   const [resizeDrift, setResizeDrift] = useState(2)
@@ -330,6 +330,7 @@ export default function NewApp() {
               <option value="png">PNG</option>
               <option value="webp">WEBP</option>
               <option value="avif">AVIF</option>
+              <option value="heic">HEIC</option>
             </select>
           </label>
           <label className="flex flex-col gap-1">

@@ -1,4 +1,4 @@
-## PhotoUnikalizer 2.3
+## PhotoUnikalizer 2.4
 
 Anonymize and uniquely process photos at scale. Smart resizing, subtle color drift, flexible renaming, rich metadata editing, realistic fake EXIF/IPTC — now with native C++ acceleration.
 
@@ -13,7 +13,7 @@ Anonymize and uniquely process photos at scale. Smart resizing, subtle color dri
 
 ### Highlights
 
-- **Formats**: JPG, PNG, WEBP, AVIF
+- **Formats**: JPG, PNG, WEBP, AVIF, HEIC/HEIF
 - **Uniqueness**: controlled size and color drift, max width
 - **Metadata**: keep/wipe/write EXIF/IPTC/XMP (embedded; GPS cleanup)
 - **Fake EXIF**: advanced presets (camera/phone/action/drone/scanner), ISO/exposure/aperture/focal/GPS, rating/label/title, software/serial
@@ -55,7 +55,7 @@ npm run dist
 
 ## Release
 
-1. Update `CHANGELOG.md` and bump version (`npm run release:patch|minor|major`). Now at 2.3.0.
+1. Update `CHANGELOG.md` and bump version (`npm run release:patch|minor|major`). Now at 2.4.0.
 2. Windows Explorer integration: create a shortcut to `PhotoUnikalizer.exe` in `%APPDATA%\Microsoft\Windows\SendTo` or install a context menu entry.
 2. Build prebuilds if native code changed: `npm run native:prebuild`.
 3. Build installer: `npm run dist`.

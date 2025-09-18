@@ -15982,6 +15982,13 @@ async function processOne(inputPath, index, total, options, progressContext) {
     pipeline = pipeline.png({ compressionLevel: level, palette: true });
   } else if (options.format === "webp") pipeline = pipeline.webp({ quality: options.quality, effort: 6 });
   else if (options.format === "avif") pipeline = pipeline.avif({ quality: options.quality, effort: 6 });
+  else if (options.format === "heic" || options.format === "heif") {
+    try {
+      pipeline = pipeline.heif ? pipeline.heif({ quality: options.quality, effort: 6 }) : pipeline.avif({ quality: options.quality, effort: 6 });
+    } catch (_) {
+      pipeline = pipeline.avif({ quality: options.quality, effort: 6 });
+    }
+  }
   await fs.promises.mkdir(options.outputDir, { recursive: true });
   if (!/\.[^.]+$/.test(outPath)) outPath = outPath + "." + ext;
   const statDir = await fs.promises.stat(options.outputDir).catch(() => null);
@@ -16322,7 +16329,7 @@ app.whenReady().then(() => {
       const extra = [];
       for (const a of (argv || []).slice(1)) {
         const ext = path.extname(String(a)).toLowerCase();
-        if ([".jpg", ".jpeg", ".png", ".webp", ".avif", ".tif", ".tiff"].includes(ext)) extra.push(a);
+        if ([".jpg", ".jpeg", ".png", ".webp", ".avif", ".tif", ".tiff", ".heic", ".heif"].includes(ext)) extra.push(a);
       }
       if (extra.length && mainWindow && !mainWindow.isDestroyed()) {
         if (mainWindow.isMinimized()) mainWindow.restore();
@@ -16333,7 +16340,7 @@ app.whenReady().then(() => {
     }
   });
   ipcMain.handle("select-images", async () => {
-    const res = await dialog.showOpenDialog(mainWindow, { properties: ["openFile", "multiSelections"], filters: [{ name: "Images", extensions: ["jpg", "jpeg", "png", "webp", "avif", "tif", "tiff"] }] });
+    const res = await dialog.showOpenDialog(mainWindow, { properties: ["openFile", "multiSelections"], filters: [{ name: "Images", extensions: ["jpg", "jpeg", "png", "webp", "avif", "tif", "tiff", "heic", "heif"] }] });
     if (res.canceled) return [];
     return res.filePaths;
   });
@@ -16381,7 +16388,7 @@ app.whenReady().then(() => {
     }
   });
   async function collectAllowedFromDir(dir) {
-    const allowed = /* @__PURE__ */ new Set([".jpg", ".jpeg", ".png", ".webp", ".avif", ".tif", ".tiff"]);
+    const allowed = /* @__PURE__ */ new Set([".jpg", ".jpeg", ".png", ".webp", ".avif", ".tif", ".tiff", ".heic", ".heif"]);
     async function walk(d) {
       const out = [];
       const items = await fs.promises.readdir(d, { withFileTypes: true });
@@ -16409,7 +16416,7 @@ app.whenReady().then(() => {
         out.push(...nested);
       } else {
         const ext = path.extname(it.p).toLowerCase();
-        if ([".jpg", ".jpeg", ".png", ".webp", ".avif", ".tif", ".tiff"].includes(ext)) out.push(it.p);
+        if ([".jpg", ".jpeg", ".png", ".webp", ".avif", ".tif", ".tiff", ".heic", ".heif"].includes(ext)) out.push(it.p);
       }
     }
     return out;
@@ -16910,6 +16917,59 @@ app.whenReady().then(() => {
       return { ok: true, path: res.filePath };
     } catch (e) {
       return { ok: false, error: String(e && e.message ? e.message : e) };
+    }
+  });
+  ipcMain.handle("native-ahash-batch", async (_e, payload) => {
+    try {
+      const paths = payload && Array.isArray(payload.paths) ? payload.paths : [];
+      if (!paths.length) return { ok: true, hashes: [] };
+      const nat = loadNative();
+      if (!nat) return { ok: false, error: "native-unavailable" };
+      const limit = Math.max(1, Math.min((os.cpus() || []).length - 1 || 1, 4));
+      const hashes = new Array(paths.length).fill(null);
+      let idx = 0;
+      async function worker() {
+        while (true) {
+          const i = idx;
+          idx += 1;
+          if (i >= paths.length) break;
+          const p = paths[i];
+          try {
+            let dec = null;
+            try {
+              dec = nat.wicDecodeGray8 ? nat.wicDecodeGray8(p) : null;
+            } catch (_) {
+              dec = null;
+            }
+            if (dec && dec.buffer && typeof dec.width === "number" && typeof dec.height === "number" && typeof dec.stride === "number") {
+              const u8 = new Uint8Array(dec.buffer.buffer, dec.buffer.byteOffset, dec.buffer.byteLength);
+              let h = nat.aHashFromGray8(u8, dec.width, dec.height, dec.stride);
+              if (typeof h === "bigint") h = h.toString();
+              hashes[i] = h;
+            } else {
+              try {
+                const res = await sharp(p).grayscale().raw().toBuffer({ resolveWithObject: true });
+                const u8 = new Uint8Array(res.data.buffer, res.data.byteOffset, res.data.byteLength);
+                let h = nat.aHashFromGray8(u8, res.info.width, res.info.height, res.info.width * res.info.channels);
+                if (typeof h === "bigint") h = h.toString();
+                hashes[i] = h;
+              } catch (_) {
+                hashes[i] = null;
+              }
+            }
+          } catch (_) {
+            hashes[i] = null;
+          }
+          if ((i & 7) === 0) {
+            await new Promise((resolve) => setImmediate(resolve));
+          }
+        }
+      }
+      const workers = new Array(limit).fill(0).map(() => worker());
+      await Promise.all(workers);
+      return { ok: true, hashes };
+    } catch (e) {
+      return { ok: false, error: String(e?.message || e) };
     }
   });
   ipcMain.handle("save-json-batch", async (_e, payload) => {

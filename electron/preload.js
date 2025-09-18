@@ -293,6 +293,15 @@ import_electron.contextBridge.exposeInMainWorld("api", {
     fileAHash: async (filePath) => {
       const mod = loadNative();
       if (!mod) return null;
+      try {
+        const dec2 = mod.wicDecodeGray8 ? mod.wicDecodeGray8(filePath) : null;
+        if (dec2 && dec2.buffer && typeof dec2.width === "number" && typeof dec2.height === "number" && typeof dec2.stride === "number") {
+          const u8 = new Uint8Array(dec2.buffer.buffer, dec2.buffer.byteOffset, dec2.buffer.byteLength);
+          const res2 = mod.aHashFromGray8(u8, dec2.width, dec2.height, dec2.stride);
+          return typeof res2 === "bigint" ? res2.toString() : res2;
+        }
+      } catch {
+      }
       const dec = await decodeGray8(filePath);
       if (!dec) return null;
       const res = mod.aHashFromGray8(dec.buf, dec.width, dec.height, dec.stride);
@@ -301,6 +310,15 @@ import_electron.contextBridge.exposeInMainWorld("api", {
     fileDHash: async (filePath) => {
       const mod = loadNative();
       if (!mod) return null;
+      try {
+        const dec2 = mod.wicDecodeGray8 ? mod.wicDecodeGray8(filePath) : null;
+        if (dec2 && dec2.buffer && typeof dec2.width === "number" && typeof dec2.height === "number" && typeof dec2.stride === "number") {
+          const u8 = new Uint8Array(dec2.buffer.buffer, dec2.buffer.byteOffset, dec2.buffer.byteLength);
+          const res2 = mod.dHashFromGray8(u8, dec2.width, dec2.height, dec2.stride);
+          return typeof res2 === "bigint" ? res2.toString() : res2;
+        }
+      } catch {
+      }
       const dec = await decodeGray8(filePath);
       if (!dec) return null;
       const res = mod.dHashFromGray8(dec.buf, dec.width, dec.height, dec.stride);
@@ -309,6 +327,15 @@ import_electron.contextBridge.exposeInMainWorld("api", {
     filePHash: async (filePath) => {
       const mod = loadNative();
       if (!mod) return null;
+      try {
+        const dec2 = mod.wicDecodeGray8 ? mod.wicDecodeGray8(filePath) : null;
+        if (dec2 && dec2.buffer && typeof dec2.width === "number" && typeof dec2.height === "number" && typeof dec2.stride === "number") {
+          const u8 = new Uint8Array(dec2.buffer.buffer, dec2.buffer.byteOffset, dec2.buffer.byteLength);
+          const res2 = mod.pHashFromGray8(u8, dec2.width, dec2.height, dec2.stride);
+          return typeof res2 === "bigint" ? res2.toString() : res2;
+        }
+      } catch {
+      }
       const dec = await decodeGray8(filePath);
       if (!dec) return null;
       const res = mod.pHashFromGray8(dec.buf, dec.width, dec.height, dec.stride);
@@ -373,6 +400,7 @@ import_electron.contextBridge.exposeInMainWorld("api", {
       return mod ? mod.parseTxtProfilesFromFile(filePath) : null;
     }
   },
+  hashAHashBatch: (paths) => import_electron.ipcRenderer.invoke("native-ahash-batch", { paths }),
   hashFileIncremental: (p) => import_electron.ipcRenderer.invoke("hash-file-incremental", { path: p })
 });
 //# sourceMappingURL=preload.js.map

@@ -27,7 +27,7 @@ bool is_allowed_image_extension(const std::string& path) {
     size_t dot = lower.find_last_of('.');
     if (dot == std::string::npos) return false;
     std::string ext = lower.substr(dot);
-    return ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".webp" || ext == ".avif" || ext == ".tif" || ext == ".tiff";
+    return ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".webp" || ext == ".avif" || ext == ".tif" || ext == ".tiff" || ext == ".heic" || ext == ".heif";
 }
 
 uint64_t fnv1a64_file(const std::string& path, bool& ok) {
