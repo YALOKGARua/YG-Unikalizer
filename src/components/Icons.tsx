@@ -73,15 +73,20 @@ export async function initWasm() {
 
 export async function wasmAhashFromGray(grayBytes: Uint8Array, width: number, height: number) {
   try {
-    const wasm: any = await initWasm()
-    if (!wasm || !wasm.memory || !wasm.aHashGray) return null
-    const mem = new Uint8Array(wasm.memory.buffer)
-    const len = width * height
-    const ptr = wasm.__new ? wasm.__new(len, 0) : 0
-    if (!ptr) return null
-    mem.set(grayBytes, ptr)
-    const v = wasm.aHashGray(ptr, width, height)
-    return typeof v === 'bigint' ? v.toString(16) : v.toString(16)
+    if (typeof Worker === 'undefined') return null
+    const worker = new Worker(new URL('../workers/hashWorker.ts', import.meta.url), { type: 'module' }) as any
+    const id = Math.random().toString(36).slice(2)
+    return await new Promise<string|null>((resolve) => {
+      const onMsg = (e: MessageEvent) => {
+        const d = e.data || {}
+        if (d.id !== id) return
+        worker.removeEventListener('message', onMsg)
+        try { worker.terminate() } catch {}
+        resolve(d && d.ok ? String(d.hash||'') : null)
+      }
+      worker.addEventListener('message', onMsg)
+      worker.postMessage({ type: 'ahash-gray', id, gray: grayBytes, width, height })
+    })
   } catch (_) { return null }
 }
 

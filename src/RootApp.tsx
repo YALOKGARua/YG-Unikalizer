@@ -1,19 +1,32 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, lazy, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
-import NewApp from './NewApp'
-import OtherApp from './OtherApp'
-import CrashGame from './components/CrashGame'
-import SlotsGame from './components/SlotsGame'
-import Chat from './components/Chat'
+import { Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom'
 import { Icon } from './components/Icons'
+
+const NewApp = lazy(() => import('./NewApp'))
+const OtherApp = lazy(() => import('./OtherApp'))
+const CrashGame = lazy(() => import('./components/CrashGame'))
+const SlotsGame = lazy(() => import('./components/SlotsGame'))
+const Chat = lazy(() => import('./components/Chat'))
 
 export default function RootApp() {
   const { i18n, t } = useTranslation()
+  const location = useLocation()
+  const navigate = useNavigate()
   const [theme, setTheme] = useState<'dark'|'light'>(() => { try { return (localStorage.getItem('theme') as any) || 'dark' } catch { return 'dark' } })
   useEffect(() => { try { const root = document.documentElement; if (theme === 'dark') { root.classList.add('dark'); root.classList.remove('light') } else { root.classList.add('light'); root.classList.remove('dark') }; localStorage.setItem('theme', theme) } catch {} }, [theme])
   useEffect(() => { try { document.documentElement.setAttribute('dir', i18n.language === 'ar' ? 'rtl' : 'ltr') } catch {} }, [i18n.language])
   const [tab, setTab] = useState<'photo'|'fun'|'other'>('photo')
   const [funGame, setFunGame] = useState<'crash'|'slots'>('crash')
+  useEffect(() => {
+    const p = location.pathname || '/photo'
+    if (p.startsWith('/fun')) {
+      setTab('fun')
+      if (p.includes('/slots')) setFunGame('slots')
+      else setFunGame('crash')
+    } else if (p.startsWith('/other')) setTab('other')
+    else setTab('photo')
+  }, [location.pathname])
   const [chatBadge, setChatBadge] = useState(0)
   const [chatUrl] = useState(() => { try { return localStorage.getItem('chatUrl') || 'ws://10.11.10.101:8081' } catch { return 'ws://10.11.10.101:8081' } })
   const [upd, setUpd] = useState<{ available: boolean; downloading: boolean; downloaded: boolean; percent: number; bps?: number; transferred?: number; total?: number; eta?: number; error?: string }>({ available: false, downloading: false, downloaded: false, percent: 0 })
@@ -71,28 +84,37 @@ export default function RootApp() {
           </div>
         </div>
         <div className="mt-2 flex items-center gap-2">
-          <button onClick={()=>setTab('photo')} className={`nav-btn ${tab==='photo'?'active':''}`}><span className="inline-flex items-center gap-2"><Icon name="tabler:photo" className="icon" />{t('tabs.photoMeta', { defaultValue: 'Photo & Metadata' })}</span></button>
-          <button onClick={()=>setTab('fun')} className={`nav-btn ${tab==='fun'?'active':''}`}><span className="inline-flex items-center gap-2"><Icon name="tabler:plane" className="icon" />{t('tabs.fun', { defaultValue: 'Fun' })}</span></button>
-          <button onClick={()=>{ setChatBadge(0); setTab('other') }} className={`nav-btn ${tab==='other'?'active':''}`}><span className="inline-flex items-center gap-2"><Icon name="tabler:apps" className="icon" />{t('tabs.other', { defaultValue: 'Other' })}{chatBadge>0 && <span className="ml-2 text-[10px] bg-rose-500/80 px-1.5 py-0.5 rounded">{chatBadge}</span>}</span></button>
+          <button onClick={()=>navigate('/photo')} className={`nav-btn ${tab==='photo'?'active':''}`}><span className="inline-flex items-center gap-2"><Icon name="tabler:photo" className="icon" />{t('tabs.photoMeta', { defaultValue: 'Photo & Metadata' })}</span></button>
+          <button onClick={()=>navigate('/fun/'+(funGame||'crash'))} className={`nav-btn ${tab==='fun'?'active':''}`}><span className="inline-flex items-center gap-2"><Icon name="tabler:plane" className="icon" />{t('tabs.fun', { defaultValue: 'Fun' })}</span></button>
+          <button onClick={()=>{ setChatBadge(0); navigate('/other') }} className={`nav-btn ${tab==='other'?'active':''}`}><span className="inline-flex items-center gap-2"><Icon name="tabler:apps" className="icon" />{t('tabs.other', { defaultValue: 'Other' })}{chatBadge>0 && <span className="ml-2 text-[10px] bg-rose-500/80 px-1.5 py-0.5 rounded">{chatBadge}</span>}</span></button>
         </div>
       </header>
-      <main className="h-[calc(100vh-88px)] overflow-hidden">
-        {tab==='photo' && <NewApp />}
+      <main className="min-h-[calc(100vh-88px)] overflow-auto">
         {tab==='fun' && (
-          <div className="h-full w-full flex flex-col">
-            <div className="p-2 border-b border-white/10 bg-black/30 flex items-center gap-2">
-              <button onClick={()=>setFunGame('crash')} className={`btn btn-ghost text-xs ${funGame==='crash'?'opacity-100':'opacity-70'}`}>Crash</button>
-              <button onClick={()=>setFunGame('slots')} className={`btn btn-ghost text-xs ${funGame==='slots'?'opacity-100':'opacity-70'}`}>Slots</button>
-            </div>
-            <div className="flex-1 min-h-0">
-              {funGame==='crash' && <CrashGame />}
-              {funGame==='slots' && <SlotsGame />}
-            </div>
+          <div className="p-2 border-b border-white/10 bg-black/30 flex items-center gap-2">
+            <button onClick={()=>{ setFunGame('crash'); navigate('/fun/crash') }} className={`btn btn-ghost text-xs ${location.pathname.includes('/fun/crash')?'opacity-100':'opacity-70'}`}>Crash</button>
+            <button onClick={()=>{ setFunGame('slots'); navigate('/fun/slots') }} className={`btn btn-ghost text-xs ${location.pathname.includes('/fun/slots')?'opacity-100':'opacity-70'}`}>Slots</button>
           </div>
         )}
-        {tab==='other' && <OtherApp onIncoming={()=>setChatBadge(v=>v+1)} />}
+        <Suspense fallback={<div className="p-4 text-xs opacity-70">Loading…</div>}>
+          <Routes>
+            <Route path="/" element={<Navigate to="/photo" replace />} />
+            <Route path="/photo" element={<NewApp />} />
+            <Route path="/fun">
+              <Route index element={funGame==='slots' ? <SlotsGame /> : <CrashGame />} />
+              <Route path="crash" element={<CrashGame />} />
+              <Route path="slots" element={<SlotsGame />} />
+            </Route>
+            <Route path="/other" element={<OtherApp onIncoming={()=>setChatBadge(v=>v+1)} />} />
+            <Route path="*" element={<Navigate to="/photo" replace />} />
+          </Routes>
+        </Suspense>
       </main>
-      {false && <Chat url={chatUrl} userId={'YALOKGAR'} userName={'YALOKGAR'} visible={false} onIncoming={()=>setChatBadge(v=>v+1)} />}
+      {false && (
+        <Suspense fallback={null}>
+          <Chat url={chatUrl} userId={'YALOKGAR'} userName={'YALOKGAR'} visible={false} onIncoming={()=>setChatBadge(v=>v+1)} />
+        </Suspense>
+      )}
       {notesOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/80" onClick={()=>setNotesOpen(false)} />

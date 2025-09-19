@@ -123,6 +123,7 @@ import_electron.contextBridge.exposeInMainWorld("api", {
   renameFile: (path2, newName) => import_electron.ipcRenderer.invoke("file-rename", { path: path2, newName }),
   deleteFile: (path2) => import_electron.ipcRenderer.invoke("file-delete", path2),
   fileStats: (path2) => import_electron.ipcRenderer.invoke("file-stats", path2),
+  metaBeforeAfter: (src, out) => import_electron.ipcRenderer.invoke("meta-before-after", { src, out }),
   onProgress: (cb) => {
     const listener = (_, data) => cb(data);
     import_electron.ipcRenderer.on("process-progress", listener);

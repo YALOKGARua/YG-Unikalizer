@@ -6,6 +6,7 @@ const os = require('os')
 const sharp = require('sharp')
 const { randomUUID, createHash } = require('crypto')
 const { autoUpdater } = require('electron-updater')
+const StoreRaw = require('electron-store')
 const { exec, spawn } = require('child_process')
 const https = require('https')
 try {
@@ -118,6 +119,8 @@ let statsCachePath = ''
 let statsCacheDirty = false
 let statsSaveTimer = null
 let uiStatePath = ''
+const Store = (StoreRaw && StoreRaw.default) ? StoreRaw.default : StoreRaw
+const store = new Store({ name: 'settings' })
 let devUnlocked = false
 const DEV_PASSWORD = String(process.env.DEV_MENU_PASSWORD || '')
 
@@ -1361,18 +1364,13 @@ app.whenReady().then(() => {
 
   ipcMain.handle('ui-state-save', async (_e, payload) => {
     try {
-      if (!uiStatePath) return { ok: false }
-      const data = JSON.stringify(payload || {}, null, 2)
-      await fs.promises.mkdir(path.dirname(uiStatePath), { recursive: true })
-      await fs.promises.writeFile(uiStatePath, data, 'utf-8')
+      store.set('uiState', payload || {})
       return { ok: true }
     } catch (e) { return { ok: false, error: String(e && e.message ? e.message : e) } }
   })
   ipcMain.handle('ui-state-load', async () => {
     try {
-      if (!uiStatePath || !fs.existsSync(uiStatePath)) return { ok: true, data: {} }
-      const txt = await fs.promises.readFile(uiStatePath, 'utf-8')
-      const data = JSON.parse(txt)
+      const data = store.get('uiState') || {}
       return { ok: true, data }
     } catch (e) { return { ok: false, data: {} } }
   })
@@ -1921,6 +1919,31 @@ app.whenReady().then(() => {
     } catch (e) {
       return { ok: false, error: String(e && e.message ? e.message : e) }
     }
+  })
+
+  ipcMain.handle('meta-before-after', async (_e, payload) => {
+    try {
+      const src = String(payload && payload.src || '')
+      const out = String(payload && payload.out || '')
+      if (!src || !out) return { ok: false, error: 'bad-args' }
+      const read = async (p) => {
+        try {
+          const m = await sharp(p).metadata()
+          return {
+            width: Number(m.width)||0,
+            height: Number(m.height)||0,
+            format: m.format||'',
+            space: m.space||'',
+            hasAlpha: !!m.hasAlpha,
+            channels: Number(m.channels)||0,
+            exif: !!m.exif ? Buffer.isBuffer(m.exif) ? m.exif.length : 1 : 0
+          }
+        } catch (_) { return null }
+      }
+      const before = await read(src)
+      const after = await read(out)
+      return { ok: true, before, after }
+    } catch (e) { return { ok: false, error: String(e && e.message ? e.message : e) } }
   })
 
   ipcMain.handle('stats-cache-clear', async () => {

@@ -97,6 +97,7 @@ contextBridge.exposeInMainWorld('api', {
   renameFile: (path: string, newName: string) => ipcRenderer.invoke('file-rename', { path, newName }),
   deleteFile: (path: string) => ipcRenderer.invoke('file-delete', path),
   fileStats: (path: string) => ipcRenderer.invoke('file-stats', path),
+  metaBeforeAfter: (src: string, out: string) => ipcRenderer.invoke('meta-before-after', { src, out }),
   onProgress: (cb: (data: unknown) => void) => {
     const listener = (_: unknown, data: unknown) => cb(data)
     ipcRenderer.on('process-progress', listener as any)

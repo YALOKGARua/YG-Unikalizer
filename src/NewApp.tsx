@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Icon } from './components/Icons'
+import { useSpring, animated } from '@react-spring/web'
+import { useAppStore } from './store'
 
 function toFileUrl(p: string) {
   let s = p.replace(/\\/g, '/')
@@ -118,7 +120,9 @@ const LOCATION_PRESETS = [
 export default function NewApp() {
   const { t } = useTranslation()
   const [active, setActive] = useState<'files'|'ready'>('files')
-  const [files, setFiles] = useState<string[]>([])
+  const files = useAppStore(s=>s.files)
+  const setFiles = useAppStore(s=>s.setFiles)
+  const addFiles = useAppStore(s=>s.addFiles)
   const [outputDir, setOutputDir] = useState('')
   const [format, setFormat] = useState<'jpg'|'png'|'webp'|'avif'|'heic'>('jpg')
   const [quality, setQuality] = useState(85)
@@ -172,7 +176,28 @@ export default function NewApp() {
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [previewOpen, setPreviewOpen] = useState(false)
   const [previewSrc, setPreviewSrc] = useState('')
+  const [metaOpen, setMetaOpen] = useState(false)
+  const [metaPayload, setMetaPayload] = useState<any>(null)
   const gridRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    ;(async () => {
+      try {
+        const r = await window.api.ui.loadState()
+        if (r && r.ok && r.data) {
+          const d = r.data as any
+          if (Array.isArray(d.files)) setFiles(d.files)
+          if (typeof d.outputDir==='string') setOutputDir(d.outputDir)
+          if (d.format) setFormat(d.format)
+          if (typeof d.quality==='number') setQuality(d.quality)
+        }
+      } catch {}
+    })()
+  }, [])
+
+  useEffect(() => {
+    try { window.api.ui.saveState({ files, outputDir, format, quality, active }) } catch {}
+  }, [files, outputDir, format, quality, active])
 
   useEffect(() => {
     const p = GEAR_PRESETS[fakeProfile]
@@ -214,7 +239,7 @@ export default function NewApp() {
     try {
       const off = window.api.onOsOpenFiles(async (list) => {
         if (Array.isArray(list) && list.length) {
-          try { const expanded = await window.api.expandPaths(list); if (expanded && expanded.length) setFiles(prev => Array.from(new Set([...prev, ...expanded]))) } catch {}
+          try { const expanded = await window.api.expandPaths(list); if (expanded && expanded.length) addFiles(expanded) } catch {}
         }
       })
       return () => { try { off && off() } catch {} }
@@ -226,12 +251,12 @@ export default function NewApp() {
   const selectImages = async () => {
     const paths = await window.api.selectImages()
     if (!paths || !paths.length) return
-    setFiles(prev => Array.from(new Set([...prev, ...paths])))
+    addFiles(paths)
   }
   const selectFolder = async () => {
     const paths = await window.api.selectImageDir()
     if (!paths || !paths.length) return
-    setFiles(prev => Array.from(new Set([...prev, ...paths])))
+    addFiles(paths)
   }
   const selectOutput = async () => {
     const dir = await window.api.selectOutputDir()
@@ -311,15 +336,16 @@ export default function NewApp() {
 
   return (
     <div className="h-full text-slate-100">
+      <animated.div style={useSpring({ from: { opacity: 0, y: 8 }, to: { opacity: 1, y: 0 } })}>
       <div className="px-4 py-3 border-b border-white/10 bg-black/20 backdrop-blur overflow-x-auto with-gutter">
         <div className="flex items-center gap-2 flex-wrap">
-          <button onClick={selectImages} className="btn btn-primary"><Icon name="tabler:files" className="icon" />{t('buttons.addFiles')}</button>
-          <button onClick={selectFolder} className="btn btn-ghost"><Icon name="tabler:folder-plus" className="icon" />{t('buttons.addFolder')}</button>
-          <button onClick={clearFiles} className="btn btn-ghost">{t('buttons.clear')}</button>
-          <button onClick={selectOutput} className="btn btn-ghost"><Icon name="mdi:folder-cog-outline" className="icon" />{t('common.pickFolder')}</button>
+          <button onClick={selectImages} className="btn btn-blue"><Icon name="tabler:files" className="icon" />{t('buttons.addFiles')}</button>
+          <button onClick={selectFolder} className="btn btn-green"><Icon name="tabler:folder-plus" className="icon" />{t('buttons.addFolder')}</button>
+          <button onClick={clearFiles} className="btn btn-rose">{t('buttons.clear')}</button>
+          <button onClick={selectOutput} className="btn btn-amber"><Icon name="mdi:folder-cog-outline" className="icon" />{t('common.pickFolder')}</button>
           {!!outputDir && <div className="text-xs opacity-80 truncate max-w-[320px]">{outputDir}</div>}
-          {!busy && <button disabled={!canStart} onClick={start} className={`btn ${canStart? 'btn-primary' : 'bg-emerald-900 opacity-50 cursor-not-allowed'}`}><Icon name="tabler:player-play" className="icon" />{t('buttons.start')}</button>}
-          {busy && <button onClick={cancel} className="btn btn-ghost"><Icon name="tabler:player-stop" className="icon" />{t('buttons.cancel')}</button>}
+          {!busy && <button disabled={!canStart} onClick={start} className={`btn ${canStart? 'btn-violet' : 'bg-emerald-900 opacity-50 cursor-not-allowed'}`}><Icon name="tabler:player-play" className="icon" />{t('buttons.start')}</button>}
+          {busy && <button onClick={cancel} className="btn btn-slate"><Icon name="tabler:player-stop" className="icon" />{t('buttons.cancel')}</button>}
         </div>
 
         <div className="mt-3 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2 text-xs">
@@ -499,10 +525,11 @@ export default function NewApp() {
           </div>
         )}
       </div>
+      </animated.div>
 
       {progress && progress.total > 0 && (
         <div className="px-4 py-2" aria-live="polite">
-          <div className="w-full h-2 bg-slate-900 rounded border border-white/10 overflow-hidden">
+          <div className="w-full h-2 bg-slate-900 rounded border border-white/10 overflow-hidden sticky top-0">
             <div className="h-2 bg-brand-600 transition-[width] duration-300 ease-out" style={{ width: `${Math.max(0, Math.min(100, Math.round((progress.percent|| (progress.current/Math.max(1,progress.total))*100))))}%` }} />
           </div>
           <div className="text-xs opacity-80 mt-1">
@@ -511,17 +538,17 @@ export default function NewApp() {
         </div>
       )}
 
-      <div className="grid grid-cols-12 gap-0 h-[calc(100vh-360px)]">
+      <div className="grid grid-cols-12 gap-0">
         <aside className="col-span-2 xl:col-span-2 border-r border-white/10 bg-slate-950/40">
           <nav className="p-2 flex flex-col gap-1">
             <button onClick={()=>setActive('files')} className={`nav-btn ${active==='files'?'active':''}`}><span className="inline-flex items-center gap-2"><Icon name="tabler:folders" className="icon" />{t('tabs.files')}</span></button>
             <button onClick={()=>setActive('ready')} className={`nav-btn ${active==='ready'?'active':''}`}><span className="inline-flex items-center gap-2"><Icon name="tabler:checks" className="icon" />{t('tabs.ready')}</span></button>
           </nav>
         </aside>
-        <section className="col-span-10 xl:col-span-10 p-4 overflow-auto with-gutter">
+        <section className="col-span-10 xl:col-span-10 p-4 with-gutter">
           {active==='files' && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 @[app]:grid-cols-5 @[app]:gap-2" ref={gridRef} onDrop={async e=>{ e.preventDefault(); const items = Array.from(e.dataTransfer.files||[]); if (!items.length) return; const paths = items.map(f=>(f as any).path); const expanded = await window.api.expandPaths(paths); if (expanded && expanded.length) setFiles(prev=>Array.from(new Set([...prev, ...expanded]))) }} onDragOver={e=>e.preventDefault()}>
+            <animated.div style={useSpring({ from: { opacity: 0 }, to: { opacity: 1 } })} className="space-y-4" ref={gridRef} onDrop={async e=>{ e.preventDefault(); const items = Array.from(e.dataTransfer.files||[]); if (!items.length) return; const paths = items.map(f=>(f as any).path); const expanded = await window.api.expandPaths(paths); if (expanded && expanded.length) addFiles(expanded) }} onDragOver={e=>e.preventDefault()}>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 @[app]:grid-cols-5 @[app]:gap-2">
                 {files.map((p, i) => (
                   <div key={p+i} className={`group tile bg-slate-900/60 rounded-md overflow-hidden border ${selected.has(i)?'border-brand-600 ring-1 ring-brand-600/40':'border-white/5'} relative`} onClick={e=>{ if ((e as any).metaKey || (e as any).ctrlKey) { setSelected(prev=>{ const n=new Set(prev); if (n.has(i)) n.delete(i); else n.add(i); return n }) } else { setSelected(new Set([i])) } }}>
                     <div className="h-36 @[app]:h-32 bg-slate-900 flex items-center justify-center overflow-hidden">
@@ -534,16 +561,21 @@ export default function NewApp() {
                     </div>
                   </div>
                 ))}
-                {!files.length && <div className="opacity-60 text-xs">{t('files.empty', { defaultValue: 'Add files or drop here' })}</div>}
               </div>
-            </div>
+              {!files.length && <div className="opacity-60 text-xs">{t('files.empty', { defaultValue: 'Add files or drop here' })}</div>}
+            </animated.div>
           )}
           {active==='ready' && (
-            <div className="space-y-4">
+            <animated.div style={useSpring({ from: { opacity: 0 }, to: { opacity: 1 } })} className="space-y-4">
               {!!results.length && (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 @[app]:grid-cols-5 @[app]:gap-2">
                   {results.map((r, i) => (
                     <div key={r.out+i} className="group bg-slate-900/60 rounded-md overflow-hidden border border-white/5 relative">
+                      <button className="absolute left-0 right-0 top-0 bottom-10 z-10 opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 flex items-center justify-center gap-3" onClick={()=>{ setPreviewSrc(toFileUrl(r.out)); setPreviewOpen(true) }}>
+                        <span className="inline-flex items-center gap-1 text-xs bg-slate-900/70 border border-white/10 px-2 py-1 rounded" onClick={(e)=>{ e.stopPropagation(); setPreviewSrc(toFileUrl(r.out)); setPreviewOpen(true) }}>{t('common.preview')||'Preview'}</span>
+                        <span className="inline-flex items-center gap-1 text-xs bg-slate-900/70 border border-white/10 px-2 py-1 rounded" onClick={async (e)=>{ e.stopPropagation(); try { const m = await window.api.metaBeforeAfter(r.src, r.out); const a = await window.api.fileStats(r.out); const b = await window.api.fileStats(r.src); setMetaPayload({ meta: m, afterStats: a, beforeStats: b }); setMetaOpen(true) } catch {} }}>{t('common.info')||'Metadata'}</span>
+                        <span className="inline-flex items-center gap-1 text-xs bg-slate-900/70 border border-white/10 px-2 py-1 rounded" onClick={(e)=>{ e.stopPropagation(); window.api.openPath(r.out) }}>{t('common.open')||'Open'}</span>
+                      </button>
                       <div className="h-36 bg-slate-900 flex items-center justify-center overflow-hidden">
                         <img loading="lazy" decoding="async" alt="result" className="max-h-36 transition-transform group-hover:scale-[1.02]" src={toFileUrl(r.out)} />
                       </div>
@@ -556,7 +588,7 @@ export default function NewApp() {
                 </div>
               )}
               {!results.length && <div className="opacity-60 text-xs">{t('ready.empty')}</div>}
-            </div>
+            </animated.div>
           )}
         </section>
       </div>
@@ -567,6 +599,34 @@ export default function NewApp() {
           <div className="relative max-w-[90vw] max-h-[90vh] rounded-xl overflow-hidden border border-white/10 bg-slate-900">
             <img alt="preview" src={previewSrc} className="max-w-[90vw] max-h-[90vh]" />
             <button onClick={()=>setPreviewOpen(false)} className="btn btn-ghost absolute top-2 right-2 text-xs">Close</button>
+          </div>
+        </div>
+      )}
+
+      {metaOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/80" onClick={()=>setMetaOpen(false)} />
+          <div className="relative w-[860px] max-w-[95vw] max-h-[90vh] rounded-xl overflow-hidden border border-white/10 bg-slate-900 p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm font-semibold">Metadata Before / After</div>
+              <button onClick={()=>setMetaOpen(false)} className="btn btn-ghost text-xs">Close</button>
+            </div>
+            <div className="grid grid-cols-2 gap-4 text-xs overflow-auto max-h-[75vh]">
+              <div>
+                <div className="font-semibold mb-1">Before</div>
+                <pre className="bg-slate-950/60 border border-white/10 rounded p-2 whitespace-pre-wrap break-words">{JSON.stringify({
+                  ...(metaPayload?.meta?.before||{}),
+                  sizeBytes: metaPayload?.beforeStats?.stats?.sizeBytes || 0
+                }, null, 2)}</pre>
+              </div>
+              <div>
+                <div className="font-semibold mb-1">After</div>
+                <pre className="bg-slate-950/60 border border-white/10 rounded p-2 whitespace-pre-wrap break-words">{JSON.stringify({
+                  ...(metaPayload?.meta?.after||{}),
+                  sizeBytes: metaPayload?.afterStats?.stats?.sizeBytes || 0
+                }, null, 2)}</pre>
+              </div>
+            </div>
           </div>
         </div>
       )}
