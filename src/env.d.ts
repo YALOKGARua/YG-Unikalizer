@@ -16,7 +16,8 @@ interface Window {
     showInFolder: (p: string) => Promise<{ ok: boolean; error?: string }>
     renameFile?: (path: string, newName: string) => Promise<{ ok: boolean; path?: string; error?: string }>
     deleteFile?: (path: string) => Promise<{ ok: boolean; error?: string }>
-    fileStats?: (path: string) => Promise<{ ok: boolean; stats?: any; error?: string }>
+    fileStats: (path: string) => Promise<{ ok: boolean; stats?: any; error?: string }>
+    metaBeforeAfter: (src: string, out: string) => Promise<{ ok: boolean; before?: any; after?: any; error?: string }>
     onProgress: (cb: (data: any) => void) => () => void
     onComplete: (cb: () => void) => () => void
     onOsOpenFiles: (cb: (files: string[]) => void) => () => void

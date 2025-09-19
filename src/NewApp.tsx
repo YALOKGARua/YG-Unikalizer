@@ -123,6 +123,7 @@ export default function NewApp() {
   const files = useAppStore(s=>s.files)
   const setFiles = useAppStore(s=>s.setFiles)
   const addFiles = useAppStore(s=>s.addFiles)
+  const removeAt = useAppStore(s=>s.removeAt)
   const [outputDir, setOutputDir] = useState('')
   const [format, setFormat] = useState<'jpg'|'png'|'webp'|'avif'|'heic'>('jpg')
   const [quality, setQuality] = useState(85)
@@ -556,8 +557,8 @@ export default function NewApp() {
                     </div>
                     <div className="text-[10px] p-2 truncate opacity-80 flex items-center gap-2" title={p}>
                       <span className="flex-1 truncate">{p}</span>
-                      <button className="btn btn-ghost px-2 py-1 text-[10px]" onClick={(e)=>{ e.stopPropagation(); setPreviewSrc(toFileUrl(p)); setPreviewOpen(true) }}>{t('common.preview')}</button>
-                      <button className="btn btn-ghost px-2 py-1 text-[10px]" onClick={(e)=>{ e.stopPropagation(); setFiles(prev => prev.filter((_, idx) => idx !== i)); setSelected(prev=>{ const n=new Set(prev); n.delete(i); return n }) }}>{t('common.remove')}</button>
+                      <button className="btn btn-slate text-[10px]" onClick={(e)=>{ e.stopPropagation(); setPreviewSrc(toFileUrl(p)); setPreviewOpen(true) }}>{t('common.preview')}</button>
+                      <button className="btn btn-rose text-[10px]" onClick={(e)=>{ e.stopPropagation(); removeAt(i); setSelected(prev=>{ const ns=new Set<number>(); prev.forEach(idx=>{ if(idx<i) ns.add(idx); else if(idx>i) ns.add(idx-1) }); return ns }) }}>{t('common.remove')}</button>
                     </div>
                   </div>
                 ))}
@@ -571,17 +572,18 @@ export default function NewApp() {
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 @[app]:grid-cols-5 @[app]:gap-2">
                   {results.map((r, i) => (
                     <div key={r.out+i} className="group bg-slate-900/60 rounded-md overflow-hidden border border-white/5 relative">
-                      <button className="absolute left-0 right-0 top-0 bottom-10 z-10 opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 flex items-center justify-center gap-3" onClick={()=>{ setPreviewSrc(toFileUrl(r.out)); setPreviewOpen(true) }}>
-                        <span className="inline-flex items-center gap-1 text-xs bg-slate-900/70 border border-white/10 px-2 py-1 rounded" onClick={(e)=>{ e.stopPropagation(); setPreviewSrc(toFileUrl(r.out)); setPreviewOpen(true) }}>{t('common.preview')||'Preview'}</span>
-                        <span className="inline-flex items-center gap-1 text-xs bg-slate-900/70 border border-white/10 px-2 py-1 rounded" onClick={async (e)=>{ e.stopPropagation(); try { const m = await window.api.metaBeforeAfter(r.src, r.out); const a = await window.api.fileStats(r.out); const b = await window.api.fileStats(r.src); setMetaPayload({ meta: m, afterStats: a, beforeStats: b }); setMetaOpen(true) } catch {} }}>{t('common.info')||'Metadata'}</span>
-                        <span className="inline-flex items-center gap-1 text-xs bg-slate-900/70 border border-white/10 px-2 py-1 rounded" onClick={(e)=>{ e.stopPropagation(); window.api.openPath(r.out) }}>{t('common.open')||'Open'}</span>
-                      </button>
-                      <div className="h-36 bg-slate-900 flex items-center justify-center overflow-hidden">
+                      <div className="h-36 bg-slate-900 flex items-center justify-center overflow-hidden relative">
                         <img loading="lazy" decoding="async" alt="result" className="max-h-36 transition-transform group-hover:scale-[1.02]" src={toFileUrl(r.out)} />
+                        <div className="absolute inset-0 z-10 opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 flex items-center justify-center gap-3 pointer-events-none">
+                          <button className="chip pointer-events-auto" onClick={(e)=>{ e.stopPropagation(); setPreviewSrc(toFileUrl(r.out)); setPreviewOpen(true) }}>{t('common.preview')||'Preview'}</button>
+                          <button className="chip pointer-events-auto" onClick={async (e)=>{ e.stopPropagation(); try { const meta = await window.api.metaBeforeAfter(r.src, r.out); const a = await window.api.fileStats(r.out); const b = await window.api.fileStats(r.src); setMetaPayload({ meta, afterStats: a, beforeStats: b }); setMetaOpen(true) } catch {} }}>{t('meta.beforeAfter')||'Metadata Before/After'}</button>
+                          <button className="chip pointer-events-auto" onClick={(e)=>{ e.stopPropagation(); window.api.openPath(r.out) }}>{t('common.open')||'Open'}</button>
+                        </div>
                       </div>
                       <div className="text-[10px] p-2 truncate opacity-80 flex items-center gap-2" title={r.out}>
                         <span className="flex-1 truncate">{r.out}</span>
-                        <button className="btn btn-ghost px-2 py-1 text-[10px]" onClick={()=>window.api.showInFolder(r.out)}>{t('common.folder')}</button>
+                        <button className="btn btn-violet text-[10px]" onClick={()=>window.api.openPath(r.out)}>{t('common.open')||'Open'}</button>
+                        <button className="btn btn-amber text-[10px]" onClick={()=>window.api.showInFolder(r.out)}>{t('common.folder')}</button>
                       </div>
                     </div>
                   ))}
