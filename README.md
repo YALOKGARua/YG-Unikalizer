@@ -1,4 +1,4 @@
-## PhotoUnikalizer 2.6.0
+## PhotoUnikalizer 2.6.1
 
 Уникализация и анонимизация фото с нативным ускорением, авто‑обновлениями и богатым UI.
 
@@ -81,7 +81,7 @@ npm run assets:icons
 
 ### Release
 
-1. Обновить `CHANGELOG.md` и версию: `npm run release:patch|minor|major` (текущая 2.6.0)
+1. Обновить `CHANGELOG.md` и версию: `npm run release:patch|minor|major` (текущая 2.6.1)
 2. Предсборки нативного модуля при изменении C++: `npm run native:prebuild`
 3. Сборка инсталлятора: `npm run dist`
 4. Публикация GitHub Release с заметками (отображаются в приложении)

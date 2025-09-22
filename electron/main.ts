@@ -1211,6 +1211,21 @@ app.whenReady().then(() => {
     }
   } catch (_) {}
 
+  try {
+    const cur = String(app.getVersion() || '')
+    let lastShown = ''
+    try { lastShown = String((store.get('lastShownVersion') as any) || (store.get('lastRunVersion') as any) || '') } catch (_) { lastShown = '' }
+    const need = !lastShown || compareVersions(cur, lastShown) > 0
+    if (need && mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.once('did-finish-load', () => {
+        try { mainWindow.webContents.send('show-whats-new', { version: cur }) } catch (_) {}
+        try { store.set('lastShownVersion', cur) } catch (_) {}
+      })
+    } else {
+      try { store.set('lastShownVersion', cur) } catch (_) {}
+    }
+  } catch (_) {}
+
   const devUrl = process.env.VITE_DEV_SERVER_URL
   if (!devUrl) {
     setTimeout(() => {
@@ -1663,7 +1678,19 @@ app.whenReady().then(() => {
       const root = path.join(__dirname, '..')
       const p = path.join(root, 'README.md')
       const data = await fs.promises.readFile(p, 'utf-8')
-      return { ok: true, data }
+      const toFileUrl = (fp: string) => 'file://' + fp.replace(/\\/g, '/')
+      let html = data
+      try {
+        html = html.replace(/src=(['"])docs\/(.+?)\1/gi, (_m, q, rel) => {
+          const abs = path.join(root, 'docs', rel)
+          return `src=${q}${toFileUrl(abs)}${q}`
+        })
+        html = html.replace(/!\[([^\]]*)\]\((docs\/[^)]+)\)/gi, (_m, alt, rel) => {
+          const abs = path.join(root, rel)
+          return `<img alt="${alt}" src="${toFileUrl(abs)}" />`
+        })
+      } catch (_) {}
+      return { ok: true, data, html }
     } catch (e) {
       return { ok: false, error: String(e && e.message ? e.message : e) }
     }

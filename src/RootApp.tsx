@@ -68,6 +68,34 @@ export default function RootApp() {
     })
     return () => { offAvail(); offProg(); offDone(); offErr() }
   }, [])
+  useEffect(() => {
+    const off = window.api.onStep(()=>{})
+    try {
+      const listener = (_: unknown, payload: { version?: string }) => {
+        setNotesOpen(true)
+        ;(async () => {
+          try {
+            const r = await window.api.getUpdateChangelog()
+            const rn = r && (r as any).notes ? (r as any).notes : ''
+            if (rn) { setNotesText(rn as string); return }
+          } catch {}
+          try {
+            const g = await window.api.getReadme()
+            const v = (g && (g as any).html) || (g && (g as any).data) || ''
+            setNotesText(v as string)
+          } catch {}
+        })()
+      }
+      const anyWin = (window as any)
+      if (anyWin && anyWin.api && anyWin.api.onUpdateAvailable) {
+        // no-op
+      }
+      (window as any).electron_receive = (channel: string, data: any) => {}
+      const ipc = (window as any).require?.('electron')?.ipcRenderer
+      if (ipc) ipc.on('show-whats-new', listener as any)
+      return () => { if (ipc) ipc.removeListener('show-whats-new', listener as any); try { off && off() } catch {} }
+    } catch { return () => {} }
+  }, [])
   const installNow = async () => { try { await window.api.quitAndInstall() } catch {} }
   return (
     <motion.div 
@@ -120,7 +148,7 @@ export default function RootApp() {
             <motion.button 
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={async()=>{ try { const r = await window.api.getReadme(); setAboutText((r && (r as any).data) || t('about.readmeMissing') as string); setAboutOpen(true) } catch { setAboutText(t('about.readmeMissing') as string); setAboutOpen(true) } }} 
+              onClick={async()=>{ try { const r = await window.api.getReadme(); const v = (r && (r as any).html) || (r && (r as any).data) || t('about.readmeMissing') as string; setAboutText(v as string); setAboutOpen(true) } catch { setAboutText(t('about.readmeMissing') as string); setAboutOpen(true) } }} 
               className="btn btn-ghost text-xs"
             >
               <span className="inline-flex items-center gap-1.5">
@@ -234,7 +262,9 @@ export default function RootApp() {
               <div className="text-sm font-semibold">{t('panel.about')}</div>
               <button className="btn btn-ghost text-xs" onClick={()=>setAboutOpen(false)}>{t('panel.close')}</button>
             </div>
-            <div className="overflow-auto max-h-[70vh] text-sm whitespace-pre-wrap leading-6">{aboutText}</div>
+            <div className="overflow-auto max-h-[70vh] text-sm whitespace-pre-wrap leading-6">
+              <div className="prose prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: aboutText }} />
+            </div>
           </div>
         </div>
       )}

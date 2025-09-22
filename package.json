@@ -1,6 +1,6 @@
 {
   "name": "photounikalizer",
-  "version": "2.6.0",
+  "version": "2.6.1",
   "private": true,
   "main": "electron/main.js",
   "author": "YALOKGAR <yalokgar@gmail.com>",
@@ -135,6 +135,7 @@
       "CHANGELOG.md",
       "README.md",
       "package.json",
+      "docs/**",
       "public/wasm/**",
       "!**/.vscode/**",
       "!**/.github/**",
