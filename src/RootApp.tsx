@@ -2,6 +2,19 @@ import { useEffect, useState, lazy, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom'
 import { Icon } from './components/Icons'
+import { motion, AnimatePresence } from 'framer-motion'
+import { 
+  FaCamera, 
+  FaGamepad, 
+  FaCog, 
+  FaComments, 
+  FaMoon, 
+  FaSun, 
+  FaDownload,
+  FaGift,
+  FaInfoCircle,
+  FaStickyNote
+} from 'react-icons/fa'
 
 const NewApp = lazy(() => import('./NewApp'))
 const OtherApp = lazy(() => import('./OtherApp'))
@@ -57,8 +70,18 @@ export default function RootApp() {
   }, [])
   const installNow = async () => { try { await window.api.quitAndInstall() } catch {} }
   return (
-    <div className="h-full app-container">
-      <header className="border-b border-white/10 bg-black/40 backdrop-blur sticky top-0 z-40 select-none">
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.6 }}
+      className="h-full app-container"
+    >
+      <motion.header 
+        initial={{ y: -50, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.7, delay: 0.1 }}
+        className="border-b border-white/10 bg-black/40 backdrop-blur sticky top-0 z-40 select-none"
+      >
         <div className="titlebar">
           <div className="text-[11px] opacity-60">PhotoUnikalizer</div>
           <div className="no-drag flex items-center gap-1" style={{ order: (typeof window!=='undefined' && localStorage.getItem('winSide')==='left') ? -1 : 1 }}>
@@ -68,27 +91,103 @@ export default function RootApp() {
           </div>
         </div>
         <div className="px-4 py-2 flex items-center justify-between no-drag">
-          <div className="flex items-center gap-2">
+          <motion.div 
+            initial={{ x: -50, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="flex items-center gap-2"
+          >
             <div className="text-lg font-semibold">PhotoUnikalizer</div>
             <div className="text-[10px] neon neon-glow">by YALOKGAR</div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button onClick={async()=>{ try { const r = await window.api.getUpdateChangelog(); setNotesText((r && (r as any).notes) || t('notes.none') as string); setNotesOpen(true) } catch { setNotesText(t('notes.none') as string); setNotesOpen(true) } }} className="btn btn-ghost text-xs"><span className="inline-flex items-center gap-1.5"><Icon name="tabler:sparkles" className="icon" />{t('actions.whatsNew')}</span></button>
-            <button onClick={async()=>{ try { const r = await window.api.getReadme(); setAboutText((r && (r as any).data) || t('about.readmeMissing') as string); setAboutOpen(true) } catch { setAboutText(t('about.readmeMissing') as string); setAboutOpen(true) } }} className="btn btn-ghost text-xs"><span className="inline-flex items-center gap-1.5"><Icon name="tabler:info-circle" className="icon" />{t('actions.about')}</span></button>
+          </motion.div>
+          <motion.div 
+            initial={{ x: 50, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            className="flex items-center gap-2"
+          >
+            <motion.button 
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={async()=>{ try { const r = await window.api.getUpdateChangelog(); setNotesText((r && (r as any).notes) || t('notes.none') as string); setNotesOpen(true) } catch { setNotesText(t('notes.none') as string); setNotesOpen(true) } }} 
+              className="btn btn-ghost text-xs"
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <FaGift className="w-3 h-3" />
+                {t('actions.whatsNew')}
+              </span>
+            </motion.button>
+            <motion.button 
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={async()=>{ try { const r = await window.api.getReadme(); setAboutText((r && (r as any).data) || t('about.readmeMissing') as string); setAboutOpen(true) } catch { setAboutText(t('about.readmeMissing') as string); setAboutOpen(true) } }} 
+              className="btn btn-ghost text-xs"
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <FaInfoCircle className="w-3 h-3" />
+                {t('actions.about')}
+              </span>
+            </motion.button>
             <select value={i18n.language} onChange={e=>{ const v = e.target.value; i18n.changeLanguage(v); try { localStorage.setItem('lang', v) } catch {} }} className="bg-slate-900 border border-white/10 rounded px-2 py-1 text-xs">
-              <option value="ru">RU</option>
-              <option value="uk">UK</option>
-              <option value="en">EN</option>
+              <option value="ru">🇷🇺 RU</option>
+              <option value="uk">🇺🇦 UK</option>
+              <option value="en">🇺🇸 EN</option>
             </select>
-            <button onClick={()=>setTheme(p=>p==='dark'?'light':'dark')} className="btn btn-ghost text-xs"><span className="inline-flex items-center gap-1.5"><Icon name={theme==='dark'?'tabler:sun':'tabler:moon'} className="icon" />{theme==='dark'?'Light':'Dark'}</span></button>
-          </div>
+            <motion.button 
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={()=>setTheme(p=>p==='dark'?'light':'dark')} 
+              className="btn btn-ghost text-xs"
+            >
+              <span className="inline-flex items-center gap-1.5">
+                {theme==='dark' ? <FaSun className="w-3 h-3" /> : <FaMoon className="w-3 h-3" />}
+                {theme==='dark'?'Light':'Dark'}
+              </span>
+            </motion.button>
+          </motion.div>
         </div>
-        <div className="mt-2 flex items-center gap-2">
-          <button onClick={()=>navigate('/photo')} className={`nav-btn ${tab==='photo'?'active':''}`}><span className="inline-flex items-center gap-2"><Icon name="tabler:photo" className="icon" />{t('tabs.photoMeta', { defaultValue: 'Photo & Metadata' })}</span></button>
-          <button onClick={()=>navigate('/fun/'+(funGame||'crash'))} className={`nav-btn ${tab==='fun'?'active':''}`}><span className="inline-flex items-center gap-2"><Icon name="tabler:plane" className="icon" />{t('tabs.fun', { defaultValue: 'Fun' })}</span></button>
-          <button onClick={()=>{ setChatBadge(0); navigate('/other') }} className={`nav-btn ${tab==='other'?'active':''}`}><span className="inline-flex items-center gap-2"><Icon name="tabler:apps" className="icon" />{t('tabs.other', { defaultValue: 'Other' })}{chatBadge>0 && <span className="ml-2 text-[10px] bg-rose-500/80 px-1.5 py-0.5 rounded">{chatBadge}</span>}</span></button>
-        </div>
-      </header>
+        <motion.div 
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.4 }}
+          className="mt-2 flex items-center gap-2"
+        >
+          <motion.button 
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={()=>navigate('/photo')} 
+            className={`nav-btn ${tab==='photo'?'active':''}`}
+          >
+            <span className="inline-flex items-center gap-2">
+              <FaCamera className="w-4 h-4" />
+              {t('tabs.photoMeta', { defaultValue: 'Photo & Metadata' })}
+            </span>
+          </motion.button>
+          <motion.button 
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={()=>navigate('/fun/'+(funGame||'crash'))} 
+            className={`nav-btn ${tab==='fun'?'active':''}`}
+          >
+            <span className="inline-flex items-center gap-2">
+              <FaGamepad className="w-4 h-4" />
+              {t('tabs.fun', { defaultValue: 'Fun' })}
+            </span>
+          </motion.button>
+          <motion.button 
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={()=>{ setChatBadge(0); navigate('/other') }} 
+            className={`nav-btn ${tab==='other'?'active':''}`}
+          >
+            <span className="inline-flex items-center gap-2">
+              <FaCog className="w-4 h-4" />
+              {t('tabs.other', { defaultValue: 'Other' })}
+              {chatBadge>0 && <span className="ml-2 text-[10px] bg-rose-500/80 px-1.5 py-0.5 rounded">{chatBadge}</span>}
+            </span>
+          </motion.button>
+        </motion.div>
+      </motion.header>
       <main className="min-h-[calc(100vh-88px)] overflow-auto">
         {tab==='fun' && (
           <div className="p-2 border-b border-white/10 bg-black/30 flex items-center gap-2">
@@ -162,6 +261,6 @@ export default function RootApp() {
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   )
 }

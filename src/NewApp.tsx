@@ -3,6 +3,26 @@ import { useTranslation } from 'react-i18next'
 import { Icon } from './components/Icons'
 import { useSpring, animated } from '@react-spring/web'
 import { useAppStore } from './store'
+import { motion, AnimatePresence } from 'framer-motion'
+import toast, { Toaster } from 'react-hot-toast'
+import Confetti from 'react-confetti'
+import { useWindowSize } from 'react-use'
+import { 
+  FaImage, 
+  FaFolderOpen, 
+  FaTrash, 
+  FaPlay, 
+  FaStop, 
+  FaEye, 
+  FaInfoCircle, 
+  FaFolder,
+  FaDownload,
+  FaCog,
+  FaMagic,
+  FaCamera,
+  FaMobile,
+  FaVideo
+} from 'react-icons/fa'
 
 function toFileUrl(p: string) {
   let s = p.replace(/\\/g, '/')
@@ -132,6 +152,8 @@ export default function NewApp() {
   const [resizeMaxW, setResizeMaxW] = useState(0)
   const [removeGps, setRemoveGps] = useState(true)
   const [dateStrategy, setDateStrategy] = useState<'now'|'offset'>('now')
+  const [showConfetti, setShowConfetti] = useState(false)
+  const { width, height } = useWindowSize()
   const [dateOffsetMinutes, setDateOffsetMinutes] = useState(0)
   const [uniqueId, setUniqueId] = useState(true)
   const [removeAll, setRemoveAll] = useState(false)
@@ -232,7 +254,19 @@ export default function NewApp() {
       setProgress({ current: d.index + 1, total: d.total, lastFile: d.file, etaMs: Number(d.etaMs||0), speedBps: Number(d.speedBps||0), percent: Number(d.percent)||0 })
       if (d && d.status === 'ok' && d.outPath) setResults(prev => [...prev, { src: d.file, out: d.outPath }])
     })
-    const done = window.api.onComplete(() => { setBusy(false); setActive('ready') })
+    const done = window.api.onComplete(() => { 
+      setBusy(false); 
+      setActive('ready');
+      setShowConfetti(true);
+      toast.success(`🎉 Обработка завершена! ${results.length} фото готово`, {
+        duration: 4000,
+        style: {
+          background: '#059669',
+          color: '#fff',
+        },
+      });
+      setTimeout(() => setShowConfetti(false), 5000);
+    })
     return () => { off(); done() }
   }, [])
 
@@ -240,7 +274,13 @@ export default function NewApp() {
     try {
       const off = window.api.onOsOpenFiles(async (list) => {
         if (Array.isArray(list) && list.length) {
-          try { const expanded = await window.api.expandPaths(list); if (expanded && expanded.length) addFiles(expanded) } catch {}
+          try { 
+            const expanded = await window.api.expandPaths(list); 
+            if (expanded && expanded.length) {
+              addFiles(expanded);
+              toast.success(`📁 Добавлено ${expanded.length} файлов`);
+            }
+          } catch {}
         }
       })
       return () => { try { off && off() } catch {} }
@@ -253,11 +293,13 @@ export default function NewApp() {
     const paths = await window.api.selectImages()
     if (!paths || !paths.length) return
     addFiles(paths)
+    toast.success(`🖼️ Добавлено ${paths.length} изображений`);
   }
   const selectFolder = async () => {
     const paths = await window.api.selectImageDir()
     if (!paths || !paths.length) return
     addFiles(paths)
+    toast.success(`📂 Добавлено ${paths.length} изображений из папки`);
   }
   const selectOutput = async () => {
     const dir = await window.api.selectOutputDir()
@@ -336,17 +378,91 @@ export default function NewApp() {
   const lensOptions = ((GEAR_PRESETS[fakeProfile]?.lensesByMake?.[fakeMake]) || (GEAR_PRESETS[fakeProfile]?.lenses) || []) as string[]
 
   return (
-    <div className="h-full text-slate-100">
-      <animated.div style={useSpring({ from: { opacity: 0, y: 8 }, to: { opacity: 1, y: 0 } })}>
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+      className="h-full text-slate-100"
+    >
+      {showConfetti && (
+        <Confetti
+          width={width}
+          height={height}
+          recycle={false}
+          numberOfPieces={200}
+          gravity={0.1}
+        />
+      )}
+      <Toaster position="top-right" />
+      
+      <motion.div 
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.6, delay: 0.1 }}
+        className="h-full"
+      >
       <div className="px-4 py-3 border-b border-white/10 bg-black/20 backdrop-blur overflow-x-auto with-gutter">
         <div className="flex items-center gap-2 flex-wrap">
-          <button onClick={selectImages} className="btn btn-blue"><Icon name="tabler:files" className="icon" />{t('buttons.addFiles')}</button>
-          <button onClick={selectFolder} className="btn btn-green"><Icon name="tabler:folder-plus" className="icon" />{t('buttons.addFolder')}</button>
-          <button onClick={clearFiles} className="btn btn-rose">{t('buttons.clear')}</button>
-          <button onClick={selectOutput} className="btn btn-amber"><Icon name="mdi:folder-cog-outline" className="icon" />{t('common.pickFolder')}</button>
+          <motion.button 
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={selectImages} 
+            className="btn btn-blue"
+          >
+            <FaImage className="w-4 h-4 mr-2" />
+            {t('buttons.addFiles')}
+          </motion.button>
+          <motion.button 
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={selectFolder} 
+            className="btn btn-green"
+          >
+            <FaFolderOpen className="w-4 h-4 mr-2" />
+            {t('buttons.addFolder')}
+          </motion.button>
+          <motion.button 
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={clearFiles} 
+            className="btn btn-rose"
+          >
+            <FaTrash className="w-4 h-4 mr-2" />
+            {t('buttons.clear')}
+          </motion.button>
+          <motion.button 
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={selectOutput} 
+            className="btn btn-amber"
+          >
+            <FaFolder className="w-4 h-4 mr-2" />
+            {t('common.pickFolder')}
+          </motion.button>
           {!!outputDir && <div className="text-xs opacity-80 truncate max-w-[320px]">{outputDir}</div>}
-          {!busy && <button disabled={!canStart} onClick={start} className={`btn ${canStart? 'btn-violet' : 'bg-emerald-900 opacity-50 cursor-not-allowed'}`}><Icon name="tabler:player-play" className="icon" />{t('buttons.start')}</button>}
-          {busy && <button onClick={cancel} className="btn btn-slate"><Icon name="tabler:player-stop" className="icon" />{t('buttons.cancel')}</button>}
+          {!busy && (
+            <motion.button 
+              whileHover={{ scale: canStart ? 1.05 : 1 }}
+              whileTap={{ scale: canStart ? 0.95 : 1 }}
+              disabled={!canStart} 
+              onClick={start} 
+              className={`btn ${canStart? 'btn-violet' : 'bg-emerald-900 opacity-50 cursor-not-allowed'}`}
+            >
+              <FaPlay className="w-4 h-4 mr-2" />
+              {t('buttons.start')}
+            </motion.button>
+          )}
+          {busy && (
+            <motion.button 
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={cancel} 
+              className="btn btn-slate"
+            >
+              <FaStop className="w-4 h-4 mr-2" />
+              {t('buttons.cancel')}
+            </motion.button>
+          )}
         </div>
 
         <div className="mt-3 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2 text-xs">
@@ -408,11 +524,11 @@ export default function NewApp() {
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2 text-xs">
               <label className="flex flex-col gap-1"><span className="opacity-70">{t('fake.profile', { defaultValue: 'Profile' })}</span>
                 <select value={fakeProfile} onChange={e=>setFakeProfile(e.target.value as ProfileKind)} className="bg-slate-900 border border-white/10 rounded px-2 py-2">
-                  <option value="camera">Камера</option>
-                  <option value="phone">Телефон</option>
-                  <option value="action">Экшн</option>
-                  <option value="drone">Дрон</option>
-                  <option value="scanner">Сканер</option>
+                  <option value="camera">📷 Камера</option>
+                  <option value="phone">📱 Телефон</option>
+                  <option value="action">📹 Экшн</option>
+                  <option value="drone">🚁 Дрон</option>
+                  <option value="scanner">🖨️ Сканер</option>
                 </select>
               </label>
               <label className="flex flex-col gap-1"><span className="opacity-70">{t('fake.make', { defaultValue: 'Make' })}</span>
@@ -526,7 +642,6 @@ export default function NewApp() {
           </div>
         )}
       </div>
-      </animated.div>
 
       {progress && progress.total > 0 && (
         <div className="px-4 py-2" aria-live="polite">
@@ -550,18 +665,45 @@ export default function NewApp() {
           {active==='files' && (
             <animated.div style={useSpring({ from: { opacity: 0 }, to: { opacity: 1 } })} className="space-y-4" ref={gridRef} onDrop={async e=>{ e.preventDefault(); const items = Array.from(e.dataTransfer.files||[]); if (!items.length) return; const paths = items.map(f=>(f as any).path); const expanded = await window.api.expandPaths(paths); if (expanded && expanded.length) addFiles(expanded) }} onDragOver={e=>e.preventDefault()}>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 @[app]:grid-cols-5 @[app]:gap-2">
-                {files.map((p, i) => (
-                  <div key={p+i} className={`group tile bg-slate-900/60 rounded-md overflow-hidden border ${selected.has(i)?'border-brand-600 ring-1 ring-brand-600/40':'border-white/5'} relative`} onClick={e=>{ if ((e as any).metaKey || (e as any).ctrlKey) { setSelected(prev=>{ const n=new Set(prev); if (n.has(i)) n.delete(i); else n.add(i); return n }) } else { setSelected(new Set([i])) } }}>
-                    <div className="h-36 @[app]:h-32 bg-slate-900 flex items-center justify-center overflow-hidden">
-                      <img loading="lazy" decoding="async" alt="file" className="max-h-36 @[app]:max-h-32 transition-transform group-hover:scale-[1.02]" src={toFileUrl(p)} />
-                    </div>
-                    <div className="text-[10px] p-2 truncate opacity-80 flex items-center gap-2" title={p}>
-                      <span className="flex-1 truncate">{p}</span>
-                      <button className="btn btn-slate text-[10px]" onClick={(e)=>{ e.stopPropagation(); setPreviewSrc(toFileUrl(p)); setPreviewOpen(true) }}>{t('common.preview')}</button>
-                      <button className="btn btn-rose text-[10px]" onClick={(e)=>{ e.stopPropagation(); removeAt(i); setSelected(prev=>{ const ns=new Set<number>(); prev.forEach(idx=>{ if(idx<i) ns.add(idx); else if(idx>i) ns.add(idx-1) }); return ns }) }}>{t('common.remove')}</button>
-                    </div>
-                  </div>
-                ))}
+                <AnimatePresence>
+                  {files.map((p, i) => (
+                    <motion.div 
+                      key={p+i} 
+                      initial={{ opacity: 0, scale: 0.8, y: 20 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.8, y: -20 }}
+                      transition={{ duration: 0.3, delay: i * 0.05 }}
+                      whileHover={{ scale: 1.02, y: -5 }}
+                      className={`group tile bg-slate-900/60 rounded-md overflow-hidden border ${selected.has(i)?'border-brand-600 ring-1 ring-brand-600/40':'border-white/5'} relative cursor-pointer`} 
+                      onClick={e=>{ if ((e as any).metaKey || (e as any).ctrlKey) { setSelected(prev=>{ const n=new Set(prev); if (n.has(i)) n.delete(i); else n.add(i); return n }) } else { setSelected(new Set([i])) } }}
+                    >
+                      <div className="h-36 @[app]:h-32 bg-slate-900 flex items-center justify-center overflow-hidden">
+                        <img loading="lazy" decoding="async" alt="file" className="max-h-36 @[app]:max-h-32 transition-transform group-hover:scale-[1.1]" src={toFileUrl(p)} />
+                      </div>
+                      <div className="text-[10px] p-2 truncate opacity-80 flex items-center gap-2" title={p}>
+                        <span className="flex-1 truncate">{p}</span>
+                        <motion.button 
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          className="btn btn-slate text-[10px]" 
+                          onClick={(e)=>{ e.stopPropagation(); setPreviewSrc(toFileUrl(p)); setPreviewOpen(true) }}
+                        >
+                          <FaEye className="w-3 h-3 mr-1" />
+                          {t('common.preview')}
+                        </motion.button>
+                        <motion.button 
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          className="btn btn-rose text-[10px]" 
+                          onClick={(e)=>{ e.stopPropagation(); removeAt(i); setSelected(prev=>{ const ns=new Set<number>(); prev.forEach(idx=>{ if(idx<i) ns.add(idx); else if(idx>i) ns.add(idx-1) }); return ns }); toast.success('🗑️ Файл удален'); }}
+                        >
+                          <FaTrash className="w-3 h-3 mr-1" />
+                          {t('common.remove')}
+                        </motion.button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
               </div>
               {!files.length && <div className="opacity-60 text-xs">{t('files.empty', { defaultValue: 'Add files or drop here' })}</div>}
             </animated.div>
@@ -570,23 +712,73 @@ export default function NewApp() {
             <animated.div style={useSpring({ from: { opacity: 0 }, to: { opacity: 1 } })} className="space-y-4">
               {!!results.length && (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 @[app]:grid-cols-5 @[app]:gap-2">
-                  {results.map((r, i) => (
-                    <div key={r.out+i} className="group bg-slate-900/60 rounded-md overflow-hidden border border-white/5 relative">
-                      <div className="h-36 bg-slate-900 flex items-center justify-center overflow-hidden relative">
-                        <img loading="lazy" decoding="async" alt="result" className="max-h-36 transition-transform group-hover:scale-[1.02]" src={toFileUrl(r.out)} />
-                        <div className="absolute inset-0 z-10 opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 flex items-center justify-center gap-3 pointer-events-none">
-                          <button className="chip pointer-events-auto" onClick={(e)=>{ e.stopPropagation(); setPreviewSrc(toFileUrl(r.out)); setPreviewOpen(true) }}>{t('common.preview')||'Preview'}</button>
-                          <button className="chip pointer-events-auto" onClick={async (e)=>{ e.stopPropagation(); try { const meta = await window.api.metaBeforeAfter(r.src, r.out); const a = await window.api.fileStats(r.out); const b = await window.api.fileStats(r.src); setMetaPayload({ meta, afterStats: a, beforeStats: b }); setMetaOpen(true) } catch {} }}>{t('meta.beforeAfter')||'Metadata Before/After'}</button>
-                          <button className="chip pointer-events-auto" onClick={(e)=>{ e.stopPropagation(); window.api.openPath(r.out) }}>{t('common.open')||'Open'}</button>
+                  <AnimatePresence>
+                    {results.map((r, i) => (
+                      <motion.div 
+                        key={r.out+i} 
+                        initial={{ opacity: 0, scale: 0.8, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.8, y: -20 }}
+                        transition={{ duration: 0.4, delay: i * 0.1 }}
+                        whileHover={{ scale: 1.03, y: -8 }}
+                        className="group bg-slate-900/60 rounded-md overflow-hidden border border-white/5 relative cursor-pointer"
+                      >
+                        <div className="h-36 bg-slate-900 flex items-center justify-center overflow-hidden relative">
+                          <img loading="lazy" decoding="async" alt="result" className="max-h-36 transition-transform group-hover:scale-[1.1]" src={toFileUrl(r.out)} />
+                          <div className="absolute inset-0 z-10 opacity-0 group-hover:opacity-100 transition-all duration-300 bg-black/60 flex items-center justify-center gap-2 pointer-events-none">
+                            <motion.button 
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
+                              className="chip pointer-events-auto bg-blue-600/90 hover:bg-blue-500" 
+                              onClick={(e)=>{ e.stopPropagation(); setPreviewSrc(toFileUrl(r.out)); setPreviewOpen(true) }}
+                            >
+                              <FaEye className="w-3 h-3 mr-1" />
+                              {t('common.preview')||'Preview'}
+                            </motion.button>
+                            <motion.button 
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
+                              className="chip pointer-events-auto bg-purple-600/90 hover:bg-purple-500" 
+                              onClick={async (e)=>{ e.stopPropagation(); try { const meta = await window.api.metaBeforeAfter(r.src, r.out); const a = await window.api.fileStats(r.out); const b = await window.api.fileStats(r.src); setMetaPayload({ meta, afterStats: a, beforeStats: b }); setMetaOpen(true) } catch {} }}
+                            >
+                              <FaInfoCircle className="w-3 h-3 mr-1" />
+                              Metadata
+                            </motion.button>
+                            <motion.button 
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
+                              className="chip pointer-events-auto bg-green-600/90 hover:bg-green-500" 
+                              onClick={(e)=>{ e.stopPropagation(); window.api.openPath(r.out) }}
+                            >
+                              <FaFolder className="w-3 h-3 mr-1" />
+                              {t('common.open')||'Open'}
+                            </motion.button>
+                          </div>
                         </div>
-                      </div>
-                      <div className="text-[10px] p-2 truncate opacity-80 flex items-center gap-2" title={r.out}>
-                        <span className="flex-1 truncate">{r.out}</span>
-                        <button className="btn btn-violet text-[10px]" onClick={()=>window.api.openPath(r.out)}>{t('common.open')||'Open'}</button>
-                        <button className="btn btn-amber text-[10px]" onClick={()=>window.api.showInFolder(r.out)}>{t('common.folder')}</button>
-                      </div>
-                    </div>
-                  ))}
+                        <div className="text-[10px] p-2 truncate opacity-80 flex items-center gap-2" title={r.out}>
+                          <span className="flex-1 truncate">{r.out}</span>
+                          <motion.button 
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            className="btn btn-violet text-[10px]" 
+                            onClick={()=>window.api.openPath(r.out)}
+                          >
+                            <FaFolder className="w-3 h-3 mr-1" />
+                            {t('common.open')||'Open'}
+                          </motion.button>
+                          <motion.button 
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            className="btn btn-amber text-[10px]" 
+                            onClick={()=>window.api.showInFolder(r.out)}
+                          >
+                            <FaFolderOpen className="w-3 h-3 mr-1" />
+                            {t('common.folder')}
+                          </motion.button>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
                 </div>
               )}
               {!results.length && <div className="opacity-60 text-xs">{t('ready.empty')}</div>}
@@ -594,44 +786,108 @@ export default function NewApp() {
           )}
         </section>
       </div>
+      </motion.div>
+      
+      <AnimatePresence>
+        {previewOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center"
+          >
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/80" 
+              onClick={()=>setPreviewOpen(false)} 
+            />
+            <motion.div 
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              transition={{ type: "spring", damping: 20, stiffness: 300 }}
+              className="relative max-w-[90vw] max-h-[90vh] rounded-xl overflow-hidden border border-white/10 bg-slate-900"
+            >
+              <img alt="preview" src={previewSrc} className="max-w-[90vw] max-h-[90vh]" />
+              <motion.button 
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={()=>setPreviewOpen(false)} 
+                className="btn btn-ghost absolute top-2 right-2 text-xs"
+              >
+                Close
+              </motion.button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {previewOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/80" onClick={()=>setPreviewOpen(false)} />
-          <div className="relative max-w-[90vw] max-h-[90vh] rounded-xl overflow-hidden border border-white/10 bg-slate-900">
-            <img alt="preview" src={previewSrc} className="max-w-[90vw] max-h-[90vh]" />
-            <button onClick={()=>setPreviewOpen(false)} className="btn btn-ghost absolute top-2 right-2 text-xs">Close</button>
-          </div>
-        </div>
-      )}
-
-      {metaOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/80" onClick={()=>setMetaOpen(false)} />
-          <div className="relative w-[860px] max-w-[95vw] max-h-[90vh] rounded-xl overflow-hidden border border-white/10 bg-slate-900 p-4">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-sm font-semibold">Metadata Before / After</div>
-              <button onClick={()=>setMetaOpen(false)} className="btn btn-ghost text-xs">Close</button>
-            </div>
-            <div className="grid grid-cols-2 gap-4 text-xs overflow-auto max-h-[75vh]">
-              <div>
-                <div className="font-semibold mb-1">Before</div>
-                <pre className="bg-slate-950/60 border border-white/10 rounded p-2 whitespace-pre-wrap break-words">{JSON.stringify({
-                  ...(metaPayload?.meta?.before||{}),
-                  sizeBytes: metaPayload?.beforeStats?.stats?.sizeBytes || 0
-                }, null, 2)}</pre>
+      <AnimatePresence>
+        {metaOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center"
+          >
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/80" 
+              onClick={()=>setMetaOpen(false)} 
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 50 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 50 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="relative w-[860px] max-w-[95vw] max-h-[90vh] rounded-xl overflow-hidden border border-white/10 bg-slate-900 p-4"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-sm font-semibold flex items-center gap-2">
+                  <FaInfoCircle className="w-4 h-4 text-purple-400" />
+                  Metadata Before / After
+                </div>
+                <motion.button 
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={()=>setMetaOpen(false)} 
+                  className="btn btn-ghost text-xs"
+                >
+                  Close
+                </motion.button>
               </div>
-              <div>
-                <div className="font-semibold mb-1">After</div>
-                <pre className="bg-slate-950/60 border border-white/10 rounded p-2 whitespace-pre-wrap break-words">{JSON.stringify({
-                  ...(metaPayload?.meta?.after||{}),
-                  sizeBytes: metaPayload?.afterStats?.stats?.sizeBytes || 0
-                }, null, 2)}</pre>
+              <div className="grid grid-cols-2 gap-4 text-xs overflow-auto max-h-[75vh]">
+                <motion.div
+                  initial={{ x: -50, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ delay: 0.1 }}
+                >
+                  <div className="font-semibold mb-1 text-red-400">Before</div>
+                  <pre className="bg-slate-950/60 border border-white/10 rounded p-2 whitespace-pre-wrap break-words">{JSON.stringify({
+                    ...(metaPayload?.meta?.before||{}),
+                    sizeBytes: metaPayload?.beforeStats?.stats?.sizeBytes || 0
+                  }, null, 2)}</pre>
+                </motion.div>
+                <motion.div
+                  initial={{ x: 50, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  <div className="font-semibold mb-1 text-green-400">After</div>
+                  <pre className="bg-slate-950/60 border border-white/10 rounded p-2 whitespace-pre-wrap break-words">{JSON.stringify({
+                    ...(metaPayload?.meta?.after||{}),
+                    sizeBytes: metaPayload?.afterStats?.stats?.sizeBytes || 0
+                  }, null, 2)}</pre>
+                </motion.div>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   )
 }
