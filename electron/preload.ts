@@ -141,6 +141,11 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('update-downloaded', listener as any)
     return () => ipcRenderer.removeListener('update-downloaded', listener as any)
   },
+  onWhatsNew: (cb: (payload: unknown) => void) => {
+    const listener = (_: unknown, payload: unknown) => cb(payload)
+    ipcRenderer.on('show-whats-new', listener as any)
+    return () => ipcRenderer.removeListener('show-whats-new', listener as any)
+  },
   win: {
     minimize: () => ipcRenderer.invoke('win-minimize'),
     maximize: () => ipcRenderer.invoke('win-maximize'),

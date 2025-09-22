@@ -69,32 +69,20 @@ export default function RootApp() {
     return () => { offAvail(); offProg(); offDone(); offErr() }
   }, [])
   useEffect(() => {
-    const off = window.api.onStep(()=>{})
-    try {
-      const listener = (_: unknown, payload: { version?: string }) => {
-        setNotesOpen(true)
-        ;(async () => {
-          try {
-            const r = await window.api.getUpdateChangelog()
-            const rn = r && (r as any).notes ? (r as any).notes : ''
-            if (rn) { setNotesText(rn as string); return }
-          } catch {}
-          try {
-            const g = await window.api.getReadme()
-            const v = (g && (g as any).html) || (g && (g as any).data) || ''
-            setNotesText(v as string)
-          } catch {}
-        })()
-      }
-      const anyWin = (window as any)
-      if (anyWin && anyWin.api && anyWin.api.onUpdateAvailable) {
-        // no-op
-      }
-      (window as any).electron_receive = (channel: string, data: any) => {}
-      const ipc = (window as any).require?.('electron')?.ipcRenderer
-      if (ipc) ipc.on('show-whats-new', listener as any)
-      return () => { if (ipc) ipc.removeListener('show-whats-new', listener as any); try { off && off() } catch {} }
-    } catch { return () => {} }
+    const unsub = window.api.onWhatsNew?.(async (_payload: unknown) => {
+      setNotesOpen(true)
+      try {
+        const r = await window.api.getUpdateChangelog()
+        const rn = r && (r as any).notes ? (r as any).notes : ''
+        if (rn) { setNotesText(rn as string); return }
+      } catch {}
+      try {
+        const g = await window.api.getReadme()
+        const v = (g && (g as any).html) || (g && (g as any).data) || ''
+        setNotesText(v as string)
+      } catch {}
+    })
+    return () => { try { unsub && (unsub as any)() } catch {} }
   }, [])
   const installNow = async () => { try { await window.api.quitAndInstall() } catch {} }
   return (
@@ -250,7 +238,9 @@ export default function RootApp() {
               <div className="text-sm font-semibold">{t('panel.whatsNew')}</div>
               <button className="btn btn-ghost text-xs" onClick={()=>setNotesOpen(false)}>{t('panel.close')}</button>
             </div>
-            <div className="overflow-auto max-h-[70vh] text-sm whitespace-pre-wrap leading-6">{notesText}</div>
+            <div className="overflow-auto max-h-[70vh] text-sm whitespace-pre-wrap leading-6">
+              <div className="prose prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: notesText }} />
+            </div>
           </div>
         </div>
       )}
