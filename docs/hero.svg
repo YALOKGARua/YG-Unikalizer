@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="420" viewBox="0 0 1200 420">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0b1020"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="#4f46e5" stop-opacity="0.7"/>
+      <stop offset="60%" stop-color="#4f46e5" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#000" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect x="0" y="0" width="1200" height="420" fill="url(#g)"/>
+  <circle cx="900" cy="220" r="200" fill="url(#glow)">
+    <animate attributeName="r" from="180" to="220" dur="4s" repeatCount="indefinite"/>
+  </circle>
+  <g transform="translate(80,120)">
+    <text x="0" y="0" fill="#e2e8f0" font-family="Inter, Segoe UI, Arial" font-size="52" font-weight="700">PhotoUnikalizer</text>
+    <text x="0" y="44" fill="#94a3b8" font-family="Inter, Segoe UI, Arial" font-size="18">Уникализация и анонимизация фото с нативным ускорением</text>
+    <g transform="translate(0,96)">
+      <rect x="0" y="-26" rx="10" ry="10" width="520" height="52" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+      <text x="16" y="8" fill="#cbd5e1" font-family="Inter, Segoe UI, Arial" font-size="16">• EXIF/IPTC/XMP • a/d/pHash • Hamming • Sharp • WASM • GPU*</text>
+    </g>
+  </g>
+  <g>
+    <circle cx="1080" cy="80" r="6" fill="#22d3ee">
+      <animate attributeName="cy" values="80;100;80" dur="3s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="1040" cy="140" r="4" fill="#a78bfa">
+      <animate attributeName="cy" values="140;160;140" dur="2.2s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="1120" cy="180" r="5" fill="#34d399">
+      <animate attributeName="cy" values="180;210;180" dur="2.8s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+  <g transform="translate(860,290)">
+    <rect x="0" y="0" width="280" height="100" rx="12" ry="12" fill="#0f172a" stroke="#334155"/>
+    <text x="16" y="30" fill="#e5e7eb" font-family="Inter, Segoe UI, Arial" font-size="16">Formats: JPG, PNG, WEBP, AVIF, HEIC</text>
+    <text x="16" y="56" fill="#cbd5e1" font-family="Inter, Segoe UI, Arial" font-size="14">Fake EXIF • GPS cleanup • Renaming</text>
+    <text x="16" y="80" fill="#cbd5e1" font-family="Inter, Segoe UI, Arial" font-size="14">Progress • Auto‑update • RU/UK/EN</text>
+  </g>
+</svg>
+
+

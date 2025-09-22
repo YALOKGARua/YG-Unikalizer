@@ -1,83 +1,102 @@
-## PhotoUnikalizer 2.5.1
+## PhotoUnikalizer 2.6.0
 
-Anonymize and uniquely process photos at scale. Smart resizing, subtle color drift, flexible renaming, rich metadata editing, realistic fake EXIF/IPTC — now with native C++ acceleration.
+Уникализация и анонимизация фото с нативным ускорением, авто‑обновлениями и богатым UI.
 
-### Badges
+<div align="center">
+<img src="docs/hero.svg" alt="PhotoUnikalizer Hero" width="100%"/>
 
-![Electron](https://img.shields.io/badge/Electron-30.x-47848F?logo=electron&logoColor=white)
-![Vite](https://img.shields.io/badge/Vite-5.x-646CFF?logo=vite&logoColor=white)
-![React](https://img.shields.io/badge/React-18.x-149ECA?logo=react&logoColor=white)
-![Sharp](https://img.shields.io/badge/Sharp-0.33-6E4A7E)
-![EXIF](https://img.shields.io/badge/EXIF-Native%20XMP%2FEXIF-3B7DDD)
-![License](https://img.shields.io/badge/License-MIT-22C55E)
+[![Electron](https://img.shields.io/badge/Electron-33.x-47848F?logo=electron&logoColor=white)](https://www.electronjs.org/)
+[![Vite](https://img.shields.io/badge/Vite-5.x-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
+[![React](https://img.shields.io/badge/React-18.x-149ECA?logo=react&logoColor=white)](https://react.dev/)
+[![Sharp](https://img.shields.io/badge/Sharp-0.33-6E4A7E)](https://sharp.pixelplumbing.com/)
+[![EXIF](https://img.shields.io/badge/EXIF-Native%20XMP%2FEXIF-3B7DDD)](#metadata)
+[![License](https://img.shields.io/badge/License-MIT-22C55E)](#лицензия)
+</div>
 
-### Highlights
+### Особенности
 
-- **Formats**: JPG, PNG, WEBP, AVIF, HEIC/HEIF
-- **Uniqueness**: controlled size and color drift, max width
-- **Metadata**: keep/wipe/write EXIF/IPTC/XMP (embedded; GPS cleanup)
-- **Fake EXIF**: advanced presets (camera/phone/action/drone/scanner), ISO/exposure/aperture/focal/GPS, rating/label/title, software/serial
-- **Naming**: tokens `{name}` `{index}` `{ext}` `{date}` `{uuid}` `{rand}`
-- **Native acceleration**: C++ addon for fast hashing and scanning, prebuilt in installer
-- **Faster duplicates**: WIC‑based gray decode for a/d/pHash on Windows, batch hashing in main process, xxHash64 by default
-- **Perceptual similarity**: aHash/dHash/pHash + Hamming distance; duplicate groups
-- **Progress**: ETA, speed, live updates, system notifications
-- **Auto‑update**: forced overlay while downloading; percent, speed, bytes and ETA; one‑click install
-- **Changelog/Notes**: GitHub Release notes + local CHANGELOG; in‑app "What’s new" modal
-- **Localization**: 16+ languages with selector (persisted)
- - **Fun tab**: Crash and Slots mini‑games; Slots with animated paylines and flexible bets; Crash crashes at a random moment unless you cash out
+- **Поддерживаемые форматы**: JPG, PNG, WEBP, AVIF, HEIC/HEIF
+- **Уникализация**: управляемые дрейфы размера/цвета, ограничение ширины
+- **Метаданные**: очистка/запись EXIF/IPTC/XMP, чистка GPS
+- **Fake EXIF**: пресеты camera/phone/action/drone/scanner; ISO/выдержка/диафрагма/фокус/GPS; рейтинг/метка/заголовок; software/серийник
+- **Гибкое именование**: `{name}` `{index}` `{ext}` `{date}` `{uuid}` `{rand}`
+- **Нативное ускорение**: C++ N‑API аддон, предсборки внутри инсталлятора
+- **Поиск похожих**: aHash/dHash/pHash + расстояние Хэмминга, кластеры
+- **Скорость на Windows**: WIC‑декод серого для a/d/pHash, пакетное хеширование
+- **Прогресс**: ETA, скорость, live‑ивенты, уведомления системы
+- **Авто‑обновления**: оверлей загрузки, %, скорость, байты, ETA; один клик установка
+- **Локализация**: RU/UK/EN в комплекте, переключатель и сохранение
+- **Fun**: вкладка Crash/Slots с анимациями
 
-### System requirements
+<img src="docs/flow.svg" alt="Flow" width="100%"/>
+
+### Системные требования
 
 - Windows 10/11 x64
-- No build tools required for users (installer ships prebuilt native module)
+- Пользователям не нужны dev‑инструменты (нативный модуль входит в установщик)
 
-## Quick start (dev)
+### Установка и запуск (dev)
 
 ```bash
 npm install
 npm run dev
 ```
 
-If PowerShell blocks npm, use:
-
-```bash
-cmd /c npm install
-cmd /c npm run dev
-```
-
-## Build (production)
+### Сборка (production)
 
 ```bash
 npm run build
 npm run dist
 ```
 
-## Release
-
-1. Update `CHANGELOG.md` and bump version (`npm run release:patch|minor|major`). Now at 2.5.1.
-2. Windows Explorer integration: create a shortcut to `PhotoUnikalizer.exe` in `%APPDATA%\Microsoft\Windows\SendTo` or install a context menu entry.
-3. Build prebuilds if native code changed: `npm run native:prebuild`.
-4. Build installer: `npm run dist`.
-5. Publish GitHub Release with notes (displayed in-app).
-
-## Tech stack
-
-- Electron (main/preload) for secure IPC
-- React + Vite for renderer
-- Native addon (N-API) + prebuilds
-- Sharp for image pipeline
-- Native embedded XMP/EXIF writer (no exiftool)
-
-## Scripts
+### Скрипты
 
 ```bash
-npm run dev          
-npm run dist     
+npm run dev
+npm run dist
 npm run native:build
-npm run native:prebuild  
+npm run native:prebuild
+npm run chat:build && npm run chat:server
+npm run assets:icons
 ```
 
-## License
+### Архитектура
+
+- **Electron main/preload**: изолированный IPC, окна без рамки, меню разработчика, авто‑обновления (`electron-updater`) с GitHub fallback
+- **Renderer (React + Vite + Tailwind)**: UI с анимациями (`framer-motion`, `@react-spring/web`), тосты, виртуальные гриды
+- **Нативный модуль (C++)**: `wicDecodeGray8`, a/d/pHash, индекс Хэмминга, кластеризация, запись/очистка метаданных
+- **WASM (AssemblyScript)**: вспомогательные хэши серого (a/dHash)
+- **Chat WS‑сервер**: `server/chat-server.ts` с админ‑панелью, geo‑IP событиями и историей
+
+### Metadata
+
+- Запись EXIF/IPTC/XMP встроенным нативным писателем без внешних утилит
+- Поля: автор, описание, copyright, ключевые слова, владелец, creator tool, рейтинг/метка/заголовок
+- GPS: полная очистка или генерация фейковых координат/высоты, пресеты локаций
+
+### Командная строка и настройки
+
+- Переменные окружения: `DEV_MENU_PASSWORD`, `CHAT_ADMIN_PASSWORD`, `INDIGO_*`
+- В рендерере доступ к API только через `preload` (`window.api.*`)
+
+### Release
+
+1. Обновить `CHANGELOG.md` и версию: `npm run release:patch|minor|major` (текущая 2.6.0)
+2. Предсборки нативного модуля при изменении C++: `npm run native:prebuild`
+3. Сборка инсталлятора: `npm run dist`
+4. Публикация GitHub Release с заметками (отображаются в приложении)
+
+### Три быстрых сценария
+
+- Массовая конверсия JPG→AVIF/HEIC с очисткой GPS и fake EXIF
+- Поиск дубликатов с помощью a/d/pHash и группировка по Хэммингу
+- Экспорт профилей Indigo по токену через встроенный инструмент
+
+### Технологии и версии
+
+- Electron ^33, Vite ^5, React ^18, Tailwind ^3
+- Sharp ^0.33, electron-updater ^6, ws ^8
+
+### Лицензия
 
 MIT © YALOKGAR
