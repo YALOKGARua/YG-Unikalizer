@@ -1,309 +1,468 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import confetti from 'canvas-confetti'
+import CountUp from 'react-countup'
+import Tilt from 'react-parallax-tilt'
+import { FaCoins, FaStar, FaTrophy, FaGem, FaCrown, FaFire, FaBolt, FaDice } from 'react-icons/fa'
+import Lottie from 'lottie-react'
 
-type SymbolId = 'W'|'7'|'BAR'|'C'|'A'|'K'|'Q'|'J'|'10'
-type Phase = 'idle'|'spinning'
+const SYMBOLS = [
+  { id: 'cherry', emoji: '🍒', value: 2, color: 'text-red-500' },
+  { id: 'lemon', emoji: '🍋', value: 3, color: 'text-yellow-400' },
+  { id: 'orange', emoji: '🍊', value: 4, color: 'text-orange-500' },
+  { id: 'plum', emoji: '🍇', value: 5, color: 'text-purple-500' },
+  { id: 'bell', emoji: '🔔', value: 10, color: 'text-yellow-300' },
+  { id: 'bar', emoji: '🍫', value: 15, color: 'text-amber-600' },
+  { id: 'seven', emoji: '7️⃣', value: 20, color: 'text-green-500' },
+  { id: 'diamond', emoji: '💎', value: 50, color: 'text-blue-400' },
+]
 
-function rng(seed: number) {
-  let s = seed >>> 0
-  return () => {
-    s ^= s << 13
-    s ^= s >>> 17
-    s ^= s << 5
-    return (s >>> 0) / 0xffffffff
-  }
+const PAYLINES = [
+  [[0, 0], [0, 1], [0, 2], [0, 3], [0, 4]],
+  [[1, 0], [1, 1], [1, 2], [1, 3], [1, 4]],
+  [[2, 0], [2, 1], [2, 2], [2, 3], [2, 4]],
+  [[0, 0], [1, 1], [2, 2], [1, 3], [0, 4]],
+  [[2, 0], [1, 1], [0, 2], [1, 3], [2, 4]],
+]
+
+interface SpinResult {
+  win: boolean
+  amount: number
+  lines: number[]
+  multiplier: number
 }
 
-function pickWeighted(r: () => number, items: Array<{ id: SymbolId; w: number }>) {
-  let sum = 0
-  for (const it of items) sum += it.w
-  const t = r() * sum
-  let acc = 0
-  for (const it of items) {
-    acc += it.w
-    if (t <= acc) return it.id
-  }
-  return items[items.length - 1].id
-}
-
-function generateStopMatrix(r: () => number, rows: number, reels: number) {
-  const weights: Array<{ id: SymbolId; w: number }> = [
-    { id: '10', w: 36 },
-    { id: 'J', w: 34 },
-    { id: 'Q', w: 32 },
-    { id: 'K', w: 30 },
-    { id: 'A', w: 28 },
-    { id: 'C', w: 16 },
-    { id: 'BAR', w: 12 },
-    { id: '7', w: 8 },
-    { id: 'W', w: 3 }
-  ]
-  const m: SymbolId[][] = []
-  for (let c = 0; c < reels; c++) {
-    const col: SymbolId[] = []
-    for (let rIdx = 0; rIdx < rows; rIdx++) col.push(pickWeighted(r, weights))
-    m.push(col)
-  }
-  return m
-}
-
-function formatMoney(v: number) {
-  return v.toFixed(0) + '$'
-}
-
-export default function SlotsGame() {
-  const rows = 3
-  const reels = 5
-  const [balance, setBalance] = useState(1000)
-  const [betPerLine, setBetPerLine] = useState(2)
-  const [lines, setLines] = useState(10)
-  const totalBet = betPerLine * lines
-  const [phase, setPhase] = useState<Phase>('idle')
-  const [seed, setSeed] = useState(() => Date.now())
-  const rand = useMemo(() => rng(seed), [seed])
-  const [grid, setGrid] = useState<SymbolId[][]>(() => generateStopMatrix(rand, rows, reels))
-  const [finalGrid, setFinalGrid] = useState<SymbolId[][] | null>(null)
+const SlotsGame = () => {
+  const [balance, setBalance] = useState(10000)
+  const [bet, setBet] = useState(100)
+  const [isSpinning, setIsSpinning] = useState(false)
+  const [reels, setReels] = useState<typeof SYMBOLS[][]>([])
+  const [winningLines, setWinningLines] = useState<number[]>([])
   const [lastWin, setLastWin] = useState(0)
-  const spinTimersRef = useRef<number[]>([])
-  const tickTimersRef = useRef<number[]>([])
-  const [highlight, setHighlight] = useState<{ lineIndex: number; count: number }[]>([])
-  const [winAnim, setWinAnim] = useState(false)
-  const containerRef = useRef<HTMLDivElement | null>(null)
-  const tileRefs = useRef<(HTMLDivElement | null)[][]>(Array.from({ length: reels }, () => Array.from({ length: rows }, () => null)))
-  const [boxSize, setBoxSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 })
-  const [tileCenters, setTileCenters] = useState<{ x: number; y: number }[][]>([])
+  const [totalSpins, setTotalSpins] = useState(0)
+  const [totalWins, setTotalWins] = useState(0)
+  const [biggestWin, setBiggestWin] = useState(0)
+  const [showWinAnimation, setShowWinAnimation] = useState(false)
+  const [currentMultiplier, setCurrentMultiplier] = useState(1)
+  const [autoPlay, setAutoPlay] = useState(false)
+  const [turboMode, setTurboMode] = useState(false)
+  const [jackpot, setJackpot] = useState(50000)
+  
+  const audioRef = useRef<HTMLAudioElement>(null)
+  const autoPlayIntervalRef = useRef<any>(null)
 
-  const paytable: Record<SymbolId, {3?: number; 4?: number; 5?: number}> = {
-    W: { 3: 200, 4: 500, 5: 2000 },
-    '7': { 3: 100, 4: 300, 5: 1000 },
-    BAR: { 3: 80, 4: 200, 5: 800 },
-    C: { 3: 60, 4: 160, 5: 600 },
-    A: { 3: 40, 4: 80, 5: 200 },
-    K: { 3: 40, 4: 80, 5: 200 },
-    Q: { 3: 30, 4: 60, 5: 160 },
-    J: { 3: 20, 4: 40, 5: 120 },
-    '10': { 3: 20, 4: 40, 5: 120 }
+  useEffect(() => {
+    initializeReels()
+    const jackpotInterval = setInterval(() => {
+      setJackpot(prev => prev + Math.floor(Math.random() * 100))
+    }, 5000)
+    return () => clearInterval(jackpotInterval)
+  }, [])
+
+  const initializeReels = () => {
+    const initialReels = []
+    for (let i = 0; i < 5; i++) {
+      const reel = []
+      for (let j = 0; j < 3; j++) {
+        reel.push(SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)])
+      }
+      initialReels.push(reel)
+    }
+    setReels(initialReels)
   }
 
-  const paylines: number[][] = [
-    [1,1,1,1,1],
-    [0,0,0,0,0],
-    [2,2,2,2,2],
-    [0,1,2,1,0],
-    [2,1,0,1,2],
-    [0,0,1,0,0],
-    [2,2,1,2,2],
-    [1,0,0,0,1],
-    [1,2,2,2,1],
-    [0,1,1,1,0]
-  ]
-
-  const linePoints = useMemo(() => {
-    const w = Math.max(1, boxSize.w)
-    const h = Math.max(1, boxSize.h)
-    if (tileCenters.length === reels && tileCenters[0] && tileCenters[0].length === rows) {
-      return paylines.map(line => line.map((row, c) => tileCenters[c][row]))
+  const spin = async () => {
+    if (isSpinning || bet > balance || bet <= 0) return
+    
+    setIsSpinning(true)
+    setBalance(prev => prev - bet)
+    setWinningLines([])
+    setLastWin(0)
+    setShowWinAnimation(false)
+    setTotalSpins(prev => prev + 1)
+    
+    const spinDuration = turboMode ? 500 : 1500
+    const newReels: typeof SYMBOLS[][] = []
+    
+    for (let i = 0; i < 5; i++) {
+      setTimeout(() => {
+        const reel = []
+        for (let j = 0; j < 3; j++) {
+          reel.push(SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)])
+        }
+        newReels[i] = reel
+        
+        if (i === 4) {
+          setReels([...newReels])
+          checkWin(newReels)
+        }
+      }, (i + 1) * (spinDuration / 5))
     }
-    return paylines.map(line => line.map((row, c) => ({ x: ((c + 0.5) / reels) * w, y: ((row + 0.5) / rows) * h })))
-  }, [tileCenters, boxSize, reels, rows])
+  }
 
-  const lineColors = ['#22d3ee','#f472b6','#f59e0b','#10b981','#60a5fa','#a78bfa','#f87171','#34d399','#fb7185','#fde047']
-
-  function evaluateWins(g: SymbolId[][]) {
-    let total = 0
-    const wins: { lineIndex: number; count: number }[] = []
-    for (let li = 0; li < Math.min(lines, paylines.length); li++) {
-      const line = paylines[li]
-      const seq: SymbolId[] = []
-      for (let c = 0; c < reels; c++) seq.push(g[c][line[c]])
-      let base: SymbolId | null = null
-      for (let i = 0; i < seq.length; i++) { if (seq[i] !== 'W') { base = seq[i]; break } }
-      if (!base) base = 'W'
-      let count = 0
-      for (let i = 0; i < seq.length; i++) { if (seq[i] === base || seq[i] === 'W') count++; else break }
-      if (count >= 3) {
-        const mul = (paytable[base][count as 3|4|5] || 0)
-        const win = betPerLine * mul
-        total += win
-        wins.push({ lineIndex: li, count })
+  const checkWin = (currentReels: typeof SYMBOLS[][]) => {
+    let totalWinAmount = 0
+    const winLines: number[] = []
+    let maxMultiplier = 1
+    
+    PAYLINES.forEach((line, lineIndex) => {
+      const symbols = line.map(([row, col]) => currentReels[col][row])
+      const firstSymbol = symbols[0]
+      
+      let matchCount = 1
+      for (let i = 1; i < symbols.length; i++) {
+        if (symbols[i].id === firstSymbol.id) {
+          matchCount++
+        } else {
+          break
+        }
+      }
+      
+      if (matchCount >= 3) {
+        winLines.push(lineIndex)
+        const winAmount = firstSymbol.value * matchCount * bet / 10
+        totalWinAmount += winAmount
+        
+        if (matchCount === 5) {
+          maxMultiplier = Math.max(maxMultiplier, 3)
+          if (firstSymbol.id === 'diamond') {
+            maxMultiplier = 10
+            checkJackpot()
+          }
+        } else if (matchCount === 4) {
+          maxMultiplier = Math.max(maxMultiplier, 2)
+        }
+      }
+    })
+    
+    if (totalWinAmount > 0) {
+      const finalWin = Math.floor(totalWinAmount * maxMultiplier)
+      setBalance(prev => prev + finalWin)
+      setLastWin(finalWin)
+      setWinningLines(winLines)
+      setCurrentMultiplier(maxMultiplier)
+      setTotalWins(prev => prev + 1)
+      setBiggestWin(prev => Math.max(prev, finalWin))
+      setShowWinAnimation(true)
+      
+      if (finalWin > bet * 5) {
+        confetti({
+          particleCount: 200,
+          spread: 100,
+          origin: { y: 0.5 },
+          colors: ['#fbbf24', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6']
+        })
       }
     }
-    return { total, wins }
+    
+    setTimeout(() => {
+      setIsSpinning(false)
+      setShowWinAnimation(false)
+    }, turboMode ? 500 : 1500)
   }
 
-  function startSpin() {
-    if (phase !== 'idle') return
-    if (totalBet <= 0 || totalBet > balance) return
-    setBalance(v => v - totalBet)
-    setLastWin(0)
-    setHighlight([])
-    setWinAnim(false)
-    const r = rng(Date.now())
-    const target = generateStopMatrix(r, rows, reels)
-    setFinalGrid(target)
-    setPhase('spinning')
-    setSeed(Date.now())
-    spinTimersRef.current.forEach(id => clearTimeout(id))
-    tickTimersRef.current.forEach(id => clearInterval(id))
-    spinTimersRef.current = []
-    tickTimersRef.current = []
-    const stops = [700, 1000, 1300, 1600, 1900]
-    for (let c = 0; c < reels; c++) {
-      const tick = window.setInterval(() => {
-        setGrid(g => {
-          const ng: SymbolId[][] = g.map(col => col.slice())
-          const newCol: SymbolId[] = []
-          for (let rIdx = 0; rIdx < rows; rIdx++) newCol.push(pickWeighted(rand, [
-            { id: '10', w: 36 },
-            { id: 'J', w: 34 },
-            { id: 'Q', w: 32 },
-            { id: 'K', w: 30 },
-            { id: 'A', w: 28 },
-            { id: 'C', w: 16 },
-            { id: 'BAR', w: 12 },
-            { id: '7', w: 8 },
-            { id: 'W', w: 3 }
-          ]))
-          ng[c] = newCol
-          return ng
-        })
-      }, 50)
-      tickTimersRef.current.push(tick)
-      const stop = window.setTimeout(() => {
-        window.clearInterval(tick)
-        setGrid(g => {
-          const ng: SymbolId[][] = g.map(col => col.slice())
-          ng[c] = finalGrid ? finalGrid[c] : target[c]
-          return ng
-        })
-        if (c === reels - 1) {
-          const { total, wins } = evaluateWins(target)
-          setLastWin(total)
-          if (total > 0) setBalance(v => v + total)
-          setHighlight(wins)
-          window.setTimeout(() => setWinAnim(true), 30)
-          setPhase('idle')
-        }
-      }, stops[c])
-      spinTimersRef.current.push(stop)
+  const checkJackpot = () => {
+    const jackpotWin = Math.floor(jackpot * 0.1)
+    setBalance(prev => prev + jackpotWin)
+    setJackpot(50000)
+    
+    confetti({
+      particleCount: 500,
+      spread: 180,
+      origin: { y: 0.5 },
+      colors: ['#fbbf24', '#f59e0b', '#dc2626', '#10b981', '#3b82f6', '#8b5cf6']
+    })
+  }
+
+  const toggleAutoPlay = () => {
+    setAutoPlay(!autoPlay)
+    if (!autoPlay) {
+      autoPlayIntervalRef.current = setInterval(() => {
+        spin()
+      }, turboMode ? 1000 : 2500)
+    } else {
+      if (autoPlayIntervalRef.current) {
+        clearInterval(autoPlayIntervalRef.current)
+      }
     }
   }
 
   useEffect(() => {
-    function recalc() {
-      const box = containerRef.current
-      if (!box) return
-      const boxRect = box.getBoundingClientRect()
-      const pts: { x: number; y: number }[][] = []
-      for (let c = 0; c < reels; c++) {
-        const col: { x: number; y: number }[] = []
-        for (let rIdx = 0; rIdx < rows; rIdx++) {
-          const el = tileRefs.current[c][rIdx]
-          if (el) {
-            const rr = el.getBoundingClientRect()
-            col.push({ x: rr.left - boxRect.left + rr.width / 2, y: rr.top - boxRect.top + rr.height / 2 })
-          } else {
-            col.push({ x: ((c + 0.5) / reels) * boxRect.width, y: ((rIdx + 0.5) / rows) * boxRect.height })
-          }
-        }
-        pts.push(col)
-      }
-      setBoxSize({ w: boxRect.width, h: boxRect.height })
-      setTileCenters(pts)
-    }
-    const id = window.setTimeout(recalc, 0)
-    window.addEventListener('resize', recalc)
     return () => {
-      window.removeEventListener('resize', recalc)
-      window.clearTimeout(id)
-      spinTimersRef.current.forEach(id => clearTimeout(id))
-      tickTimersRef.current.forEach(id => clearInterval(id))
-      spinTimersRef.current = []
-      tickTimersRef.current = []
+      if (autoPlayIntervalRef.current) {
+        clearInterval(autoPlayIntervalRef.current)
+      }
     }
   }, [])
 
-  function symbolLabel(id: SymbolId) {
-    if (id === 'W') return 'WILD'
-    if (id === 'BAR') return 'BAR'
-    if (id === '7') return '7'
-    return id
-  }
-
-  function symbolColor(id: SymbolId) {
-    if (id === 'W') return 'from-amber-400 to-yellow-600'
-    if (id === '7') return 'from-rose-400 to-red-600'
-    if (id === 'BAR') return 'from-slate-300 to-slate-500'
-    if (id === 'C') return 'from-cyan-300 to-sky-600'
-    if (id === 'A') return 'from-emerald-300 to-emerald-600'
-    if (id === 'K') return 'from-indigo-300 to-indigo-600'
-    if (id === 'Q') return 'from-fuchsia-300 to-fuchsia-600'
-    if (id === 'J') return 'from-lime-300 to-lime-600'
-    return 'from-orange-300 to-orange-600'
+  const quickBet = (amount: number) => {
+    setBet(Math.min(amount, balance))
   }
 
   return (
-    <div className="h-full w-full flex flex-col">
-      <div className="flex items-center gap-3 p-3 border-b border-white/10 bg-black/30">
-        <div className="text-xs opacity-60">author YALOKGAR</div>
-        <div className="ml-auto flex items-center gap-2">
-          <div className="px-2 py-1 rounded bg-slate-800 text-xs">{formatMoney(balance)}</div>
-        </div>
-      </div>
-      <div className="flex-1 relative flex items-center justify-center p-4">
-        <div ref={containerRef} className="relative w-full max-w-[1100px] aspect-[16/9] h-[60vh] max-h-[560px] rounded-xl overflow-hidden border border-white/10 bg-slate-950 shadow-[0_20px_60px_rgba(0,0,0,0.45)] flex">
-          <div className="flex-1 p-4 flex gap-2 items-stretch">
-            {Array.from({ length: reels }).map((_, c) => (
-              <div key={c} className="flex flex-col gap-2 flex-1">
-                {Array.from({ length: rows }).map((_, rIdx) => {
-                  const id = grid[c][rIdx]
-                  const isHot = highlight.some(h => c < h.count && paylines[h.lineIndex][c] === rIdx)
-                  return (
-                    <div ref={(el)=>{ tileRefs.current[c][rIdx] = el }} key={rIdx} className={`flex-1 rounded-lg border ${isHot?'border-amber-400/80 shadow-lg shadow-amber-400/30':''} ${!isHot?'border-white/10':''} bg-gradient-to-br ${symbolColor(id)} flex items-center justify-center text-slate-900 text-2xl font-extrabold select-none ${isHot && winAnim ? 'animate-pulse' : ''}`}>{symbolLabel(id)}</div>
-                  )
-                })}
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-pink-900 to-red-900 p-4">
+      <div className="max-w-7xl mx-auto space-y-6">
+        
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center"
+        >
+          <h1 className="text-5xl font-bold bg-gradient-to-r from-yellow-400 via-red-500 to-pink-500 bg-clip-text text-transparent mb-2">
+            🎰 Mega Slots
+          </h1>
+          <div className="flex items-center justify-center gap-4">
+            <p className="text-white/60">Испытай удачу в лучших слотах!</p>
+            <motion.div
+              animate={{ scale: [1, 1.1, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="flex items-center gap-2 bg-gradient-to-r from-yellow-500 to-yellow-600 px-4 py-2 rounded-full"
+            >
+              <FaCrown className="text-white" />
+              <span className="text-white font-bold">
+                ДЖЕКПОТ: <CountUp end={jackpot} prefix="$" />
+              </span>
+            </motion.div>
+          </div>
+        </motion.div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="lg:col-span-3 bg-gradient-to-br from-slate-900/90 to-purple-900/90 backdrop-blur-sm rounded-3xl p-8 border border-white/20 shadow-2xl"
+          >
+            <AnimatePresence>
+              {showWinAnimation && (
+                <motion.div
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0, opacity: 0 }}
+                  className="absolute inset-0 flex flex-col items-center justify-center z-20 pointer-events-none"
+                >
+                  <motion.div
+                    animate={{ rotate: [0, 360] }}
+                    transition={{ duration: 1 }}
+                    className="text-8xl font-bold text-yellow-400 mb-4"
+                  >
+                    🎊
+                  </motion.div>
+                  <div className="text-6xl font-bold text-yellow-400 drop-shadow-lg">
+                    +<CountUp end={lastWin} prefix="$" />
+                  </div>
+                  {currentMultiplier > 1 && (
+                    <div className="text-2xl font-bold text-pink-400 mt-2">
+                      x{currentMultiplier} МНОЖИТЕЛЬ!
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div className="relative bg-gradient-to-b from-purple-800/50 to-pink-800/50 rounded-2xl p-6 mb-6 border-4 border-yellow-400/50 shadow-inner">
+              <div className="grid grid-cols-5 gap-2">
+                {reels.map((reel, reelIndex) => (
+                  <div key={reelIndex} className="space-y-2">
+                    {reel.map((symbol, symbolIndex) => {
+                      const isWinning = winningLines.some(lineIndex => 
+                        PAYLINES[lineIndex].some(([row, col]) => 
+                          col === reelIndex && row === symbolIndex
+                        )
+                      )
+                      
+                      return (
+                        <motion.div
+                          key={`${reelIndex}-${symbolIndex}`}
+                          initial={{ rotateX: 0 }}
+                          animate={isSpinning ? {
+                            rotateX: [0, 360],
+                          } : {
+                            rotateX: 0,
+                            scale: isWinning ? [1, 1.2, 1] : 1
+                          }}
+                          transition={isSpinning ? {
+                            duration: turboMode ? 0.3 : 0.8,
+                            repeat: Infinity,
+                            ease: 'linear',
+                            delay: reelIndex * 0.1
+                          } : {
+                            duration: 0.5,
+                            repeat: isWinning ? Infinity : 0
+                          }}
+                          className={`
+                            h-24 flex items-center justify-center text-6xl
+                            bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl
+                            border-2 transition-all
+                            ${isWinning 
+                              ? 'border-yellow-400 shadow-lg shadow-yellow-400/50' 
+                              : 'border-white/20'
+                            }
+                          `}
+                        >
+                          <span className={symbol.color}>{symbol.emoji}</span>
+                        </motion.div>
+                      )
+                    })}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-          <svg className="absolute inset-0 pointer-events-none" viewBox={`0 0 ${Math.max(1, boxSize.w)} ${Math.max(1, boxSize.h)}`} preserveAspectRatio="none">
-            {linePoints.slice(0, lines).map((pts, li) => {
-              const d = pts.map((p, i) => `${i===0?'M':'L'} ${Math.round(p.x)} ${Math.round(p.y)}`).join(' ')
-              return (
-                <path key={`base-${li}`} d={d} pathLength={100} fill="none" stroke={lineColors[li%lineColors.length]} strokeWidth={6} strokeLinecap="round" strokeLinejoin="round" opacity={0.22} strokeDasharray="8 10" />
-              )
-            })}
-            {highlight.map((h, idx) => {
-              const pts = linePoints[h.lineIndex].slice(0, Math.max(1, h.count))
-              const d = pts.map((p, i) => `${i===0?'M':'L'} ${Math.round(p.x)} ${Math.round(p.y)}`).join(' ')
-              const color = lineColors[h.lineIndex%lineColors.length]
-              return (
-                <path key={`win-${h.lineIndex}-${idx}`} d={d} pathLength={100} fill="none" stroke={color} strokeWidth={10} strokeLinecap="round" strokeLinejoin="round" style={{ strokeDasharray: 100, strokeDashoffset: winAnim ? 0 : 100, transition: 'stroke-dashoffset 600ms ease' }} />
-              )
-            })}
-          </svg>
-        </div>
-      </div>
-      <div className="p-3 border-t border-white/10 bg-black/40">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <button className="btn btn-ghost text-sm" onClick={()=>setBetPerLine(Math.max(1, betPerLine-1))} disabled={phase==='spinning'}>-</button>
-            <div className="px-2 py-1 rounded bg-slate-900 border border-white/10 text-sm w-20 text-center">{betPerLine}</div>
-            <button className="btn btn-ghost text-sm" onClick={()=>setBetPerLine(Math.min(100, betPerLine+1))} disabled={phase==='spinning'}>+</button>
-          </div>
-          <div className="flex items-center gap-2">
-            <button className="btn btn-ghost text-sm" onClick={()=>setLines(Math.max(1, lines-1))} disabled={phase==='spinning'}>-</button>
-            <div className="px-2 py-1 rounded bg-slate-900 border border-white/10 text-sm w-24 text-center">{lines} lines</div>
-            <button className="btn btn-ghost text-sm" onClick={()=>setLines(Math.min(10, lines+1))} disabled={phase==='spinning'}>+</button>
-          </div>
-          <div className="hidden md:flex items-center gap-1">
-            {[1,2,5,10,20,50].map(v => (
-              <button key={v} className="btn btn-ghost text-xs" onClick={()=>setBetPerLine(v)} disabled={phase==='spinning'}>{v}</button>
-            ))}
-          </div>
-          <button className="btn btn-primary text-sm" onClick={startSpin} disabled={phase!=='idle' || totalBet>balance}>Spin</button>
-          <div className="ml-auto text-xs opacity-80">Bet {formatMoney(totalBet)}</div>
-          {lastWin>0 && <div className="text-emerald-400 text-sm font-semibold">+{formatMoney(lastWin)}</div>}
+
+              <div className="absolute -inset-1 bg-gradient-to-r from-yellow-400 via-red-500 to-pink-500 rounded-2xl opacity-20 blur-xl animate-pulse" />
+            </div>
+
+            <div className="flex gap-4">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={spin}
+                disabled={isSpinning || autoPlay}
+                className={`flex-1 py-4 rounded-2xl font-bold text-xl transition-all shadow-xl ${
+                  isSpinning || autoPlay
+                    ? 'bg-gray-700 cursor-not-allowed' 
+                    : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white'
+                }`}
+              >
+                <div className="flex items-center justify-center gap-3">
+                  <FaDice className="text-2xl" />
+                  {isSpinning ? 'ВРАЩЕНИЕ...' : 'КРУТИТЬ'}
+                </div>
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={toggleAutoPlay}
+                className={`px-8 py-4 rounded-2xl font-bold transition-all ${
+                  autoPlay
+                    ? 'bg-gradient-to-r from-red-500 to-red-600 text-white' 
+                    : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white'
+                }`}
+              >
+                {autoPlay ? 'СТОП' : 'АВТО'}
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setTurboMode(!turboMode)}
+                className={`px-8 py-4 rounded-2xl font-bold transition-all ${
+                  turboMode
+                    ? 'bg-gradient-to-r from-orange-500 to-red-600 text-white' 
+                    : 'bg-gradient-to-r from-gray-600 to-gray-700 text-white'
+                }`}
+              >
+                <FaBolt className={turboMode ? 'text-yellow-300' : ''} />
+              </motion.button>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="space-y-4"
+          >
+            <Tilt tiltMaxAngleX={5} tiltMaxAngleY={5}>
+              <div className="bg-gradient-to-br from-yellow-600/30 to-orange-600/30 backdrop-blur-sm rounded-2xl p-6 border border-yellow-400/30">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-white/80 font-semibold">Баланс</span>
+                  <FaCoins className="text-yellow-400 text-2xl" />
+                </div>
+                <div className="text-4xl font-bold text-white">
+                  <CountUp end={balance} prefix="$" />
+                </div>
+                {lastWin > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-2 text-green-400 font-semibold"
+                  >
+                    +${lastWin}
+                  </motion.div>
+                )}
+              </div>
+            </Tilt>
+
+            <div className="bg-slate-800/80 backdrop-blur-sm rounded-2xl p-6 border border-white/10 space-y-4">
+              <div>
+                <label className="text-white/80 text-sm mb-2 block font-semibold">
+                  Ставка
+                </label>
+                <input
+                  type="number"
+                  value={bet}
+                  onChange={(e) => setBet(Number(e.target.value))}
+                  className="w-full bg-slate-900/80 border border-white/20 rounded-xl px-4 py-3 text-white font-bold text-lg"
+                  min={1}
+                  max={balance}
+                />
+                <div className="grid grid-cols-2 gap-2 mt-3">
+                  {[100, 500, 1000, 5000].map(amount => (
+                    <motion.button
+                      key={amount}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => quickBet(amount)}
+                      className="py-2 bg-gradient-to-r from-purple-600/50 to-pink-600/50 hover:from-purple-600 hover:to-pink-600 rounded-lg text-white font-semibold"
+                    >
+                      ${amount}
+                    </motion.button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-purple-800/30 to-pink-800/30 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
+              <h3 className="text-white font-bold mb-4 flex items-center gap-2">
+                <FaTrophy className="text-yellow-400 text-xl" />
+                Статистика
+              </h3>
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between items-center">
+                  <span className="text-white/70">Всего спинов:</span>
+                  <span className="text-white font-semibold">{totalSpins}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-white/70">Выигрышей:</span>
+                  <span className="text-green-400 font-semibold">{totalWins}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-white/70">Лучший выигрыш:</span>
+                  <span className="text-yellow-400 font-bold text-lg">${biggestWin}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-white/70">Винрейт:</span>
+                  <span className="text-blue-400 font-semibold">
+                    {totalSpins > 0 ? Math.round((totalWins / totalSpins) * 100) : 0}%
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+              <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+                <FaGem className="text-purple-400" />
+                Таблица выплат
+              </h3>
+              <div className="space-y-2 text-xs">
+                {SYMBOLS.slice(-4).map(symbol => (
+                  <div key={symbol.id} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl">{symbol.emoji}</span>
+                      <span className="text-white/60">x3/x4/x5</span>
+                    </div>
+                    <span className="text-white font-semibold">
+                      {symbol.value * 3}/{symbol.value * 4}/{symbol.value * 5}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
         </div>
       </div>
     </div>
   )
 }
+
+export default SlotsGame

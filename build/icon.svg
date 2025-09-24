@@ -1,39 +1,123 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
   <defs>
-    <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#4f46e5"/>
-      <stop offset="1" stop-color="#06b6d4"/>
+    <!-- Основной градиент -->
+    <linearGradient id="mainGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="25%" stop-color="#8b5cf6"/>
+      <stop offset="50%" stop-color="#a855f7"/>
+      <stop offset="75%" stop-color="#ec4899"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
     </linearGradient>
-    <radialGradient id="g2" cx="50%" cy="45%" r="60%">
-      <stop offset="0" stop-color="#101827"/>
-      <stop offset="1" stop-color="#0b1324"/>
+    
+    <!-- Градиент для объектива -->
+    <radialGradient id="lensGradient" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="50%" stop-color="#334155"/>
+      <stop offset="100%" stop-color="#0f172a"/>
     </radialGradient>
+    
+    <!-- Градиент для внутреннего кольца -->
+    <radialGradient id="innerGradient" cx="50%" cy="50%" r="80%">
+      <stop offset="0%" stop-color="#06b6d4"/>
+      <stop offset="100%" stop-color="#0891b2"/>
+    </radialGradient>
+    
+    <!-- Тень -->
+    <filter id="shadow">
+      <feDropShadow dx="4" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.3"/>
+    </filter>
+    
+    <!-- Свечение -->
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+      <feMerge> 
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/> 
+      </feMerge>
+    </filter>
   </defs>
-
-  <rect x="96" y="128" rx="128" ry="128" width="832" height="768" fill="url(#g2)"/>
-  <rect x="96" y="128" rx="128" ry="128" width="832" height="768" fill="none" stroke="url(#g1)" stroke-width="24"/>
-
-  <circle cx="512" cy="512" r="248" fill="#0f172a" stroke="#1f2a44" stroke-width="20"/>
-  <circle cx="512" cy="512" r="220" fill="none" stroke="url(#g1)" stroke-width="18"/>
-
-  <g transform="translate(512 512)">
-    <path d="M0,-200 L-24,-88 L120,-120 Z" fill="#4f46e5" opacity="0.95"/>
-    <path d="M200,0 L88,24 L120,-120 Z" fill="#60a5fa" opacity="0.9"/>
-    <path d="M0,200 L24,88 L-120,120 Z" fill="#06b6d4" opacity="0.95"/>
-    <path d="M-200,0 L-88,-24 L-120,120 Z" fill="#34d399" opacity="0.9"/>
-    <path d="M-120,-120 L-24,-88 L-88,24 Z" fill="#818cf8" opacity="0.9"/>
-    <path d="M120,120 L24,88 L88,-24 Z" fill="#22d3ee" opacity="0.9"/>
+  
+  <!-- Фон -->
+  <rect width="1024" height="1024" rx="180" ry="180" fill="url(#mainGradient)"/>
+  
+  <!-- Основной корпус камеры -->
+  <rect x="128" y="256" width="768" height="512" rx="64" ry="64" 
+        fill="#1e293b" stroke="#475569" stroke-width="6" filter="url(#shadow)"/>
+  
+  <!-- Объектив (основное кольцо) -->
+  <circle cx="512" cy="512" r="220" fill="url(#lensGradient)" 
+          stroke="#64748b" stroke-width="8" filter="url(#shadow)"/>
+  
+  <!-- Внутреннее кольцо объектива -->
+  <circle cx="512" cy="512" r="180" fill="none" 
+          stroke="url(#innerGradient)" stroke-width="12" filter="url(#glow)"/>
+  
+  <!-- Средний круг объектива -->
+  <circle cx="512" cy="512" r="140" fill="#0f172a" 
+          stroke="#1e293b" stroke-width="6"/>
+  
+  <!-- Внутренний объектив -->
+  <circle cx="512" cy="512" r="100" fill="url(#innerGradient)" opacity="0.8"/>
+  
+  <!-- Центральный элемент -->
+  <circle cx="512" cy="512" r="60" fill="#1e293b"/>
+  <circle cx="512" cy="512" r="40" fill="url(#mainGradient)" opacity="0.9"/>
+  <circle cx="512" cy="512" r="20" fill="#0ea5e9"/>
+  
+  <!-- Лепестки диафрагмы -->
+  <g transform="translate(512,512)" opacity="0.7">
+    <path d="M0,-80 L-16,-40 L16,-40 Z" fill="#6366f1" transform="rotate(0)"/>
+    <path d="M0,-80 L-16,-40 L16,-40 Z" fill="#8b5cf6" transform="rotate(45)"/>
+    <path d="M0,-80 L-16,-40 L16,-40 Z" fill="#a855f7" transform="rotate(90)"/>
+    <path d="M0,-80 L-16,-40 L16,-40 Z" fill="#ec4899" transform="rotate(135)"/>
+    <path d="M0,-80 L-16,-40 L16,-40 Z" fill="#f59e0b" transform="rotate(180)"/>
+    <path d="M0,-80 L-16,-40 L16,-40 Z" fill="#06b6d4" transform="rotate(225)"/>
+    <path d="M0,-80 L-16,-40 L16,-40 Z" fill="#10b981" transform="rotate(270)"/>
+    <path d="M0,-80 L-16,-40 L16,-40 Z" fill="#6366f1" transform="rotate(315)"/>
   </g>
-
-  <circle cx="512" cy="512" r="56" fill="#0ea5e9"/>
-  <circle cx="512" cy="512" r="28" fill="#67e8f9"/>
-
-  <g transform="translate(768 256)">
-    <circle cx="0" cy="0" r="36" fill="#0ea5e9" opacity="0.2"/>
-    <path d="M0,-28 L6,-6 L28,-6 L10,6 L16,28 L0,14 L-16,28 L-10,6 L-28,-6 L-6,-6 Z" fill="url(#g1)"/>
+  
+  <!-- Верхняя часть камеры -->
+  <rect x="256" y="200" width="512" height="64" rx="32" ry="32" 
+        fill="#334155" stroke="#475569" stroke-width="4"/>
+  
+  <!-- Видоискатель -->
+  <rect x="384" y="160" width="256" height="48" rx="24" ry="24" 
+        fill="#0f172a" stroke="url(#mainGradient)" stroke-width="3"/>
+  
+  <!-- Кнопка спуска -->
+  <circle cx="320" cy="232" r="24" fill="url(#mainGradient)" filter="url(#glow)"/>
+  <circle cx="320" cy="232" r="16" fill="#1e293b"/>
+  
+  <!-- Логотип/текст область -->
+  <rect x="480" y="320" width="160" height="32" rx="16" ry="16" 
+        fill="#1e293b" stroke="url(#mainGradient)" stroke-width="2" opacity="0.8"/>
+  
+  <!-- Дополнительные элементы интерфейса -->
+  <rect x="200" y="400" width="80" height="32" rx="16" ry="16" 
+        fill="#374151" stroke="#6b7280" stroke-width="2"/>
+  <rect x="744" y="400" width="80" height="32" rx="16" ry="16" 
+        fill="#374151" stroke="#6b7280" stroke-width="2"/>
+  
+  <!-- Индикаторы -->
+  <circle cx="280" cy="320" r="8" fill="#22c55e" filter="url(#glow)"/>
+  <circle cx="744" cy="320" r="8" fill="#ef4444" filter="url(#glow)"/>
+  
+  <!-- Абстрактные элементы уникализации -->
+  <g opacity="0.6">
+    <path d="M128,128 Q256,64 384,128" stroke="url(#mainGradient)" 
+          stroke-width="4" fill="none" filter="url(#glow)"/>
+    <path d="M640,128 Q768,64 896,128" stroke="url(#mainGradient)" 
+          stroke-width="4" fill="none" filter="url(#glow)"/>
+    <path d="M128,896 Q256,960 384,896" stroke="url(#mainGradient)" 
+          stroke-width="4" fill="none" filter="url(#glow)"/>
+    <path d="M640,896 Q768,960 896,896" stroke="url(#mainGradient)" 
+          stroke-width="4" fill="none" filter="url(#glow)"/>
   </g>
-
-  <rect x="184" y="184" width="160" height="80" rx="24" fill="#111827" stroke="#1f2937" stroke-width="8"/>
-  <circle cx="232" cy="224" r="16" fill="#4f46e5"/>
-  <rect x="264" y="208" width="64" height="32" rx="12" fill="#1f2937"/>
+  
+  <!-- Версия 3.0 индикатор -->
+  <g transform="translate(832,192)">
+    <circle cx="0" cy="0" r="32" fill="url(#mainGradient)" filter="url(#glow)"/>
+    <text x="0" y="8" text-anchor="middle" font-family="Arial" font-size="24" 
+          font-weight="bold" fill="white">3</text>
+  </g>
 </svg>

@@ -1,7 +1,7 @@
 const fs = require('fs')
 const path = require('path')
 const sharp = require('sharp')
-const pngToIco = require('png-to-ico')
+const pngToIco = require('png-to-ico').default || require('png-to-ico')
 
 async function ensureDir(p) {
   await fs.promises.mkdir(p, { recursive: true })

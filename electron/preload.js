@@ -167,6 +167,11 @@ import_electron.contextBridge.exposeInMainWorld("api", {
     import_electron.ipcRenderer.on("update-downloaded", listener);
     return () => import_electron.ipcRenderer.removeListener("update-downloaded", listener);
   },
+  onWhatsNew: (cb) => {
+    const listener = (_, payload) => cb(payload);
+    import_electron.ipcRenderer.on("show-whats-new", listener);
+    return () => import_electron.ipcRenderer.removeListener("show-whats-new", listener);
+  },
   win: {
     minimize: () => import_electron.ipcRenderer.invoke("win-minimize"),
     maximize: () => import_electron.ipcRenderer.invoke("win-maximize"),

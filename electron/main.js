@@ -2503,9 +2503,9 @@ var require_lib = __commonJS({
   }
 });
 
-// node_modules/electron-updater/node_modules/builder-util-runtime/out/CancellationToken.js
+// node_modules/builder-util-runtime/out/CancellationToken.js
 var require_CancellationToken = __commonJS({
-  "node_modules/electron-updater/node_modules/builder-util-runtime/out/CancellationToken.js"(exports2) {
+  "node_modules/builder-util-runtime/out/CancellationToken.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.CancellationError = exports2.CancellationToken = void 0;
@@ -2609,9 +2609,9 @@ var require_CancellationToken = __commonJS({
   }
 });
 
-// node_modules/electron-updater/node_modules/builder-util-runtime/out/error.js
+// node_modules/builder-util-runtime/out/error.js
 var require_error = __commonJS({
-  "node_modules/electron-updater/node_modules/builder-util-runtime/out/error.js"(exports2) {
+  "node_modules/builder-util-runtime/out/error.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.newError = newError;
@@ -3398,9 +3398,9 @@ var require_src = __commonJS({
   }
 });
 
-// node_modules/electron-updater/node_modules/builder-util-runtime/out/ProgressCallbackTransform.js
+// node_modules/builder-util-runtime/out/ProgressCallbackTransform.js
 var require_ProgressCallbackTransform = __commonJS({
-  "node_modules/electron-updater/node_modules/builder-util-runtime/out/ProgressCallbackTransform.js"(exports2) {
+  "node_modules/builder-util-runtime/out/ProgressCallbackTransform.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.ProgressCallbackTransform = void 0;
@@ -3457,9 +3457,9 @@ var require_ProgressCallbackTransform = __commonJS({
   }
 });
 
-// node_modules/electron-updater/node_modules/builder-util-runtime/out/httpExecutor.js
+// node_modules/builder-util-runtime/out/httpExecutor.js
 var require_httpExecutor = __commonJS({
-  "node_modules/electron-updater/node_modules/builder-util-runtime/out/httpExecutor.js"(exports2) {
+  "node_modules/builder-util-runtime/out/httpExecutor.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.DigestTransform = exports2.HttpExecutor = exports2.HttpError = void 0;
@@ -3858,9 +3858,9 @@ Please double check that your authentication token is correct. Due to security r
   }
 });
 
-// node_modules/electron-updater/node_modules/builder-util-runtime/out/MemoLazy.js
+// node_modules/builder-util-runtime/out/MemoLazy.js
 var require_MemoLazy = __commonJS({
-  "node_modules/electron-updater/node_modules/builder-util-runtime/out/MemoLazy.js"(exports2) {
+  "node_modules/builder-util-runtime/out/MemoLazy.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.MemoLazy = void 0;
@@ -3902,9 +3902,9 @@ var require_MemoLazy = __commonJS({
   }
 });
 
-// node_modules/electron-updater/node_modules/builder-util-runtime/out/publishOptions.js
+// node_modules/builder-util-runtime/out/publishOptions.js
 var require_publishOptions = __commonJS({
-  "node_modules/electron-updater/node_modules/builder-util-runtime/out/publishOptions.js"(exports2) {
+  "node_modules/builder-util-runtime/out/publishOptions.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.githubUrl = githubUrl;
@@ -3965,9 +3965,9 @@ var require_publishOptions = __commonJS({
   }
 });
 
-// node_modules/electron-updater/node_modules/builder-util-runtime/out/retry.js
+// node_modules/builder-util-runtime/out/retry.js
 var require_retry = __commonJS({
-  "node_modules/electron-updater/node_modules/builder-util-runtime/out/retry.js"(exports2) {
+  "node_modules/builder-util-runtime/out/retry.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.retry = retry;
@@ -3989,9 +3989,9 @@ var require_retry = __commonJS({
   }
 });
 
-// node_modules/electron-updater/node_modules/builder-util-runtime/out/rfc2253Parser.js
+// node_modules/builder-util-runtime/out/rfc2253Parser.js
 var require_rfc2253Parser = __commonJS({
-  "node_modules/electron-updater/node_modules/builder-util-runtime/out/rfc2253Parser.js"(exports2) {
+  "node_modules/builder-util-runtime/out/rfc2253Parser.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.parseDn = parseDn;
@@ -4068,9 +4068,9 @@ var require_rfc2253Parser = __commonJS({
   }
 });
 
-// node_modules/electron-updater/node_modules/builder-util-runtime/out/uuid.js
+// node_modules/builder-util-runtime/out/uuid.js
 var require_uuid = __commonJS({
-  "node_modules/electron-updater/node_modules/builder-util-runtime/out/uuid.js"(exports2) {
+  "node_modules/builder-util-runtime/out/uuid.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.nil = exports2.UUID = void 0;
@@ -5680,9 +5680,9 @@ var require_sax = __commonJS({
   }
 });
 
-// node_modules/electron-updater/node_modules/builder-util-runtime/out/xml.js
+// node_modules/builder-util-runtime/out/xml.js
 var require_xml = __commonJS({
-  "node_modules/electron-updater/node_modules/builder-util-runtime/out/xml.js"(exports2) {
+  "node_modules/builder-util-runtime/out/xml.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.XElement = void 0;
@@ -5793,9 +5793,9 @@ var require_xml = __commonJS({
   }
 });
 
-// node_modules/electron-updater/node_modules/builder-util-runtime/out/index.js
+// node_modules/builder-util-runtime/out/index.js
 var require_out = __commonJS({
-  "node_modules/electron-updater/node_modules/builder-util-runtime/out/index.js"(exports2) {
+  "node_modules/builder-util-runtime/out/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.CURRENT_APP_PACKAGE_FILE_NAME = exports2.CURRENT_APP_INSTALLER_FILE_NAME = exports2.XElement = exports2.parseXml = exports2.UUID = exports2.parseDn = exports2.retry = exports2.githubUrl = exports2.getS3LikeProviderBaseUrl = exports2.ProgressCallbackTransform = exports2.MemoLazy = exports2.safeStringifyJson = exports2.safeGetHeader = exports2.parseJson = exports2.HttpExecutor = exports2.HttpError = exports2.DigestTransform = exports2.createHttpError = exports2.configureRequestUrl = exports2.configureRequestOptionsFromUrl = exports2.configureRequestOptions = exports2.newError = exports2.CancellationToken = exports2.CancellationError = void 0;
@@ -31241,7 +31241,7 @@ var require_package = __commonJS({
   "node_modules/dotenv/package.json"(exports2, module2) {
     module2.exports = {
       name: "dotenv",
-      version: "16.6.1",
+      version: "17.2.2",
       description: "Loads environment variables from .env file",
       main: "lib/main.js",
       types: "lib/main.d.ts",
@@ -31313,6 +31313,36 @@ var require_main3 = __commonJS({
     var crypto3 = require("crypto");
     var packageJson = require_package();
     var version = packageJson.version;
+    var TIPS = [
+      "\u{1F510} encrypt with Dotenvx: https://dotenvx.com",
+      "\u{1F510} prevent committing .env to code: https://dotenvx.com/precommit",
+      "\u{1F510} prevent building .env in docker: https://dotenvx.com/prebuild",
+      "\u{1F4E1} observe env with Radar: https://dotenvx.com/radar",
+      "\u{1F4E1} auto-backup env with Radar: https://dotenvx.com/radar",
+      "\u{1F4E1} version env with Radar: https://dotenvx.com/radar",
+      "\u{1F6E0}\uFE0F  run anywhere with `dotenvx run -- yourcommand`",
+      "\u2699\uFE0F  specify custom .env file path with { path: '/custom/path/.env' }",
+      "\u2699\uFE0F  enable debug logging with { debug: true }",
+      "\u2699\uFE0F  override existing env vars with { override: true }",
+      "\u2699\uFE0F  suppress all logs with { quiet: true }",
+      "\u2699\uFE0F  write to custom object with { processEnv: myObject }",
+      "\u2699\uFE0F  load multiple .env files with { path: ['.env.local', '.env'] }"
+    ];
+    function _getRandomTip() {
+      return TIPS[Math.floor(Math.random() * TIPS.length)];
+    }
+    function parseBoolean(value) {
+      if (typeof value === "string") {
+        return !["false", "0", "no", "off", ""].includes(value.toLowerCase());
+      }
+      return Boolean(value);
+    }
+    function supportsAnsi() {
+      return process.stdout.isTTY;
+    }
+    function dim(text) {
+      return supportsAnsi() ? `\x1B[2m${text}\x1B[0m` : text;
+    }
     var LINE = /(?:^|^)\s*(?:export\s+)?([\w.-]+)(?:\s*=\s*?|:\s+?)(\s*'(?:\\'|[^'])*'|\s*"(?:\\"|[^"])*"|\s*`(?:\\`|[^`])*`|[^#\r\n]+)?\s*(?:#.*)?(?:$|$)/mg;
     function parse(src) {
       const obj = {};
@@ -31361,7 +31391,7 @@ var require_main3 = __commonJS({
       return DotenvModule.parse(decrypted);
     }
     function _warn(message) {
-      console.log(`[dotenv@${version}][WARN] ${message}`);
+      console.error(`[dotenv@${version}][WARN] ${message}`);
     }
     function _debug(message) {
       console.log(`[dotenv@${version}][DEBUG] ${message}`);
@@ -31435,8 +31465,8 @@ var require_main3 = __commonJS({
       return envPath[0] === "~" ? path7.join(os4.homedir(), envPath.slice(1)) : envPath;
     }
     function _configVault(options) {
-      const debug = Boolean(options && options.debug);
-      const quiet = options && "quiet" in options ? options.quiet : true;
+      const debug = parseBoolean(process.env.DOTENV_CONFIG_DEBUG || options && options.debug);
+      const quiet = parseBoolean(process.env.DOTENV_CONFIG_QUIET || options && options.quiet);
       if (debug || !quiet) {
         _log("Loading env from encrypted .env.vault");
       }
@@ -31451,8 +31481,12 @@ var require_main3 = __commonJS({
     function configDotenv(options) {
       const dotenvPath = path7.resolve(process.cwd(), ".env");
       let encoding = "utf8";
-      const debug = Boolean(options && options.debug);
-      const quiet = options && "quiet" in options ? options.quiet : true;
+      let processEnv = process.env;
+      if (options && options.processEnv != null) {
+        processEnv = options.processEnv;
+      }
+      let debug = parseBoolean(processEnv.DOTENV_CONFIG_DEBUG || options && options.debug);
+      let quiet = parseBoolean(processEnv.DOTENV_CONFIG_QUIET || options && options.quiet);
       if (options && options.encoding) {
         encoding = options.encoding;
       } else {
@@ -31484,13 +31518,11 @@ var require_main3 = __commonJS({
           lastError = e;
         }
       }
-      let processEnv = process.env;
-      if (options && options.processEnv != null) {
-        processEnv = options.processEnv;
-      }
-      DotenvModule.populate(processEnv, parsedAll, options);
+      const populated = DotenvModule.populate(processEnv, parsedAll, options);
+      debug = parseBoolean(processEnv.DOTENV_CONFIG_DEBUG || debug);
+      quiet = parseBoolean(processEnv.DOTENV_CONFIG_QUIET || quiet);
       if (debug || !quiet) {
-        const keysCount = Object.keys(parsedAll).length;
+        const keysCount = Object.keys(populated).length;
         const shortPaths = [];
         for (const filePath of optionPaths) {
           try {
@@ -31503,7 +31535,7 @@ var require_main3 = __commonJS({
             lastError = e;
           }
         }
-        _log(`injecting env (${keysCount}) from ${shortPaths.join(",")}`);
+        _log(`injecting env (${keysCount}) from ${shortPaths.join(",")} ${dim(`-- tip: ${_getRandomTip()}`)}`);
       }
       if (lastError) {
         return { parsed: parsedAll, error: lastError };
@@ -31552,6 +31584,7 @@ var require_main3 = __commonJS({
     function populate(processEnv, parsed, options = {}) {
       const debug = Boolean(options && options.debug);
       const override = Boolean(options && options.override);
+      const populated = {};
       if (typeof parsed !== "object") {
         const err = new Error("OBJECT_REQUIRED: Please check the processEnv argument being passed to populate");
         err.code = "OBJECT_REQUIRED";
@@ -31561,6 +31594,7 @@ var require_main3 = __commonJS({
         if (Object.prototype.hasOwnProperty.call(processEnv, key)) {
           if (override === true) {
             processEnv[key] = parsed[key];
+            populated[key] = parsed[key];
           }
           if (debug) {
             if (override === true) {
@@ -31571,8 +31605,10 @@ var require_main3 = __commonJS({
           }
         } else {
           processEnv[key] = parsed[key];
+          populated[key] = parsed[key];
         }
       }
+      return populated;
     }
     var DotenvModule = {
       configDotenv,
@@ -32057,32 +32093,62 @@ function createWindow() {
     frame: false,
     titleBarStyle: "hidden",
     autoHideMenuBar: true,
+    show: false,
     webPreferences: {
       preload: path6.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
-      webSecurity: false
+      webSecurity: false,
+      allowRunningInsecureContent: false,
+      experimentalFeatures: false,
+      enableBlinkFeatures: "",
+      disableBlinkFeatures: "",
+      nativeWindowOpen: true,
+      additionalArguments: ["--disable-features=VizDisplayCompositor"]
     }
   });
+  mainWindow.once("ready-to-show", () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.show();
+    }
+  });
+  mainWindow.webContents.on("crashed", () => {
+    console.error("Renderer process crashed");
+  });
+  mainWindow.webContents.on("unresponsive", () => {
+    console.warn("Renderer process unresponsive");
+  });
+  mainWindow.webContents.on("responsive", () => {
+    console.log("Renderer process responsive again");
+  });
   const url = resolveHtmlPath();
-  if (url.startsWith("http")) mainWindow.loadURL(url);
-  else mainWindow.loadFile(path6.join(__dirname, "..", "dist", "index.html"));
-  try {
-    mainWindow.on("maximize", () => {
-      try {
-        mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents.send("win-maximize-state", { maximized: true });
-      } catch (_) {
-      }
-    });
-    mainWindow.on("unmaximize", () => {
-      try {
-        mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents.send("win-maximize-state", { maximized: false });
-      } catch (_) {
-      }
-    });
-  } catch (_) {
+  if (url.startsWith("http")) {
+    mainWindow.loadURL(url).catch((err) => console.error("Failed to load URL:", err));
+  } else {
+    mainWindow.loadFile(path6.join(__dirname, "..", "dist", "index.html")).catch((err) => console.error("Failed to load file:", err));
   }
+  mainWindow.on("maximize", () => {
+    try {
+      if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents && !mainWindow.webContents.isDestroyed()) {
+        mainWindow.webContents.send("win-maximize-state", { maximized: true });
+      }
+    } catch (err) {
+      console.warn("Error sending maximize state:", err);
+    }
+  });
+  mainWindow.on("unmaximize", () => {
+    try {
+      if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents && !mainWindow.webContents.isDestroyed()) {
+        mainWindow.webContents.send("win-maximize-state", { maximized: false });
+      }
+    } catch (err) {
+      console.warn("Error sending unmaximize state:", err);
+    }
+  });
+  mainWindow.on("closed", () => {
+    mainWindow = null;
+  });
 }
 function collectOsOpenFiles() {
   const items = [];
@@ -32685,16 +32751,21 @@ app2.whenReady().then(() => {
   if (!app2.requestSingleInstanceLock()) {
     app2.quit();
     return;
-  } else {
-    app2.on("second-instance", () => {
-      if (mainWindow) {
-        if (mainWindow.isMinimized()) mainWindow.restore();
-        mainWindow.focus();
-      }
-    });
   }
+  app2.on("second-instance", () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
   createWindow();
   setAppMenu();
+  process.on("uncaughtException", (error) => {
+    console.error("Uncaught Exception:", error);
+  });
+  process.on("unhandledRejection", (reason, promise) => {
+    console.error("Unhandled Rejection at:", promise, "reason:", reason);
+  });
   loadAppPasswordSecret();
   initAutoUpdater();
   try {
@@ -32708,7 +32779,14 @@ app2.whenReady().then(() => {
         callback({ responseHeaders });
       });
     }
-  } catch (_) {
+    if (ses) {
+      ses.setPermissionRequestHandler((webContents, permission, callback) => {
+        const allowedPermissions = ["media", "display-capture"];
+        callback(allowedPermissions.includes(permission));
+      });
+    }
+  } catch (err) {
+    console.warn("Error setting up session:", err);
   }
   try {
     const hw = Math.max(1, (os3.cpus() || []).length - 1);
@@ -32743,10 +32821,44 @@ app2.whenReady().then(() => {
     if (initial.length && mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.once("did-finish-load", () => {
         try {
-          mainWindow.webContents.send("os-open-files", initial);
+          if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents && !mainWindow.webContents.isDestroyed()) {
+            mainWindow.webContents.send("os-open-files", initial);
+          }
+        } catch (err) {
+          console.warn("Error sending os-open-files:", err);
+        }
+      });
+    }
+  } catch (_) {
+  }
+  try {
+    const cur = String(app2.getVersion() || "");
+    let lastShown = "";
+    try {
+      lastShown = String(store.get("lastShownVersion") || store.get("lastRunVersion") || "");
+    } catch (_) {
+      lastShown = "";
+    }
+    const need = !lastShown || compareVersions(cur, lastShown) > 0;
+    if (need && mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.once("did-finish-load", () => {
+        try {
+          if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents && !mainWindow.webContents.isDestroyed()) {
+            mainWindow.webContents.send("show-whats-new", { version: cur });
+          }
+        } catch (err) {
+          console.warn("Error sending show-whats-new:", err);
+        }
+        try {
+          store.set("lastShownVersion", cur);
         } catch (_) {
         }
       });
+    } else {
+      try {
+        store.set("lastShownVersion", cur);
+      } catch (_) {
+      }
     }
   } catch (_) {
   }
@@ -32775,7 +32887,13 @@ app2.whenReady().then(() => {
       if (extra.length && mainWindow && !mainWindow.isDestroyed()) {
         if (mainWindow.isMinimized()) mainWindow.restore();
         mainWindow.focus();
-        mainWindow.webContents.send("os-open-files", extra);
+        try {
+          if (mainWindow.webContents && !mainWindow.webContents.isDestroyed()) {
+            mainWindow.webContents.send("os-open-files", extra);
+          }
+        } catch (err) {
+          console.warn("Error sending os-open-files from second-instance:", err);
+        }
       }
     } catch (_) {
     }
@@ -33265,7 +33383,20 @@ app2.whenReady().then(() => {
       const root = path6.join(__dirname, "..");
       const p = path6.join(root, "README.md");
       const data = await fs3.promises.readFile(p, "utf-8");
-      return { ok: true, data };
+      const toFileUrl = (fp) => "file://" + fp.replace(/\\/g, "/");
+      let html = data;
+      try {
+        html = html.replace(/src=(['"])docs\/(.+?)\1/gi, (_m, q, rel) => {
+          const abs = path6.join(root, "docs", rel);
+          return `src=${q}${toFileUrl(abs)}${q}`;
+        });
+        html = html.replace(/!\[([^\]]*)\]\((docs\/[^)]+)\)/gi, (_m, alt, rel) => {
+          const abs = path6.join(root, rel);
+          return `<img alt="${alt}" src="${toFileUrl(abs)}" />`;
+        });
+      } catch (_) {
+      }
+      return { ok: true, data, html };
     } catch (e) {
       return { ok: false, error: String(e && e.message ? e.message : e) };
     }
@@ -33855,9 +33986,27 @@ app2.whenReady().then(() => {
   });
 });
 app2.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app2.quit();
+  if (process.platform !== "darwin") {
+    app2.quit();
+  }
+});
+app2.on("activate", () => {
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createWindow();
+  }
 });
 app2.on("before-quit", () => {
+  try {
+    if (statsSaveTimer) {
+      clearTimeout(statsSaveTimer);
+      statsSaveTimer = null;
+    }
+    if (statsCacheDirty && statsCachePath && statsCache) {
+      fs3.writeFileSync(statsCachePath, JSON.stringify(statsCache));
+    }
+  } catch (err) {
+    console.warn("Error saving stats on quit:", err);
+  }
 });
 /*! Bundled license information:
 

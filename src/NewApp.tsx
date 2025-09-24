@@ -1,28 +1,38 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Icon } from './components/Icons'
-import { useSpring, animated } from '@react-spring/web'
+import ModernButton from './components/ModernButton'
+import AnimatedStats from './components/AnimatedStats'
+import FileDropzone from './components/FileDropzone'
+import ImageGrid from './components/ImageGrid'
+import AnimatedBackground from './components/AnimatedBackground'
+import { useSpring, animated, useSpringValue, useTrail, config } from '@react-spring/web'
 import { useAppStore } from './store'
-import { motion, AnimatePresence } from 'framer-motion'
-import toast, { Toaster } from 'react-hot-toast'
+import { toast } from 'sonner'
 import Confetti from 'react-confetti'
-import { useWindowSize } from 'react-use'
-import { 
-  FaImage, 
-  FaFolderOpen, 
-  FaTrash, 
-  FaPlay, 
-  FaStop, 
-  FaEye, 
-  FaInfoCircle, 
+import { useWindowSize, useDebounce, useLocalStorage } from 'react-use'
+import { clsx } from 'clsx'
+import { twMerge } from 'tailwind-merge'
+import autoAnimate from '@formkit/auto-animate'
+import {
+  FaImage,
+  FaFolderOpen,
+  FaTrash,
+  FaPlay,
+  FaStop,
+  FaEye,
+  FaInfoCircle,
   FaFolder,
   FaDownload,
   FaCog,
   FaMagic,
   FaCamera,
   FaMobile,
-  FaVideo
+  FaVideo,
+  FaTimes
 } from 'react-icons/fa'
+
+const cn = (...classes: (string | undefined | null | boolean)[]) => twMerge(clsx(...classes))
 
 function toFileUrl(p: string) {
   let s = p.replace(/\\/g, '/')
@@ -144,9 +154,10 @@ export default function NewApp() {
   const setFiles = useAppStore(s=>s.setFiles)
   const addFiles = useAppStore(s=>s.addFiles)
   const removeAt = useAppStore(s=>s.removeAt)
-  const [outputDir, setOutputDir] = useState('')
-  const [format, setFormat] = useState<'jpg'|'png'|'webp'|'avif'|'heic'>('jpg')
-  const [quality, setQuality] = useState(85)
+  
+  const [outputDir, setOutputDir] = useLocalStorage('output-dir', '')
+  const [format, setFormat] = useLocalStorage<'jpg'|'png'|'webp'|'avif'|'heic'>('format', 'jpg')
+  const [quality, setQuality] = useLocalStorage('quality', 85)
   const [colorDrift, setColorDrift] = useState(2)
   const [resizeDrift, setResizeDrift] = useState(2)
   const [resizeMaxW, setResizeMaxW] = useState(0)
@@ -193,6 +204,7 @@ export default function NewApp() {
   const [keywords, setKeywords] = useState('')
   const [copyright, setCopyright] = useState('')
   const [creatorTool, setCreatorTool] = useState('')
+  const [fakeTab, setFakeTab] = useState<'general'|'location'|'metadata'|'camera'>('general')
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState<{ current: number; total: number; lastFile: string; etaMs?: number; speedBps?: number; percent?: number }>({ current: 0, total: 0, lastFile: '' })
   const [results, setResults] = useState<{ src: string; out: string }[]>([])
@@ -201,7 +213,17 @@ export default function NewApp() {
   const [previewSrc, setPreviewSrc] = useState('')
   const [metaOpen, setMetaOpen] = useState(false)
   const [metaPayload, setMetaPayload] = useState<any>(null)
-  const gridRef = useRef<HTMLDivElement | null>(null)
+  const [statsData, setStatsData] = useState<any[]>([])
+  const startTimeRef = useRef<number>(Date.now())
+  const settingsRef = useRef<HTMLDivElement>(null)
+  const filesGridRef = useRef<HTMLDivElement>(null)
+  const resultsGridRef = useRef<HTMLDivElement>(null)
+  
+  const [debouncedQuality, setDebouncedQuality] = useState(quality)
+  const [debouncedColorDrift, setDebouncedColorDrift] = useState(colorDrift)
+  
+  useDebounce(() => setDebouncedQuality(quality), 300, [quality])
+  useDebounce(() => setDebouncedColorDrift(colorDrift), 300, [colorDrift])
 
   useEffect(() => {
     ;(async () => {
@@ -231,6 +253,7 @@ export default function NewApp() {
     const ln = (p.lensesByMake?.[mk] || p.lenses || [])[0] || ''
     setFakeLens(ln)
   }, [fakeProfile])
+
   useEffect(() => {
     const p = GEAR_PRESETS[fakeProfile]
     const md = (p.modelsByMake?.[fakeMake] || [])[0] || ''
@@ -238,6 +261,7 @@ export default function NewApp() {
     const ln = (p.lensesByMake?.[fakeMake] || p.lenses || [])[0] || ''
     setFakeLens(ln)
   }, [fakeMake])
+
   useEffect(() => {
     const preset = LOCATION_PRESETS.find(x => x.id === locationPreset) as any
     if (!preset || preset.id === 'none') return
@@ -252,7 +276,10 @@ export default function NewApp() {
   useEffect(() => {
     const off = window.api.onProgress(d => {
       setProgress({ current: d.index + 1, total: d.total, lastFile: d.file, etaMs: Number(d.etaMs||0), speedBps: Number(d.speedBps||0), percent: Number(d.percent)||0 })
-      if (d && d.status === 'ok' && d.outPath) setResults(prev => [...prev, { src: d.file, out: d.outPath }])
+      if (d && d.status === 'ok' && d.outPath) {
+        setResults(prev => [...prev, { src: d.file, out: d.outPath }])
+        setStatsData(prev => [...prev, { name: `Файл ${d.index + 1}`, value: d.index + 1 }])
+      }
     })
     const done = window.api.onComplete(() => { 
       setBusy(false); 
@@ -287,35 +314,63 @@ export default function NewApp() {
     } catch {}
   }, [])
 
+  useEffect(() => {
+    if (settingsRef.current) autoAnimate(settingsRef.current)
+    if (filesGridRef.current) autoAnimate(filesGridRef.current)
+    if (resultsGridRef.current) autoAnimate(resultsGridRef.current)
+  }, [])
+
   const canStart = useMemo(() => files.length > 0 && outputDir && !busy, [files, outputDir, busy])
 
   const selectImages = async () => {
     const paths = await window.api.selectImages()
     if (!paths || !paths.length) return
+    
     addFiles(paths)
-    toast.success(`🖼️ Добавлено ${paths.length} изображений`);
+    
+    toast.success(`🖼️ Добавлено ${paths.length} изображений`, {
+      duration: 3000,
+      style: {
+        background: 'var(--bg-success)',
+        color: 'var(--text-success)',
+      }
+    })
   }
+
   const selectFolder = async () => {
     const paths = await window.api.selectImageDir()
     if (!paths || !paths.length) return
+    
     addFiles(paths)
-    toast.success(`📂 Добавлено ${paths.length} изображений из папки`);
+    
+    toast.success(`📂 Добавлено ${paths.length} изображений из папки`, {
+      duration: 3000,
+      style: {
+        background: 'var(--bg-success)',
+        color: 'var(--text-success)',
+      }
+    })
   }
+
   const selectOutput = async () => {
     const dir = await window.api.selectOutputDir()
     if (dir) setOutputDir(dir)
   }
+
   const clearFiles = () => {
     setFiles([])
     setProgress({ current: 0, total: 0, lastFile: '' })
     setResults([])
     setSelected(new Set())
   }
+
   const start = async () => {
     if (!canStart) return
     setBusy(true)
+    startTimeRef.current = Date.now()
     setProgress({ current: 0, total: files.length, lastFile: '', etaMs: 0, speedBps: 0, percent: 0 })
     setResults([])
+    setStatsData([])
     const toNum = (v: number|''|string) => { const n = typeof v === 'string' ? parseFloat(v) : v; return Number.isFinite(n as number) ? Number(n) : undefined }
     const payload: any = {
       inputFiles: files,
@@ -371,523 +426,974 @@ export default function NewApp() {
     }
     await window.api.processImages(payload)
   }
+
   const cancel = async () => { if (!busy) return; await window.api.cancel() }
 
   const makeOptions = (GEAR_PRESETS[fakeProfile]?.makes || []) as string[]
   const modelOptions = ((GEAR_PRESETS[fakeProfile]?.modelsByMake?.[fakeMake]) || []) as string[]
   const lensOptions = ((GEAR_PRESETS[fakeProfile]?.lensesByMake?.[fakeMake]) || (GEAR_PRESETS[fakeProfile]?.lenses) || []) as string[]
 
+  const handleApplyPreset = (preset?: string) => {
+    const selectedPreset = preset || 'professional'
+    
+    switch (selectedPreset) {
+      case 'professional':
+        setFakeProfile('camera')
+        setFakeMake('Canon')
+        setFakeModel('EOS R5')
+        setFakeLens('RF 24-70mm f/2.8L IS USM')
+        setFakeIso(400)
+        setFakeExposureTime('1/125')
+        setFakeFNumber(2.8)
+        setFakeFocalLength(50)
+        setAuthor('Professional Photographer')
+        setKeywords('professional, photography, portrait, studio')
+        setCopyright('© 2024 Professional Studio')
+        toast.success('📷 Применен профессиональный шаблон', {
+          duration: 3000,
+          style: { background: '#7c3aed', color: '#fff' },
+          action: {
+            label: 'Отменить',
+            onClick: () => toast.dismiss()
+          }
+        })
+        break
+      case 'travel':
+        setFakeProfile('camera')
+        setFakeMake('Sony')
+        setFakeModel('α7R IV')
+        setFakeGps(true)
+        setLocationPreset('kyiv')
+        setFakeIso(200)
+        setFakeExposureTime('1/500')
+        setKeywords('travel, journey, adventure, explore')
+        setDescription('Amazing travel photography')
+        toast.success('✈️ Применен шаблон путешествий', {
+          duration: 3000,
+          style: { background: '#0891b2', color: '#fff' },
+          action: { label: 'Отменить', onClick: () => toast.dismiss() }
+        })
+        break
+      case 'nature':
+        setFakeProfile('camera')
+        setFakeMake('Nikon')
+        setFakeModel('Z9')
+        setFakeLens('NIKKOR Z 100-400mm f/4.5-5.6 VR S')
+        setFakeIso(800)
+        setFakeFocalLength(300)
+        setKeywords('nature, wildlife, landscape, outdoor')
+        setDescription('Nature and wildlife photography')
+        toast.success('🌿 Применен природный шаблон', {
+          duration: 3000,
+          style: { background: '#059669', color: '#fff' },
+          action: { label: 'Отменить', onClick: () => toast.dismiss() }
+        })
+        break
+      case 'studio':
+        setFakeProfile('camera')
+        setFakeMake('Hasselblad')
+        setFakeModel('X1D II 50C')
+        setFakeIso(100)
+        setFakeExposureTime('1/60')
+        setFakeFNumber(8)
+        setFakeFlash(1)
+        setKeywords('studio, portrait, fashion, commercial')
+        setCreatorTool('Capture One Pro')
+        toast.success('💡 Применен студийный шаблон', {
+          duration: 3000,
+          style: { background: '#dc2626', color: '#fff' },
+          action: { label: 'Отменить', onClick: () => toast.dismiss() }
+        })
+        break
+      case 'street':
+        setFakeProfile('camera')
+        setFakeMake('Fujifilm')
+        setFakeModel('X-T5')
+        setFakeLens('XF23mmF2 R WR')
+        setFakeIso(1600)
+        setFakeExposureTime('1/250')
+        setFakeFNumber(5.6)
+        setFakeColorSpace('sRGB')
+        setKeywords('street, urban, city, documentary')
+        setDescription('Street photography')
+        toast.success('🏙️ Применен уличный шаблон', {
+          duration: 3000,
+          style: { background: '#ea580c', color: '#fff' },
+          action: { label: 'Отменить', onClick: () => toast.dismiss() }
+        })
+        break
+    }
+  }
+
   return (
-    <motion.div 
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.5 }}
-      className="h-full text-slate-100"
-    >
-      {showConfetti && (
-        <Confetti
-          width={width}
-          height={height}
-          recycle={false}
-          numberOfPieces={200}
-          gravity={0.1}
-        />
-      )}
-      <Toaster position="top-right" />
+    <Suspense fallback={
+      <div className="h-full flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <div className="h-full text-slate-100 relative">
+        <AnimatedBackground />
+        {showConfetti && (
+          <Confetti
+            width={width}
+            height={height}
+            recycle={false}
+            numberOfPieces={200}
+            gravity={0.1}
+          />
+        )}
+        <div className="toaster-container" />
       
-      <motion.div 
-        initial={{ y: -20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.6, delay: 0.1 }}
-        className="h-full"
-      >
-      <div className="px-4 py-3 border-b border-white/10 bg-black/20 backdrop-blur overflow-x-auto with-gutter">
-        <div className="flex items-center gap-2 flex-wrap">
-          <motion.button 
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={selectImages} 
-            className="btn btn-blue"
-          >
-            <FaImage className="w-4 h-4 mr-2" />
-            {t('buttons.addFiles')}
-          </motion.button>
-          <motion.button 
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={selectFolder} 
-            className="btn btn-green"
-          >
-            <FaFolderOpen className="w-4 h-4 mr-2" />
-            {t('buttons.addFolder')}
-          </motion.button>
-          <motion.button 
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={clearFiles} 
-            className="btn btn-rose"
-          >
-            <FaTrash className="w-4 h-4 mr-2" />
-            {t('buttons.clear')}
-          </motion.button>
-          <motion.button 
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={selectOutput} 
-            className="btn btn-amber"
-          >
-            <FaFolder className="w-4 h-4 mr-2" />
-            {t('common.pickFolder')}
-          </motion.button>
-          {!!outputDir && <div className="text-xs opacity-80 truncate max-w-[320px]">{outputDir}</div>}
-          {!busy && (
-            <motion.button 
-              whileHover={{ scale: canStart ? 1.05 : 1 }}
-              whileTap={{ scale: canStart ? 0.95 : 1 }}
-              disabled={!canStart} 
-              onClick={start} 
-              className={`btn ${canStart? 'btn-violet' : 'bg-emerald-900 opacity-50 cursor-not-allowed'}`}
-            >
-              <FaPlay className="w-4 h-4 mr-2" />
-              {t('buttons.start')}
-            </motion.button>
-          )}
-          {busy && (
-            <motion.button 
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={cancel} 
-              className="btn btn-slate"
-            >
-              <FaStop className="w-4 h-4 mr-2" />
-              {t('buttons.cancel')}
-            </motion.button>
-          )}
+      <div className="h-full">
+        <div className="px-4 py-3 border-b border-white/10 bg-black/20 backdrop-blur overflow-x-auto with-gutter">
+          <div className="flex items-center gap-3 flex-wrap">
+            <ModernButton onClick={selectImages} variant="primary" icon={<FaImage className="w-4 h-4" />} tilt>
+              {t('buttons.addFiles')}
+            </ModernButton>
+            <ModernButton onClick={selectFolder} variant="success" icon={<FaFolderOpen className="w-4 h-4" />} tilt>
+              {t('buttons.addFolder')}
+            </ModernButton>
+            <ModernButton onClick={clearFiles} variant="danger" icon={<FaTrash className="w-4 h-4" />}>
+              {t('buttons.clear')}
+            </ModernButton>
+            <ModernButton onClick={selectOutput} variant="warning" icon={<FaFolder className="w-4 h-4" />}>
+              {t('common.pickFolder')}
+            </ModernButton>
+            {!!outputDir && (
+              <div className="text-xs opacity-80 truncate max-w-[320px] px-3 py-2 bg-slate-800/60 rounded-lg border border-white/10">
+                📁 {outputDir.split(/[/\\]/).pop()}
+              </div>
+            )}
+            {!busy && (
+              <ModernButton onClick={start} variant="primary" icon={<FaPlay className="w-4 h-4" />} disabled={!canStart} loading={busy}>
+                {t('buttons.start')}
+              </ModernButton>
+            )}
+            {busy && (
+              <ModernButton onClick={cancel} variant="secondary" icon={<FaStop className="w-4 h-4" />}>
+                {t('buttons.cancel')}
+              </ModernButton>
+            )}
+          </div>
         </div>
 
-        <div className="mt-3 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2 text-xs">
-          <label className="flex flex-col gap-1">
-            <span className="opacity-70">{t('format.title', { defaultValue: 'Format' })}</span>
-            <select value={format} onChange={e=>setFormat(e.target.value as any)} className="bg-slate-900 border border-white/10 rounded px-2 py-2">
-              <option value="jpg">JPG</option>
-              <option value="png">PNG</option>
-              <option value="webp">WEBP</option>
-              <option value="avif">AVIF</option>
-              <option value="heic">HEIC</option>
-            </select>
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="opacity-70">{t('quality.title', { defaultValue: 'Quality' })}</span>
-            <input type="number" min={1} max={100} value={quality} onChange={e=>setQuality(Number(e.target.value)||0)} className="bg-slate-900 border border-white/10 rounded px-2 py-2" />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="opacity-70">{t('drift.color', { defaultValue: 'Color drift %' })}</span>
-            <input type="number" min={0} max={10} value={colorDrift} onChange={e=>setColorDrift(Number(e.target.value)||0)} className="bg-slate-900 border border-white/10 rounded px-2 py-2" />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="opacity-70">{t('drift.size', { defaultValue: 'Size drift %' })}</span>
-            <input type="number" min={0} max={10} value={resizeDrift} onChange={e=>setResizeDrift(Number(e.target.value)||0)} className="bg-slate-900 border border-white/10 rounded px-2 py-2" />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="opacity-70">{t('maxWidth.title', { defaultValue: 'Max width' })}</span>
-            <input type="number" min={0} value={resizeMaxW} onChange={e=>setResizeMaxW(Number(e.target.value)||0)} className="bg-slate-900 border border-white/10 rounded px-2 py-2" />
-          </label>
-          <div className="flex flex-wrap items-center gap-3">
-            <label className="inline-flex items-center gap-2"><input type="checkbox" checked={removeGps} onChange={e=>setRemoveGps(e.target.checked)} />{t('meta.removeGps', { defaultValue: 'Remove GPS' })}</label>
-            <label className="inline-flex items-center gap-2"><input type="checkbox" checked={uniqueId} onChange={e=>setUniqueId(e.target.checked)} />{t('meta.uniqueId', { defaultValue: 'Unique ID' })}</label>
-            <label className="inline-flex items-center gap-2"><input type="checkbox" checked={removeAll} onChange={e=>setRemoveAll(e.target.checked)} />{t('meta.removeAll', { defaultValue: 'Remove all metadata' })}</label>
+        <div className="mt-4 space-y-6" ref={settingsRef}>
+          <div className="glass-card rounded-xl p-4 transition-all duration-300">
+            <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+              <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+              Основные настройки
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 text-xs">
+              <label className="flex flex-col gap-2">
+                <span className="opacity-70 font-medium">Формат</span>
+                <select value={format} onChange={e=>setFormat(e.target.value as any)} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-white/20 transition-colors">
+                  <option value="jpg">JPG</option>
+                  <option value="png">PNG</option>
+                  <option value="webp">WEBP</option>
+                  <option value="avif">AVIF</option>
+                  <option value="heic">HEIC</option>
+                </select>
+              </label>
+              <label className="flex flex-col gap-2">
+                <span className="opacity-70 font-medium">Качество</span>
+                <input type="number" min={1} max={100} value={quality} onChange={e=>setQuality(Number(e.target.value)||0)} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-white/20 transition-colors" />
+              </label>
+              <label className="flex flex-col gap-2">
+                <span className="opacity-70 font-medium">Цветовой дрифт %</span>
+                <input type="number" min={0} max={10} value={colorDrift} onChange={e=>setColorDrift(Number(e.target.value)||0)} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-white/20 transition-colors" />
+              </label>
+              <label className="flex flex-col gap-2">
+                <span className="opacity-70 font-medium">Дрифт размера %</span>
+                <input type="number" min={0} max={10} value={resizeDrift} onChange={e=>setResizeDrift(Number(e.target.value)||0)} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-white/20 transition-colors" />
+              </label>
+              <label className="flex flex-col gap-2">
+                <span className="opacity-70 font-medium">Макс. ширина</span>
+                <input type="number" min={0} value={resizeMaxW} onChange={e=>setResizeMaxW(Number(e.target.value)||0)} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-white/20 transition-colors" />
+              </label>
+            </div>
           </div>
-          <label className="flex flex-col gap-1">
-            <span className="opacity-70">{t('date.title', { defaultValue: 'Date' })}</span>
-            <select value={dateStrategy} onChange={e=>setDateStrategy(e.target.value as any)} className="bg-slate-900 border border-white/10 rounded px-2 py-2">
-              <option value="now">{t('meta.date.now', { defaultValue: 'Current time' })}</option>
-              <option value="offset">{t('meta.date.offset', { defaultValue: 'Offset' })}</option>
-            </select>
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="opacity-70">{t('meta.offsetMinutes', { defaultValue: 'Offset, min' })}</span>
-            <input type="number" value={dateOffsetMinutes} onChange={e=>setDateOffsetMinutes(Number(e.target.value)||0)} className="bg-slate-900 border border-white/10 rounded px-2 py-2" />
-          </label>
-          <div className="flex flex-wrap items-center gap-3">
-            <label className="inline-flex items-center gap-2"><input type="checkbox" checked={softwareTag} onChange={e=>setSoftwareTag(e.target.checked)} />Software</label>
-            <label className="inline-flex items-center gap-2"><input type="checkbox" checked={fake} onChange={e=>setFake(e.target.checked)} />Fake</label>
+
+          <div className="glass-card rounded-xl p-4">
+            <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+              <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
+              Метаданные
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              <div className="space-y-3">
+                <label className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-slate-800/40 to-slate-700/40 hover:from-slate-800/60 hover:to-slate-700/60 transition-all cursor-pointer group border border-white/5">
+                  <input 
+                    type="checkbox" 
+                    checked={removeGps} 
+                    onChange={e=>setRemoveGps(e.target.checked)} 
+                    className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500" 
+                  />
+                  <div className="flex-1">
+                    <span className="text-sm text-white group-hover:text-blue-300 transition-colors">Удалить GPS данные</span>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Удаляет координаты и геолокацию</p>
+                  </div>
+                </label>
+                <label className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-slate-800/40 to-slate-700/40 hover:from-slate-800/60 hover:to-slate-700/60 transition-all cursor-pointer group border border-white/5">
+                  <input 
+                    type="checkbox" 
+                    checked={uniqueId} 
+                    onChange={e=>setUniqueId(e.target.checked)} 
+                    className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500" 
+                  />
+                  <div className="flex-1">
+                    <span className="text-sm text-white group-hover:text-blue-300 transition-colors">Уникальный ID</span>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Генерирует уникальный идентификатор</p>
+                  </div>
+                </label>
+                <label className={`flex items-center gap-3 p-3 rounded-lg transition-all cursor-pointer group border ${
+                    fake ? 'bg-slate-700/20 opacity-50 cursor-not-allowed border-slate-700/30' : 'bg-gradient-to-r from-rose-900/30 to-red-900/30 hover:from-rose-900/40 hover:to-red-900/40 border-rose-500/20'
+                  }`}>
+                  <input 
+                    type="checkbox" 
+                    checked={removeAll} 
+                    onChange={e => {
+                      if (!fake) {
+                        setRemoveAll(e.target.checked)
+                        if (e.target.checked) {
+                          setFake(false)
+                        }
+                      }
+                    }} 
+                    disabled={fake}
+                    className="w-4 h-4 text-rose-600 bg-gray-700 border-gray-600 rounded focus:ring-rose-500 disabled:opacity-50" 
+                  />
+                  <div className="flex-1">
+                    <span className={`text-sm font-medium transition-colors ${fake ? 'text-slate-600' : 'text-white group-hover:text-rose-300'}`}>
+                      <FaTrash className="inline w-3 h-3 mr-1" />
+                      Удалить все метаданные
+                    </span>
+                    <p className="text-[10px] text-slate-500 mt-0.5">
+                      {fake ? '⚠️ Недоступно при фейковых метаданных' : 'Полная очистка EXIF, IPTC, XMP'}
+                    </p>
+                  </div>
+                </label>
+                <label className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-slate-800/40 to-slate-700/40 hover:from-slate-800/60 hover:to-slate-700/60 transition-all cursor-pointer group border border-white/5">
+                  <input 
+                    type="checkbox" 
+                    checked={softwareTag} 
+                    onChange={e=>setSoftwareTag(e.target.checked)} 
+                    className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500" 
+                  />
+                  <div className="flex-1">
+                    <span className="text-sm text-white group-hover:text-blue-300 transition-colors">Добавить тег Software</span>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Добавляет информацию о программе</p>
+                  </div>
+                </label>
+              </div>
+              <div className="space-y-3">
+                <label className="flex flex-col gap-2">
+                  <span className="opacity-70 font-medium">Дата</span>
+                  <select value={dateStrategy} onChange={e=>setDateStrategy(e.target.value as any)} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-white/20 transition-colors">
+                    <option value="now">Текущее время</option>
+                    <option value="offset">Смещение</option>
+                  </select>
+                </label>
+                {dateStrategy === 'offset' && (
+                  <label className="flex flex-col gap-2">
+                    <span className="opacity-70 font-medium">Смещение, мин</span>
+                    <input type="number" value={dateOffsetMinutes} onChange={e=>setDateOffsetMinutes(Number(e.target.value)||0)} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-white/20 transition-colors" />
+                  </label>
+                )}
+                <div className="border-t border-white/10 my-3"></div>
+                <label className={`flex items-center gap-3 p-3 rounded-lg transition-all cursor-pointer group border ${
+                    removeAll ? 'bg-slate-700/20 opacity-50 cursor-not-allowed border-slate-700/30' : 'bg-gradient-to-r from-purple-900/30 to-indigo-900/30 hover:from-purple-900/40 hover:to-indigo-900/40 border-purple-500/20'
+                  }`}>
+                  <input 
+                    type="checkbox" 
+                    checked={fake} 
+                    onChange={e => {
+                      if (!removeAll) {
+                        setFake(e.target.checked)
+                        if (e.target.checked) {
+                          setRemoveAll(false)
+                        }
+                      }
+                    }} 
+                    disabled={removeAll}
+                    className="w-4 h-4 text-purple-600 bg-gray-700 border-gray-600 rounded focus:ring-purple-500 disabled:opacity-50" 
+                  />
+                  <div className="flex-1">
+                    <span className={`text-sm font-medium transition-colors ${
+                      removeAll ? 'text-slate-600' : 'text-white group-hover:text-purple-300'
+                    }`}>
+                      <FaMagic className="inline w-3 h-3 mr-1" />
+                      Фейковые метаданные
+                    </span>
+                    <p className="text-[10px] text-slate-500 mt-0.5">
+                      {removeAll ? '⚠️ Недоступно при удалении метаданных' : 'Генерирует реалистичные EXIF данные'}
+                    </p>
+                  </div>
+                </label>
+              </div>
+            </div>
           </div>
         </div>
 
         {fake && (
-          <div className="mt-4 space-y-3">
-            <div className="flex items-center gap-3 text-xs">
-              <label className="inline-flex items-center gap-2"><input type="checkbox" checked={fakeAuto} onChange={e=>setFakeAuto(e.target.checked)} />Авто</label>
-              <label className="inline-flex items-center gap-2"><input type="checkbox" checked={fakePerFile} onChange={e=>setFakePerFile(e.target.checked)} />Уникально на файл</label>
-              <label className="inline-flex items-center gap-2"><input type="checkbox" checked={onlineAuto} onChange={e=>setOnlineAuto(e.target.checked)} />Online дефолты</label>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2 text-xs">
-              <label className="flex flex-col gap-1"><span className="opacity-70">{t('fake.profile', { defaultValue: 'Profile' })}</span>
-                <select value={fakeProfile} onChange={e=>setFakeProfile(e.target.value as ProfileKind)} className="bg-slate-900 border border-white/10 rounded px-2 py-2">
-                  <option value="camera">📷 Камера</option>
-                  <option value="phone">📱 Телефон</option>
-                  <option value="action">📹 Экшн</option>
-                  <option value="drone">🚁 Дрон</option>
-                  <option value="scanner">🖨️ Сканер</option>
-                </select>
-              </label>
-              <label className="flex flex-col gap-1"><span className="opacity-70">{t('fake.make', { defaultValue: 'Make' })}</span>
-                <select value={fakeMake} onChange={e=>setFakeMake(e.target.value)} className="bg-slate-900 border border-white/10 rounded px-2 py-2">
-                  {makeOptions.map(x => <option key={x} value={x}>{x}</option>)}
-                </select>
-              </label>
-              <label className="flex flex-col gap-1"><span className="opacity-70">{t('fake.model', { defaultValue: 'Model' })}</span>
-                <select value={fakeModel} onChange={e=>setFakeModel(e.target.value)} className="bg-slate-900 border border-white/10 rounded px-2 py-2">
-                  {modelOptions.map(x => <option key={x} value={x}>{x}</option>)}
-                </select>
-              </label>
-              <label className="flex flex-col gap-1"><span className="opacity-70">{t('fake.lens', { defaultValue: 'Lens' })}</span>
-                <select value={fakeLens} onChange={e=>setFakeLens(e.target.value)} className="bg-slate-900 border border-white/10 rounded px-2 py-2">
-                  {lensOptions.map(x => <option key={x} value={x}>{x}</option>)}
-                </select>
-              </label>
-              <label className="flex flex-col gap-1"><span className="opacity-70">Software</span><input value={fakeSoftware} onChange={e=>setFakeSoftware(e.target.value)} className="bg-slate-900 border border-white/10 rounded px-2 py-2" /></label>
-              <label className="flex flex-col gap-1"><span className="opacity-70">Serial</span><input value={fakeSerial} onChange={e=>setFakeSerial(e.target.value)} className="bg-slate-900 border border-white/10 rounded px-2 py-2" /></label>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2 text-xs">
-              <label className="flex flex-col gap-1"><span className="opacity-70">ISO</span>
-                <select value={String(fakeIso)} onChange={e=>setFakeIso(e.target.value ? Number(e.target.value) : '')} className="bg-slate-900 border border-white/10 rounded px-2 py-2">
-                  <option value="">—</option>
-                  {ISO_PRESETS.map(x => <option key={x} value={x}>{x}</option>)}
-                </select>
-              </label>
-              <label className="flex flex-col gap-1"><span className="opacity-70">{t('fake.exposure', { defaultValue: 'Shutter' })}</span>
-                <select value={fakeExposureTime} onChange={e=>setFakeExposureTime(e.target.value)} className="bg-slate-900 border border-white/10 rounded px-2 py-2">
-                  <option value="">—</option>
-                  {EXPOSURE_TIMES.map(x => <option key={x} value={x}>{x}</option>)}
-                </select>
-              </label>
-              <label className="flex flex-col gap-1"><span className="opacity-70">{t('fake.fnumber', { defaultValue: 'Aperture (f/)' })}</span>
-                <select value={String(fakeFNumber)} onChange={e=>setFakeFNumber(e.target.value ? Number(e.target.value) : '')} className="bg-slate-900 border border-white/10 rounded px-2 py-2">
-                  <option value="">—</option>
-                  {FNUMBERS.map(x => <option key={x} value={x}>{x}</option>)}
-                </select>
-              </label>
-              <label className="flex flex-col gap-1"><span className="opacity-70">{t('fake.focal', { defaultValue: 'Focal (mm)' })}</span>
-                <select value={String(fakeFocalLength)} onChange={e=>setFakeFocalLength(e.target.value ? Number(e.target.value) : '')} className="bg-slate-900 border border-white/10 rounded px-2 py-2">
-                  <option value="">—</option>
-                  {FOCALS.map(x => <option key={x} value={x}>{x}</option>)}
-                </select>
-              </label>
-              <label className="flex flex-col gap-1"><span className="opacity-70">{t('fake.program', { defaultValue: 'Exposure program' })}</span>
-                <select value={String(fakeExposureProgram)} onChange={e=>setFakeExposureProgram(e.target.value ? Number(e.target.value) : '')} className="bg-slate-900 border border-white/10 rounded px-2 py-2">
-                  <option value="">—</option>
-                  {EXPOSURE_PROGRAMS.map(x => <option key={x.v} value={x.v}>{x.label}</option>)}
-                </select>
-              </label>
-              <label className="flex flex-col gap-1"><span className="opacity-70">{t('fake.metering', { defaultValue: 'Metering mode' })}</span>
-                <select value={String(fakeMeteringMode)} onChange={e=>setFakeMeteringMode(e.target.value ? Number(e.target.value) : '')} className="bg-slate-900 border border-white/10 rounded px-2 py-2">
-                  <option value="">—</option>
-                  {METERING_MODES.map(x => <option key={x.v} value={x.v}>{x.label}</option>)}
-                </select>
-              </label>
-              <label className="flex flex-col gap-1"><span className="opacity-70">{t('fake.flash', { defaultValue: 'Flash' })}</span>
-                <select value={String(fakeFlash)} onChange={e=>setFakeFlash(e.target.value ? Number(e.target.value) : '')} className="bg-slate-900 border border-white/10 rounded px-2 py-2">
-                  <option value="">—</option>
-                  {FLASH_MODES.map(x => <option key={x.v} value={x.v}>{x.label}</option>)}
-                </select>
-              </label>
-              <label className="flex flex-col gap-1"><span className="opacity-70">{t('fake.whiteBalance', { defaultValue: 'White balance' })}</span>
-                <select value={String(fakeWhiteBalance)} onChange={e=>setFakeWhiteBalance(e.target.value ? Number(e.target.value) : '')} className="bg-slate-900 border border-white/10 rounded px-2 py-2">
-                  <option value="">—</option>
-                  {WHITE_BALANCES.map(x => <option key={x.v} value={x.v}>{x.label}</option>)}
-                </select>
-              </label>
-              <label className="flex flex-col gap-1"><span className="opacity-70">{t('fake.colorSpace', { defaultValue: 'Color space' })}</span>
-                <select value={fakeColorSpace} onChange={e=>setFakeColorSpace(e.target.value)} className="bg-slate-900 border border-white/10 rounded px-2 py-2">
-                  <option value="">—</option>
-                  {COLOR_SPACES.map(x => <option key={x} value={x}>{x}</option>)}
-                </select>
-              </label>
-              <label className="flex flex-col gap-1"><span className="opacity-70">{t('fake.rating', { defaultValue: 'Rating' })}</span>
-                <select value={String(fakeRating)} onChange={e=>setFakeRating(e.target.value ? Number(e.target.value) : '')} className="bg-slate-900 border border-white/10 rounded px-2 py-2">
-                  <option value="">—</option>
-                  {RATINGS.map(x => <option key={x} value={x}>{x}</option>)}
-                </select>
-              </label>
-              <label className="flex flex-col gap-1 md:col-span-2 xl:col-span-2"><span className="opacity-70">{t('fake.titleField', { defaultValue: 'Title' })}</span><input value={fakeTitle} onChange={e=>setFakeTitle(e.target.value)} className="bg-slate-900 border border-white/10 rounded px-2 py-2" /></label>
-              <label className="flex flex-col gap-1 md:col-span-2 xl:col-span-1"><span className="opacity-70">{t('fake.label', { defaultValue: 'Label' })}</span><input value={fakeLabel} onChange={e=>setFakeLabel(e.target.value)} className="bg-slate-900 border border-white/10 rounded px-2 py-2" /></label>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2 text-xs">
-              <div className="flex flex-wrap items-center gap-3 col-span-2 xl:col-span-2">
-                <label className="inline-flex items-center gap-2"><input type="checkbox" checked={fakeGps} onChange={e=>setFakeGps(e.target.checked)} />GPS</label>
-                <label className="inline-flex items-center gap-2"><input type="checkbox" checked={!!locationPreset && locationPreset!=='none'} onChange={e=>{ if (!e.target.checked) setLocationPreset('none') }} />Preset</label>
+          <div className="mt-4 space-y-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex space-x-1 bg-slate-800/50 p-1 rounded-lg">
+                <button
+                  onClick={() => setFakeTab('general')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 ${fakeTab === 'general' ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                >
+                  <Icon name="tabler:settings" className="w-4 h-4 inline mr-2" />
+                  Основные
+                </button>
+                <button
+                  onClick={() => setFakeTab('location')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 ${fakeTab === 'location' ? 'bg-gradient-to-r from-green-600 to-teal-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                >
+                  <Icon name="tabler:map-pin" className="w-4 h-4 inline mr-2" />
+                  Геолокация
+                </button>
+                <button
+                  onClick={() => setFakeTab('metadata')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 ${fakeTab === 'metadata' ? 'bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                >
+                  <Icon name="tabler:file-info" className="w-4 h-4 inline mr-2" />
+                  Метаданные
+                </button>
+                <button
+                  onClick={() => setFakeTab('camera')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 ${fakeTab === 'camera' ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                >
+                  <Icon name="tabler:camera" className="w-4 h-4 inline mr-2" />
+                  Камера
+                </button>
               </div>
-              <label className="flex flex-col gap-1"><span className="opacity-70">Preset</span>
-                <select value={locationPreset} onChange={e=>setLocationPreset(e.target.value)} className="bg-slate-900 border border-white/10 rounded px-2 py-2">
-                  {LOCATION_PRESETS.map(x => (
-                    <option key={x.id} value={x.id}>{x.id==='none' ? t('location.none', { defaultValue: x.label }) : x.label}</option>
-                  ))}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleApplyPreset()}
+                  className="px-4 py-2 bg-gradient-to-r from-pink-600 to-purple-600 text-white rounded-lg text-sm font-medium hover:from-pink-700 hover:to-purple-700 transition-all shadow-lg"
+                >
+                  <Icon name="tabler:sparkles" className="w-4 h-4 inline mr-2" />
+                  Применить шаблон
+                </button>
+                <select 
+                  onChange={(e) => handleApplyPreset(e.target.value)}
+                  className="px-3 py-2 bg-slate-800/50 border border-white/10 rounded-lg text-sm hover:border-purple-400/30 transition-colors"
+                >
+                  <option value="">Выбрать шаблон...</option>
+                  <option value="professional">Профессиональная съемка</option>
+                  <option value="travel">Путешествие</option>
+                  <option value="nature">Природа</option>
+                  <option value="studio">Студийная съемка</option>
+                  <option value="street">Уличная фотография</option>
                 </select>
-              </label>
-              <label className="flex flex-col gap-1"><span className="opacity-70">Lat</span><input value={fakeLat} onChange={e=>setFakeLat(e.target.value)} placeholder="50.45" className="bg-slate-900 border border-white/10 rounded px-2 py-2" /></label>
-              <label className="flex flex-col gap-1"><span className="opacity-70">Lon</span><input value={fakeLon} onChange={e=>setFakeLon(e.target.value)} placeholder="30.52" className="bg-slate-900 border border-white/10 rounded px-2 py-2" /></label>
-              <label className="flex flex-col gap-1"><span className="opacity-70">Alt</span><input value={fakeAltitude} onChange={e=>setFakeAltitude(e.target.value)} placeholder="100" className="bg-slate-900 border border-white/10 rounded px-2 py-2" /></label>
-              <label className="flex flex-col gap-1"><span className="opacity-70">{t('fake.city', { defaultValue: 'City' })}</span><input value={fakeCity} onChange={e=>setFakeCity(e.target.value)} className="bg-slate-900 border border-white/10 rounded px-2 py-2" /></label>
-              <label className="flex flex-col gap-1"><span className="opacity-70">{t('fake.state', { defaultValue: 'Region' })}</span><input value={fakeState} onChange={e=>setFakeState(e.target.value)} className="bg-slate-900 border border-white/10 rounded px-2 py-2" /></label>
-              <label className="flex flex-col gap-1"><span className="opacity-70">{t('fake.country', { defaultValue: 'Country' })}</span><input value={fakeCountry} onChange={e=>setFakeCountry(e.target.value)} className="bg-slate-900 border border-white/10 rounded px-2 py-2" /></label>
+              </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-2 text-xs">
-              <label className="flex flex-col gap-1"><span className="opacity-70">{t('meta.author', { defaultValue: 'Author' })}</span><input value={author} onChange={e=>setAuthor(e.target.value)} className="bg-slate-900 border border-white/10 rounded px-2 py-2" /></label>
-              <label className="flex flex-col gap-1"><span className="opacity-70">{t('meta.description', { defaultValue: 'Description' })}</span><input value={description} onChange={e=>setDescription(e.target.value)} className="bg-slate-900 border border-white/10 rounded px-2 py-2" /></label>
-              <label className="flex flex-col gap-1"><span className="opacity-70">{t('meta.keywords', { defaultValue: 'Keywords' })}</span><input value={keywords} onChange={e=>setKeywords(e.target.value)} placeholder="word1, word2" className="bg-slate-900 border border-white/10 rounded px-2 py-2" /></label>
-              <label className="flex flex-col gap-1"><span className="opacity-70">Copyright</span><input value={copyright} onChange={e=>setCopyright(e.target.value)} className="bg-slate-900 border border-white/10 rounded px-2 py-2" /></label>
-              <label className="flex flex-col gap-1 md:col-span-2 xl:col-span-1"><span className="opacity-70">Creator Tool</span><input value={creatorTool} onChange={e=>setCreatorTool(e.target.value)} className="bg-slate-900 border border-white/10 rounded px-2 py-2" /></label>
-            </div>
+
+            {fakeTab === 'general' && (
+              <div className="bg-gradient-to-br from-purple-900/20 to-indigo-900/20 backdrop-blur-sm rounded-xl p-4 border border-purple-500/20">
+                <h4 className="text-sm font-semibold text-purple-300 mb-3 flex items-center gap-2">
+                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
+                  Настройки генерации
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <label className="flex items-center gap-3 p-3 rounded-lg bg-purple-800/10 hover:bg-purple-800/20 transition-all cursor-pointer group border border-purple-500/10">
+                    <input 
+                      type="checkbox" 
+                      checked={fakeAuto} 
+                      onChange={e=>setFakeAuto(e.target.checked)} 
+                      className="w-4 h-4 text-purple-600 bg-gray-700 border-gray-600 rounded focus:ring-purple-500"
+                    />
+                    <div className="flex-1">
+                      <span className="text-sm text-purple-200">Авто-генерация</span>
+                      <p className="text-[10px] text-slate-500 mt-0.5">Автоматический подбор параметров</p>
+                    </div>
+                  </label>
+                  <label className="flex items-center gap-3 p-3 rounded-lg bg-purple-800/10 hover:bg-purple-800/20 transition-all cursor-pointer group border border-purple-500/10">
+                    <input 
+                      type="checkbox" 
+                      checked={fakePerFile} 
+                      onChange={e=>setFakePerFile(e.target.checked)} 
+                      className="w-4 h-4 text-purple-600 bg-gray-700 border-gray-600 rounded focus:ring-purple-500"
+                    />
+                    <div className="flex-1">
+                      <span className="text-sm text-purple-200">Уникально на файл</span>
+                      <p className="text-[10px] text-slate-500 mt-0.5">Разные параметры для каждого</p>
+                    </div>
+                  </label>
+                  <label className="flex items-center gap-3 p-3 rounded-lg bg-purple-800/10 hover:bg-purple-800/20 transition-all cursor-pointer group border border-purple-500/10">
+                    <input 
+                      type="checkbox" 
+                      checked={onlineAuto} 
+                      onChange={e=>setOnlineAuto(e.target.checked)} 
+                      className="w-4 h-4 text-purple-600 bg-gray-700 border-gray-600 rounded focus:ring-purple-500"
+                    />
+                    <div className="flex-1">
+                      <span className="text-sm text-purple-200">Online дефолты</span>
+                      <p className="text-[10px] text-slate-500 mt-0.5">Использовать онлайн базу</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {fakeTab === 'camera' && (
+              <div className="space-y-4">
+                <div className="bg-gradient-to-br from-indigo-900/20 to-blue-900/20 backdrop-blur-sm rounded-xl p-4 border border-indigo-500/20">
+                  <h4 className="text-sm font-semibold text-indigo-300 mb-3 flex items-center gap-2">
+                    <FaCamera className="w-3 h-3" />
+                    Устройство и камера
+                  </h4>
+                  <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+                    <label className="flex flex-col gap-2 p-3 rounded-lg bg-indigo-800/10 hover:bg-indigo-800/20 transition-all border border-indigo-500/10">
+                      <span className="text-xs font-medium text-indigo-300">Профиль</span>
+                      <select 
+                        value={fakeProfile} 
+                        onChange={e=>setFakeProfile(e.target.value as ProfileKind)} 
+                        className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-indigo-400/30 transition-colors text-sm"
+                      >
+                        <option value="camera">📷 Камера</option>
+                        <option value="phone">📱 Телефон</option>
+                        <option value="action">📹 Экшн</option>
+                        <option value="drone">🚁 Дрон</option>
+                        <option value="scanner">🖨️ Сканер</option>
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-2 p-3 rounded-lg bg-indigo-800/10 hover:bg-indigo-800/20 transition-all border border-indigo-500/10">
+                      <span className="text-xs font-medium text-indigo-300">Производитель</span>
+                      <select 
+                        value={fakeMake} 
+                        onChange={e=>setFakeMake(e.target.value)} 
+                        className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-indigo-400/30 transition-colors text-sm"
+                      >
+                        {makeOptions.map(x => <option key={x} value={x}>{x}</option>)}
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-2 p-3 rounded-lg bg-indigo-800/10 hover:bg-indigo-800/20 transition-all border border-indigo-500/10">
+                      <span className="text-xs font-medium text-indigo-300">Модель</span>
+                      <select 
+                        value={fakeModel} 
+                        onChange={e=>setFakeModel(e.target.value)} 
+                        className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-indigo-400/30 transition-colors text-sm"
+                      >
+                        {modelOptions.map(x => <option key={x} value={x}>{x}</option>)}
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-2 p-3 rounded-lg bg-indigo-800/10 hover:bg-indigo-800/20 transition-all border border-indigo-500/10">
+                      <span className="text-xs font-medium text-indigo-300">Объектив</span>
+                      <select 
+                        value={fakeLens} 
+                        onChange={e=>setFakeLens(e.target.value)} 
+                        className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-indigo-400/30 transition-colors text-sm"
+                      >
+                        {lensOptions.map(x => <option key={x} value={x}>{x}</option>)}
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-2 p-3 rounded-lg bg-indigo-800/10 hover:bg-indigo-800/20 transition-all border border-indigo-500/10">
+                      <span className="text-xs font-medium text-indigo-300">Software</span>
+                      <input 
+                        value={fakeSoftware} 
+                        onChange={e=>setFakeSoftware(e.target.value)} 
+                        className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-indigo-400/30 transition-colors text-sm"
+                        placeholder="Photoshop..."
+                      />
+                    </label>
+                    <label className="flex flex-col gap-2 p-3 rounded-lg bg-indigo-800/10 hover:bg-indigo-800/20 transition-all border border-indigo-500/10">
+                      <span className="text-xs font-medium text-indigo-300">Serial</span>
+                      <input 
+                        value={fakeSerial} 
+                        onChange={e=>setFakeSerial(e.target.value)} 
+                        className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-indigo-400/30 transition-colors text-sm"
+                        placeholder="123456..."
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-br from-blue-900/20 to-cyan-900/20 backdrop-blur-sm rounded-xl p-4 border border-blue-500/20">
+                  <h4 className="text-sm font-semibold text-blue-300 mb-3 flex items-center gap-2">
+                    <FaCog className="w-3 h-3" />
+                    Параметры съёмки
+                  </h4>
+                  <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+                    <label className="flex flex-col gap-2 p-3 rounded-lg bg-blue-800/10 hover:bg-blue-800/20 transition-all border border-blue-500/10">
+                      <span className="text-xs font-medium text-blue-300">ISO</span>
+                      <select 
+                        value={String(fakeIso)} 
+                        onChange={e=>setFakeIso(e.target.value ? Number(e.target.value) : '')} 
+                        className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-blue-400/30 transition-colors text-sm"
+                      >
+                        <option value="">Авто</option>
+                        {ISO_PRESETS.map(x => <option key={x} value={x}>{x}</option>)}
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-2 p-3 rounded-lg bg-blue-800/10 hover:bg-blue-800/20 transition-all border border-blue-500/10">
+                      <span className="text-xs font-medium text-blue-300">Выдержка</span>
+                      <select 
+                        value={fakeExposureTime} 
+                        onChange={e=>setFakeExposureTime(e.target.value)} 
+                        className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-blue-400/30 transition-colors text-sm"
+                      >
+                        <option value="">Авто</option>
+                        {EXPOSURE_TIMES.map(x => <option key={x} value={x}>{x}</option>)}
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-2 p-3 rounded-lg bg-blue-800/10 hover:bg-blue-800/20 transition-all border border-blue-500/10">
+                      <span className="text-xs font-medium text-blue-300">Диафрагма</span>
+                      <select 
+                        value={String(fakeFNumber)} 
+                        onChange={e=>setFakeFNumber(e.target.value ? Number(e.target.value) : '')} 
+                        className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-blue-400/30 transition-colors text-sm"
+                      >
+                        <option value="">Авто</option>
+                        {FNUMBERS.map(x => <option key={x} value={x}>f/{x}</option>)}
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-2 p-3 rounded-lg bg-blue-800/10 hover:bg-blue-800/20 transition-all border border-blue-500/10">
+                      <span className="text-xs font-medium text-blue-300">Фокус (мм)</span>
+                      <select 
+                        value={String(fakeFocalLength)} 
+                        onChange={e=>setFakeFocalLength(e.target.value ? Number(e.target.value) : '')} 
+                        className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-blue-400/30 transition-colors text-sm"
+                      >
+                        <option value="">Авто</option>
+                        {FOCALS.map(x => <option key={x} value={x}>{x}мм</option>)}
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-2 p-3 rounded-lg bg-blue-800/10 hover:bg-blue-800/20 transition-all border border-blue-500/10">
+                      <span className="text-xs font-medium text-blue-300">Программа</span>
+                      <select 
+                        value={String(fakeExposureProgram)} 
+                        onChange={e=>setFakeExposureProgram(e.target.value ? Number(e.target.value) : '')} 
+                        className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-blue-400/30 transition-colors text-sm"
+                      >
+                        <option value="">Авто</option>
+                        {EXPOSURE_PROGRAMS.map(x => <option key={x.v} value={x.v}>{x.label}</option>)}
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-2 p-3 rounded-lg bg-blue-800/10 hover:bg-blue-800/20 transition-all border border-blue-500/10">
+                      <span className="text-xs font-medium text-blue-300">Замер</span>
+                      <select 
+                        value={String(fakeMeteringMode)} 
+                        onChange={e=>setFakeMeteringMode(e.target.value ? Number(e.target.value) : '')} 
+                        className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-blue-400/30 transition-colors text-sm"
+                      >
+                        <option value="">Авто</option>
+                        {METERING_MODES.map(x => <option key={x.v} value={x.v}>{x.label}</option>)}
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-2 p-3 rounded-lg bg-blue-800/10 hover:bg-blue-800/20 transition-all border border-blue-500/10">
+                      <span className="text-xs font-medium text-blue-300">Вспышка</span>
+                      <select 
+                        value={String(fakeFlash)} 
+                        onChange={e=>setFakeFlash(e.target.value ? Number(e.target.value) : '')} 
+                        className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-blue-400/30 transition-colors text-sm"
+                      >
+                        <option value="">Авто</option>
+                        {FLASH_MODES.map(x => <option key={x.v} value={x.v}>{x.label}</option>)}
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-2 p-3 rounded-lg bg-blue-800/10 hover:bg-blue-800/20 transition-all border border-blue-500/10">
+                      <span className="text-xs font-medium text-blue-300">Баланс белого</span>
+                      <select 
+                        value={String(fakeWhiteBalance)} 
+                        onChange={e=>setFakeWhiteBalance(e.target.value ? Number(e.target.value) : '')} 
+                        className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-blue-400/30 transition-colors text-sm"
+                      >
+                        <option value="">Авто</option>
+                        {WHITE_BALANCES.map(x => <option key={x.v} value={x.v}>{x.label}</option>)}
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-2 p-3 rounded-lg bg-blue-800/10 hover:bg-blue-800/20 transition-all border border-blue-500/10">
+                      <span className="text-xs font-medium text-blue-300">Цвет. пространство</span>
+                      <select 
+                        value={fakeColorSpace} 
+                        onChange={e=>setFakeColorSpace(e.target.value)} 
+                        className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-blue-400/30 transition-colors text-sm"
+                      >
+                        <option value="">Авто</option>
+                        {COLOR_SPACES.map(x => <option key={x} value={x}>{x}</option>)}
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-2 p-3 rounded-lg bg-blue-800/10 hover:bg-blue-800/20 transition-all border border-blue-500/10">
+                      <span className="text-xs font-medium text-blue-300">Рейтинг</span>
+                      <select 
+                        value={String(fakeRating)} 
+                        onChange={e=>setFakeRating(e.target.value ? Number(e.target.value) : '')} 
+                        className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-blue-400/30 transition-colors text-sm"
+                      >
+                        <option value="">Нет</option>
+                        {RATINGS.map(x => <option key={x} value={x}>{x > 0 ? '⭐'.repeat(x) : 'Нет'}</option>)}
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-2 p-3 rounded-lg bg-blue-800/10 hover:bg-blue-800/20 transition-all border border-blue-500/10 md:col-span-2 xl:col-span-2">
+                      <span className="text-xs font-medium text-blue-300">Заголовок</span>
+                      <input 
+                        value={fakeTitle} 
+                        onChange={e=>setFakeTitle(e.target.value)} 
+                        className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-blue-400/30 transition-colors text-sm"
+                        placeholder="Название изображения..."
+                      />
+                    </label>
+                    <label className="flex flex-col gap-2 p-3 rounded-lg bg-blue-800/10 hover:bg-blue-800/20 transition-all border border-blue-500/10 md:col-span-2 xl:col-span-1">
+                      <span className="text-xs font-medium text-blue-300">Метка</span>
+                      <input 
+                        value={fakeLabel} 
+                        onChange={e=>setFakeLabel(e.target.value)} 
+                        className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-blue-400/30 transition-colors text-sm"
+                        placeholder="Категория..."
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {fakeTab === 'location' && (
+              <div className="bg-gradient-to-br from-green-900/20 to-teal-900/20 backdrop-blur-sm rounded-xl p-4 border border-green-500/20">
+                <h4 className="text-sm font-semibold text-green-300 mb-4 flex items-center gap-2">
+                  <Icon name="tabler:map-pin" className="w-5 h-5" />
+                  Геолокация
+                </h4>
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-center gap-4">
+                    <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-800/10 hover:bg-green-800/20 transition-all cursor-pointer border border-green-500/10">
+                      <input type="checkbox" checked={fakeGps} onChange={e=>setFakeGps(e.target.checked)} className="w-4 h-4 text-green-600 bg-gray-700 border-gray-600 rounded focus:ring-green-500" />
+                      <Icon name="tabler:gps" className="w-4 h-4 text-green-400" />
+                      <span className="text-sm text-green-200">Включить GPS</span>
+                    </label>
+                    <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-800/10 hover:bg-green-800/20 transition-all cursor-pointer border border-green-500/10">
+                      <input type="checkbox" checked={!!locationPreset && locationPreset!=='none'} onChange={e=>{ if (!e.target.checked) setLocationPreset('none') }} className="w-4 h-4 text-green-600 bg-gray-700 border-gray-600 rounded focus:ring-green-500" />
+                      <Icon name="tabler:location" className="w-4 h-4 text-green-400" />
+                      <span className="text-sm text-green-200">Использовать пресет</span>
+                    </label>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                    <label className="flex flex-col gap-2 p-3 rounded-lg bg-green-800/10 hover:bg-green-800/20 transition-all border border-green-500/10">
+                      <span className="text-xs font-medium text-green-300 flex items-center gap-2">
+                        <Icon name="tabler:map-2" className="w-4 h-4" />
+                        Пресет локации
+                      </span>
+                      <select value={locationPreset} onChange={e=>setLocationPreset(e.target.value)} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-green-400/30 transition-colors text-sm">
+                        {LOCATION_PRESETS.map(x => (
+                          <option key={x.id} value={x.id}>{x.id==='none' ? t('location.none', { defaultValue: x.label }) : x.label}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-2 p-3 rounded-lg bg-green-800/10 hover:bg-green-800/20 transition-all border border-green-500/10">
+                      <span className="text-xs font-medium text-green-300 flex items-center gap-2">
+                        <Icon name="tabler:map-north" className="w-4 h-4" />
+                        Широта
+                      </span>
+                      <input value={fakeLat} onChange={e=>setFakeLat(e.target.value)} placeholder="50.45" className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-green-400/30 transition-colors text-sm" />
+                    </label>
+                    <label className="flex flex-col gap-2 p-3 rounded-lg bg-green-800/10 hover:bg-green-800/20 transition-all border border-green-500/10">
+                      <span className="text-xs font-medium text-green-300 flex items-center gap-2">
+                        <Icon name="tabler:map-east" className="w-4 h-4" />
+                        Долгота
+                      </span>
+                      <input value={fakeLon} onChange={e=>setFakeLon(e.target.value)} placeholder="30.52" className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-green-400/30 transition-colors text-sm" />
+                    </label>
+                    <label className="flex flex-col gap-2 p-3 rounded-lg bg-green-800/10 hover:bg-green-800/20 transition-all border border-green-500/10">
+                      <span className="text-xs font-medium text-green-300 flex items-center gap-2">
+                        <Icon name="tabler:mountain" className="w-4 h-4" />
+                        Высота (м)
+                      </span>
+                      <input value={fakeAltitude} onChange={e=>setFakeAltitude(e.target.value)} placeholder="100" className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-green-400/30 transition-colors text-sm" />
+                    </label>
+                    <label className="flex flex-col gap-2 p-3 rounded-lg bg-green-800/10 hover:bg-green-800/20 transition-all border border-green-500/10">
+                      <span className="text-xs font-medium text-green-300 flex items-center gap-2">
+                        <Icon name="tabler:building" className="w-4 h-4" />
+                        {t('fake.city', { defaultValue: 'Город' })}
+                      </span>
+                      <input value={fakeCity} onChange={e=>setFakeCity(e.target.value)} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-green-400/30 transition-colors text-sm" />
+                    </label>
+                    <label className="flex flex-col gap-2 p-3 rounded-lg bg-green-800/10 hover:bg-green-800/20 transition-all border border-green-500/10">
+                      <span className="text-xs font-medium text-green-300 flex items-center gap-2">
+                        <Icon name="tabler:map" className="w-4 h-4" />
+                        {t('fake.state', { defaultValue: 'Регион' })}
+                      </span>
+                      <input value={fakeState} onChange={e=>setFakeState(e.target.value)} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-green-400/30 transition-colors text-sm" />
+                    </label>
+                    <label className="flex flex-col gap-2 p-3 rounded-lg bg-green-800/10 hover:bg-green-800/20 transition-all border border-green-500/10">
+                      <span className="text-xs font-medium text-green-300 flex items-center gap-2">
+                        <Icon name="tabler:world" className="w-4 h-4" />
+                        {t('fake.country', { defaultValue: 'Страна' })}
+                      </span>
+                      <input value={fakeCountry} onChange={e=>setFakeCountry(e.target.value)} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-green-400/30 transition-colors text-sm" />
+                    </label>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {fakeTab === 'metadata' && (
+              <div className="bg-gradient-to-br from-orange-900/20 to-red-900/20 backdrop-blur-sm rounded-xl p-4 border border-orange-500/20">
+                <h4 className="text-sm font-semibold text-orange-300 mb-4 flex items-center gap-2">
+                  <Icon name="tabler:file-info" className="w-5 h-5" />
+                  Метаданные
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                  <label className="flex flex-col gap-2 p-3 rounded-lg bg-orange-800/10 hover:bg-orange-800/20 transition-all border border-orange-500/10">
+                    <span className="text-xs font-medium text-orange-300 flex items-center gap-2">
+                      <Icon name="tabler:user" className="w-4 h-4" />
+                      {t('meta.author', { defaultValue: 'Автор' })}
+                    </span>
+                    <input value={author} onChange={e=>setAuthor(e.target.value)} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-orange-400/30 transition-colors text-sm" placeholder="Введите имя автора" />
+                  </label>
+                  <label className="flex flex-col gap-2 p-3 rounded-lg bg-orange-800/10 hover:bg-orange-800/20 transition-all border border-orange-500/10 md:col-span-2">
+                    <span className="text-xs font-medium text-orange-300 flex items-center gap-2">
+                      <Icon name="tabler:file-text" className="w-4 h-4" />
+                      {t('meta.description', { defaultValue: 'Описание' })}
+                    </span>
+                    <input value={description} onChange={e=>setDescription(e.target.value)} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-orange-400/30 transition-colors text-sm" placeholder="Описание изображения" />
+                  </label>
+                  <label className="flex flex-col gap-2 p-3 rounded-lg bg-orange-800/10 hover:bg-orange-800/20 transition-all border border-orange-500/10">
+                    <span className="text-xs font-medium text-orange-300 flex items-center gap-2">
+                      <Icon name="tabler:tags" className="w-4 h-4" />
+                      {t('meta.keywords', { defaultValue: 'Ключевые слова' })}
+                    </span>
+                    <input value={keywords} onChange={e=>setKeywords(e.target.value)} placeholder="слово1, слово2, слово3" className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-orange-400/30 transition-colors text-sm" />
+                  </label>
+                  <label className="flex flex-col gap-2 p-3 rounded-lg bg-orange-800/10 hover:bg-orange-800/20 transition-all border border-orange-500/10">
+                    <span className="text-xs font-medium text-orange-300 flex items-center gap-2">
+                      <Icon name="tabler:copyright" className="w-4 h-4" />
+                      Копирайт
+                    </span>
+                    <input value={copyright} onChange={e=>setCopyright(e.target.value)} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-orange-400/30 transition-colors text-sm" placeholder="© 2024 Ваша компания" />
+                  </label>
+                  <label className="flex flex-col gap-2 p-3 rounded-lg bg-orange-800/10 hover:bg-orange-800/20 transition-all border border-orange-500/10">
+                    <span className="text-xs font-medium text-orange-300 flex items-center gap-2">
+                      <Icon name="tabler:tool" className="w-4 h-4" />
+                      Программа создания
+                    </span>
+                    <input value={creatorTool} onChange={e=>setCreatorTool(e.target.value)} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-orange-400/30 transition-colors text-sm" placeholder="Photoshop, GIMP..." />
+                  </label>
+                </div>
+              </div>
+            )}
           </div>
         )}
-      </div>
 
-      {progress && progress.total > 0 && (
-        <div className="px-4 py-2" aria-live="polite">
-          <div className="w-full h-2 bg-slate-900 rounded border border-white/10 overflow-hidden sticky top-0">
-            <div className="h-2 bg-brand-600 transition-[width] duration-300 ease-out" style={{ width: `${Math.max(0, Math.min(100, Math.round((progress.percent|| (progress.current/Math.max(1,progress.total))*100))))}%` }} />
+        {progress && progress.total > 0 && (
+          <div className="px-4 py-4 border-b border-white/10 bg-black/20 backdrop-blur">
+            <AnimatedStats
+              totalFiles={progress.total}
+              processedFiles={progress.current}
+              timeElapsed={Math.floor((Date.now() - startTimeRef.current) / 1000)}
+              averageSpeed={progress.current / Math.max(1, (Date.now() - startTimeRef.current) / 1000)}
+              chartData={statsData}
+            />
           </div>
-          <div className="text-xs opacity-80 mt-1">
-            {busy ? (t('status.processing') || 'Processing…') : (t('status.ready') || 'Ready')} {progress.lastFile ? `• ${progress.lastFile}` : ''}
-          </div>
-        </div>
-      )}
+        )}
 
-      <div className="grid grid-cols-12 gap-0">
-        <aside className="col-span-2 xl:col-span-2 border-r border-white/10 bg-slate-950/40">
-          <nav className="p-2 flex flex-col gap-1">
-            <button onClick={()=>setActive('files')} className={`nav-btn ${active==='files'?'active':''}`}><span className="inline-flex items-center gap-2"><Icon name="tabler:folders" className="icon" />{t('tabs.files')}</span></button>
-            <button onClick={()=>setActive('ready')} className={`nav-btn ${active==='ready'?'active':''}`}><span className="inline-flex items-center gap-2"><Icon name="tabler:checks" className="icon" />{t('tabs.ready')}</span></button>
-          </nav>
-        </aside>
-        <section className="col-span-10 xl:col-span-10 p-4 with-gutter">
-          {active==='files' && (
-            <animated.div style={useSpring({ from: { opacity: 0 }, to: { opacity: 1 } })} className="space-y-4" ref={gridRef} onDrop={async e=>{ e.preventDefault(); const items = Array.from(e.dataTransfer.files||[]); if (!items.length) return; const paths = items.map(f=>(f as any).path); const expanded = await window.api.expandPaths(paths); if (expanded && expanded.length) addFiles(expanded) }} onDragOver={e=>e.preventDefault()}>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 @[app]:grid-cols-5 @[app]:gap-2">
-                <AnimatePresence>
-                  {files.map((p, i) => (
-                    <motion.div 
-                      key={p+i} 
-                      initial={{ opacity: 0, scale: 0.8, y: 20 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.8, y: -20 }}
-                      transition={{ duration: 0.3, delay: i * 0.05 }}
-                      whileHover={{ scale: 1.02, y: -5 }}
-                      className={`group tile bg-slate-900/60 rounded-md overflow-hidden border ${selected.has(i)?'border-brand-600 ring-1 ring-brand-600/40':'border-white/5'} relative cursor-pointer`} 
-                      onClick={e=>{ if ((e as any).metaKey || (e as any).ctrlKey) { setSelected(prev=>{ const n=new Set(prev); if (n.has(i)) n.delete(i); else n.add(i); return n }) } else { setSelected(new Set([i])) } }}
-                    >
-                      <div className="h-36 @[app]:h-32 bg-slate-900 flex items-center justify-center overflow-hidden">
-                        <img loading="lazy" decoding="async" alt="file" className="max-h-36 @[app]:max-h-32 transition-transform group-hover:scale-[1.1]" src={toFileUrl(p)} />
-                      </div>
-                      <div className="text-[10px] p-2 truncate opacity-80 flex items-center gap-2" title={p}>
-                        <span className="flex-1 truncate">{p}</span>
-                        <motion.button 
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
-                          className="btn btn-slate text-[10px]" 
-                          onClick={(e)=>{ e.stopPropagation(); setPreviewSrc(toFileUrl(p)); setPreviewOpen(true) }}
-                        >
-                          <FaEye className="w-3 h-3 mr-1" />
-                          {t('common.preview')}
-                        </motion.button>
-                        <motion.button 
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
-                          className="btn btn-rose text-[10px]" 
-                          onClick={(e)=>{ e.stopPropagation(); removeAt(i); setSelected(prev=>{ const ns=new Set<number>(); prev.forEach(idx=>{ if(idx<i) ns.add(idx); else if(idx>i) ns.add(idx-1) }); return ns }); toast.success('🗑️ Файл удален'); }}
-                        >
-                          <FaTrash className="w-3 h-3 mr-1" />
-                          {t('common.remove')}
-                        </motion.button>
-                      </div>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </div>
-              {!files.length && <div className="opacity-60 text-xs">{t('files.empty', { defaultValue: 'Add files or drop here' })}</div>}
-            </animated.div>
-          )}
-          {active==='ready' && (
-            <animated.div style={useSpring({ from: { opacity: 0 }, to: { opacity: 1 } })} className="space-y-4">
-              {!!results.length && (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 @[app]:grid-cols-5 @[app]:gap-2">
-                  <AnimatePresence>
+        <div className="grid grid-cols-12 gap-0">
+          <aside className="col-span-2 xl:col-span-2 border-r border-white/10 bg-gradient-to-b from-slate-950/60 to-slate-900/60 backdrop-blur-sm">
+            <nav className="p-3 space-y-2">
+              <button
+                onClick={() => setActive('files')}
+                className={`w-full text-left px-3 py-3 rounded-xl transition-all duration-300 flex items-center gap-3 group ${
+                  active === 'files'
+                    ? 'bg-gradient-to-r from-blue-600/20 to-purple-600/20 border border-blue-500/30 shadow-lg'
+                    : 'hover:bg-white/5 border border-transparent hover:border-white/10'
+                }`}
+              >
+                <div className={`p-2 rounded-lg transition-colors ${
+                  active === 'files' ? 'bg-blue-500/20' : 'bg-slate-800/50 group-hover:bg-slate-700/50'
+                }`}>
+                  <Icon name="tabler:folders" className={`w-5 h-5 transition-colors ${
+                    active === 'files' ? 'text-blue-400' : 'text-slate-400 group-hover:text-slate-300'
+                  }`} />
+                </div>
+                <div className="flex-1">
+                  <div className={`font-medium transition-colors ${
+                    active === 'files' ? 'text-blue-300' : 'text-slate-300 group-hover:text-white'
+                  }`}>
+                    {t('tabs.files')}
+                  </div>
+                  <div className="text-xs text-slate-500 group-hover:text-slate-400">
+                    {files.length} файлов
+                  </div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => setActive('ready')}
+                className={`w-full text-left px-3 py-3 rounded-xl transition-all duration-300 flex items-center gap-3 group ${
+                  active === 'ready'
+                    ? 'bg-gradient-to-r from-green-600/20 to-emerald-600/20 border border-green-500/30 shadow-lg'
+                    : 'hover:bg-white/5 border border-transparent hover:border-white/10'
+                }`}
+              >
+                <div className={`p-2 rounded-lg transition-colors ${
+                  active === 'ready' ? 'bg-green-500/20' : 'bg-slate-800/50 group-hover:bg-slate-700/50'
+                }`}>
+                  <Icon name="tabler:checks" className={`w-5 h-5 transition-colors ${
+                    active === 'ready' ? 'text-green-400' : 'text-slate-400 group-hover:text-slate-300'
+                  }`} />
+                </div>
+                <div className="flex-1">
+                  <div className={`font-medium transition-colors ${
+                    active === 'ready' ? 'text-green-300' : 'text-slate-300 group-hover:text-white'
+                  }`}>
+                    {t('tabs.ready')}
+                  </div>
+                  <div className="text-xs text-slate-500 group-hover:text-slate-400">
+                    {results.length} готово
+                  </div>
+                </div>
+              </button>
+            </nav>
+          </aside>
+
+          <section className="col-span-10 xl:col-span-10 p-4 with-gutter">
+            {active==='files' && (
+              <animated.div style={useSpring({ from: { opacity: 0 }, to: { opacity: 1 } })} className="space-y-6">
+                {files.length === 0 && (
+                  <FileDropzone
+                    onFilesAdded={async (paths) => {
+                      const expanded = await window.api.expandPaths(paths)
+                      if (expanded && expanded.length) {
+                        addFiles(expanded)
+                        toast.success(`📁 Добавлено ${expanded.length} файлов`, {
+                          duration: 3000,
+                          style: { background: 'var(--bg-success)', color: 'var(--text-success)' }
+                        })
+                      }
+                    }}
+                  />
+                )}
+                
+                {files.length > 0 && (
+                  <div ref={filesGridRef}>
+                    <ImageGrid
+                      items={files.map((path, index) => ({
+                        id: `file-${index}`,
+                        path,
+                        selected: selected.has(index)
+                      }))}
+                    onItemsChange={(items) => {
+                      const newPaths = items.map(item => item.path)
+                      setFiles(newPaths)
+                    }}
+                    onPreview={(item) => {
+                      setPreviewSrc(toFileUrl(item.path))
+                      setPreviewOpen(true)
+                    }}
+                    onRemove={(item) => {
+                      const index = files.indexOf(item.path)
+                      if (index !== -1) {
+                        removeAt(index)
+                        toast.success('🗑️ Файл удален', {
+                          duration: 2000,
+                          style: { background: 'var(--bg-warning)', color: 'var(--text-warning)' }
+                        })
+                      }
+                    }}
+                    onSelectionChange={(selectedItems) => {
+                      const indices = new Set(
+                        selectedItems.map(item => {
+                          const match = item.id.match(/file-(\d+)/)
+                          return match ? parseInt(match[1]) : -1
+                        }).filter(i => i !== -1)
+                      )
+                      setSelected(indices)
+                    }}
+                    sortable={true}
+                  />
+                  </div>
+                )}
+              </animated.div>
+            )}
+
+            {active==='ready' && (
+              <animated.div style={useSpring({ from: { opacity: 0 }, to: { opacity: 1 } })} className="space-y-4">
+                {!!results.length && (
+                  <div ref={resultsGridRef} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 @container">
                     {results.map((r, i) => (
-                      <motion.div 
-                        key={r.out+i} 
-                        initial={{ opacity: 0, scale: 0.8, y: 20 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.8, y: -20 }}
-                        transition={{ duration: 0.4, delay: i * 0.1 }}
-                        whileHover={{ scale: 1.03, y: -8 }}
-                        className="group bg-slate-900/60 rounded-md overflow-hidden border border-white/5 relative cursor-pointer"
-                      >
+                      <div key={r.out+i} className="group bg-slate-900/60 rounded-md overflow-hidden border border-white/5 relative cursor-pointer">
                         <div className="h-36 bg-slate-900 flex items-center justify-center overflow-hidden relative">
                           <img loading="lazy" decoding="async" alt="result" className="max-h-36 transition-transform group-hover:scale-[1.1]" src={toFileUrl(r.out)} />
                           <div className="absolute inset-0 z-10 opacity-0 group-hover:opacity-100 transition-all duration-300 bg-black/60 flex items-center justify-center gap-2 pointer-events-none">
-                            <motion.button 
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.9 }}
-                              className="chip pointer-events-auto bg-blue-600/90 hover:bg-blue-500" 
-                              onClick={(e)=>{ e.stopPropagation(); setPreviewSrc(toFileUrl(r.out)); setPreviewOpen(true) }}
-                            >
+                            <button className="chip pointer-events-auto bg-blue-600/90 hover:bg-blue-500" onClick={(e)=>{ e.stopPropagation(); setPreviewSrc(toFileUrl(r.out)); setPreviewOpen(true) }}>
                               <FaEye className="w-3 h-3 mr-1" />
                               {t('common.preview')||'Preview'}
-                            </motion.button>
-                            <motion.button 
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.9 }}
-                              className="chip pointer-events-auto bg-purple-600/90 hover:bg-purple-500" 
-                              onClick={async (e)=>{ e.stopPropagation(); try { const meta = await window.api.metaBeforeAfter(r.src, r.out); const a = await window.api.fileStats(r.out); const b = await window.api.fileStats(r.src); setMetaPayload({ meta, afterStats: a, beforeStats: b }); setMetaOpen(true) } catch {} }}
-                            >
+                            </button>
+                            <button className="chip pointer-events-auto bg-purple-600/90 hover:bg-purple-500" onClick={async (e)=>{ e.stopPropagation(); try { const meta = await window.api.metaBeforeAfter(r.src, r.out); const a = await window.api.fileStats(r.out); const b = await window.api.fileStats(r.src); setMetaPayload({ meta, afterStats: a, beforeStats: b }); setMetaOpen(true) } catch {} }}>
                               <FaInfoCircle className="w-3 h-3 mr-1" />
                               Metadata
-                            </motion.button>
-                            <motion.button 
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.9 }}
-                              className="chip pointer-events-auto bg-green-600/90 hover:bg-green-500" 
-                              onClick={(e)=>{ e.stopPropagation(); window.api.openPath(r.out) }}
-                            >
+                            </button>
+                            <button className="chip pointer-events-auto bg-green-600/90 hover:bg-green-500" onClick={(e)=>{ e.stopPropagation(); window.api.openPath(r.out) }}>
                               <FaFolder className="w-3 h-3 mr-1" />
                               {t('common.open')||'Open'}
-                            </motion.button>
+                            </button>
                           </div>
                         </div>
                         <div className="text-[10px] p-2 truncate opacity-80 flex items-center gap-2" title={r.out}>
                           <span className="flex-1 truncate">{r.out}</span>
-                          <motion.button 
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            className="btn btn-violet text-[10px]" 
-                            onClick={()=>window.api.openPath(r.out)}
-                          >
+                          <button className="btn btn-violet text-[10px]" onClick={()=>window.api.openPath(r.out)}>
                             <FaFolder className="w-3 h-3 mr-1" />
                             {t('common.open')||'Open'}
-                          </motion.button>
-                          <motion.button 
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            className="btn btn-amber text-[10px]" 
-                            onClick={()=>window.api.showInFolder(r.out)}
-                          >
+                          </button>
+                          <button className="btn btn-amber text-[10px]" onClick={()=>window.api.showInFolder(r.out)}>
                             <FaFolderOpen className="w-3 h-3 mr-1" />
                             {t('common.folder')}
-                          </motion.button>
+                          </button>
                         </div>
-                      </motion.div>
+                      </div>
                     ))}
-                  </AnimatePresence>
-                </div>
-              )}
-              {!results.length && <div className="opacity-60 text-xs">{t('ready.empty')}</div>}
-            </animated.div>
-          )}
-        </section>
-      </div>
-      </motion.div>
-      
-      <AnimatePresence>
-        {previewOpen && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center"
-          >
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/80" 
-              onClick={()=>setPreviewOpen(false)} 
-            />
-            <motion.div 
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }}
-              transition={{ type: "spring", damping: 20, stiffness: 300 }}
-              className="relative max-w-[90vw] max-h-[90vh] rounded-xl overflow-hidden border border-white/10 bg-slate-900"
-            >
-              <img alt="preview" src={previewSrc} className="max-w-[90vw] max-h-[90vh]" />
-              <motion.button 
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={()=>setPreviewOpen(false)} 
-                className="btn btn-ghost absolute top-2 right-2 text-xs"
-              >
-                Close
-              </motion.button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                  </div>
+                )}
+                {!results.length && <div className="opacity-60 text-xs">{t('ready.empty')}</div>}
+              </animated.div>
+            )}
+          </section>
+        </div>
 
-      <AnimatePresence>
+        {previewOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/80" onClick={()=>setPreviewOpen(false)} />
+            <div className="relative max-w-[90vw] max-h-[90vh] rounded-xl overflow-hidden border border-white/10 bg-slate-900">
+              <img alt="preview" src={previewSrc} className="max-w-[90vw] max-h-[90vh]" />
+              <button onClick={()=>setPreviewOpen(false)} className="btn btn-ghost absolute top-2 right-2 text-xs">
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+
         {metaOpen && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center"
-          >
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/80" 
-              onClick={()=>setMetaOpen(false)} 
-            />
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 50 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 50 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="relative w-[860px] max-w-[95vw] max-h-[90vh] rounded-xl overflow-hidden border border-white/10 bg-slate-900 p-4"
-            >
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/80" onClick={()=>setMetaOpen(false)} />
+            <div className="relative w-[860px] max-w-[95vw] max-h-[90vh] rounded-xl overflow-hidden border border-white/10 bg-slate-900 p-4">
               <div className="flex items-center justify-between mb-2">
                 <div className="text-sm font-semibold flex items-center gap-2">
                   <FaInfoCircle className="w-4 h-4 text-purple-400" />
                   Metadata Before / After
                 </div>
-                <motion.button 
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={()=>setMetaOpen(false)} 
-                  className="btn btn-ghost text-xs"
-                >
+                <button onClick={()=>setMetaOpen(false)} className="btn btn-ghost text-xs">
                   Close
-                </motion.button>
+                </button>
               </div>
               <div className="grid grid-cols-2 gap-4 text-xs overflow-auto max-h-[75vh]">
-                <motion.div
-                  initial={{ x: -50, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  transition={{ delay: 0.1 }}
-                >
+                <div>
                   <div className="font-semibold mb-1 text-red-400">Before</div>
                   <pre className="bg-slate-950/60 border border-white/10 rounded p-2 whitespace-pre-wrap break-words">{JSON.stringify({
                     ...(metaPayload?.meta?.before||{}),
                     sizeBytes: metaPayload?.beforeStats?.stats?.sizeBytes || 0
                   }, null, 2)}</pre>
-                </motion.div>
-                <motion.div
-                  initial={{ x: 50, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  transition={{ delay: 0.2 }}
-                >
+                </div>
+                <div>
                   <div className="font-semibold mb-1 text-green-400">After</div>
                   <pre className="bg-slate-950/60 border border-white/10 rounded p-2 whitespace-pre-wrap break-words">{JSON.stringify({
                     ...(metaPayload?.meta?.after||{}),
                     sizeBytes: metaPayload?.afterStats?.stats?.sizeBytes || 0
                   }, null, 2)}</pre>
-                </motion.div>
+                </div>
               </div>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
-    </motion.div>
+      </div>
+    </div>
+    </Suspense>
   )
 }

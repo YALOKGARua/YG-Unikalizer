@@ -600,22 +600,70 @@ function createWindow() {
     frame: false,
     titleBarStyle: 'hidden',
     autoHideMenuBar: true,
+    show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
-      webSecurity: false
+      webSecurity: false,
+      allowRunningInsecureContent: false,
+      experimentalFeatures: false,
+      enableBlinkFeatures: '',
+      disableBlinkFeatures: '',
+      nativeWindowOpen: true,
+      additionalArguments: ['--disable-features=VizDisplayCompositor']
     }
   })
-  const url = resolveHtmlPath()
-  if (url.startsWith('http')) mainWindow.loadURL(url)
-  else mainWindow.loadFile(path.join(__dirname, '..', 'dist', 'index.html'))
 
-  try {
-    mainWindow.on('maximize', () => { try { mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents.send('win-maximize-state', { maximized: true }) } catch (_) {} })
-    mainWindow.on('unmaximize', () => { try { mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents.send('win-maximize-state', { maximized: false }) } catch (_) {} })
-  } catch (_) {}
+  mainWindow.once('ready-to-show', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.show()
+    }
+  })
+
+  mainWindow.webContents.on('crashed', () => {
+    console.error('Renderer process crashed')
+  })
+
+  mainWindow.webContents.on('unresponsive', () => {
+    console.warn('Renderer process unresponsive')
+  })
+
+  mainWindow.webContents.on('responsive', () => {
+    console.log('Renderer process responsive again')
+  })
+
+  const url = resolveHtmlPath()
+  if (url.startsWith('http')) {
+    mainWindow.loadURL(url).catch(err => console.error('Failed to load URL:', err))
+  } else {
+    mainWindow.loadFile(path.join(__dirname, '..', 'dist', 'index.html')).catch(err => console.error('Failed to load file:', err))
+  }
+
+  mainWindow.on('maximize', () => {
+    try {
+      if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents && !mainWindow.webContents.isDestroyed()) {
+        mainWindow.webContents.send('win-maximize-state', { maximized: true })
+      }
+    } catch (err) {
+      console.warn('Error sending maximize state:', err)
+    }
+  })
+
+  mainWindow.on('unmaximize', () => {
+    try {
+      if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents && !mainWindow.webContents.isDestroyed()) {
+        mainWindow.webContents.send('win-maximize-state', { maximized: false })
+      }
+    } catch (err) {
+      console.warn('Error sending unmaximize state:', err)
+    }
+  })
+
+  mainWindow.on('closed', () => {
+    mainWindow = null
+  })
 }
 
 function collectOsOpenFiles() {
@@ -1158,22 +1206,33 @@ async function processBatch(inputFiles, options) {
 
 app.whenReady().then(() => {
   app.setAppUserModelId('com.yalokgar.photounikalizer')
+  
   if (!app.requestSingleInstanceLock()) {
     app.quit()
     return
-  } else {
-    app.on('second-instance', () => {
-      if (mainWindow) {
-        if (mainWindow.isMinimized()) mainWindow.restore()
-        mainWindow.focus()
-      }
-    })
   }
+
+  app.on('second-instance', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.focus()
+    }
+  })
+
   createWindow()
   setAppMenu()
+
+  process.on('uncaughtException', (error) => {
+    console.error('Uncaught Exception:', error)
+  })
+
+  process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason)
+  })
   
   loadAppPasswordSecret()
   initAutoUpdater()
+  
   try {
     const ses = session.defaultSession
     if (ses && ses.webRequest) {
@@ -1185,7 +1244,16 @@ app.whenReady().then(() => {
         callback({ responseHeaders })
       })
     }
-  } catch (_) {}
+    
+    if (ses) {
+      ses.setPermissionRequestHandler((webContents, permission, callback) => {
+        const allowedPermissions = ['media', 'display-capture']
+        callback(allowedPermissions.includes(permission))
+      })
+    }
+  } catch (err) {
+    console.warn('Error setting up session:', err)
+  }
   try {
     const hw = Math.max(1, (os.cpus() || []).length - 1)
     try { sharp.concurrency(Math.min(6, Math.max(1, hw))) } catch (_) {}
@@ -1206,7 +1274,13 @@ app.whenReady().then(() => {
     const initial = collectOsOpenFiles()
     if (initial.length && mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.once('did-finish-load', () => {
-        try { mainWindow.webContents.send('os-open-files', initial) } catch (_) {}
+        try {
+          if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents && !mainWindow.webContents.isDestroyed()) {
+            mainWindow.webContents.send('os-open-files', initial)
+          }
+        } catch (err) {
+          console.warn('Error sending os-open-files:', err)
+        }
       })
     }
   } catch (_) {}
@@ -1218,7 +1292,13 @@ app.whenReady().then(() => {
     const need = !lastShown || compareVersions(cur, lastShown) > 0
     if (need && mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.once('did-finish-load', () => {
-        try { mainWindow.webContents.send('show-whats-new', { version: cur }) } catch (_) {}
+        try {
+          if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents && !mainWindow.webContents.isDestroyed()) {
+            mainWindow.webContents.send('show-whats-new', { version: cur })
+          }
+        } catch (err) {
+          console.warn('Error sending show-whats-new:', err)
+        }
         try { store.set('lastShownVersion', cur) } catch (_) {}
       })
     } else {
@@ -1246,7 +1326,13 @@ app.whenReady().then(() => {
       if (extra.length && mainWindow && !mainWindow.isDestroyed()) {
         if (mainWindow.isMinimized()) mainWindow.restore()
         mainWindow.focus()
-        mainWindow.webContents.send('os-open-files', extra)
+        try {
+          if (mainWindow.webContents && !mainWindow.webContents.isDestroyed()) {
+            mainWindow.webContents.send('os-open-files', extra)
+          }
+        } catch (err) {
+          console.warn('Error sending os-open-files from second-instance:', err)
+        }
       }
     } catch (_) {}
   })
@@ -2169,7 +2255,27 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit()
+  if (process.platform !== 'darwin') {
+    app.quit()
+  }
 })
 
-app.on('before-quit', () => {})
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createWindow()
+  }
+})
+
+app.on('before-quit', () => {
+  try {
+    if (statsSaveTimer) {
+      clearTimeout(statsSaveTimer)
+      statsSaveTimer = null
+    }
+    if (statsCacheDirty && statsCachePath && statsCache) {
+      fs.writeFileSync(statsCachePath, JSON.stringify(statsCache))
+    }
+  } catch (err) {
+    console.warn('Error saving stats on quit:', err)
+  }
+})
