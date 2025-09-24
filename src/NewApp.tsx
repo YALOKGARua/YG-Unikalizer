@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { Icon } from './components/Icons'
 import ModernButton from './components/ModernButton'
 import AnimatedStats from './components/AnimatedStats'
+import EnhancedStats from './components/EnhancedStats'
+import LoadingSpinner from './components/LoadingSpinner'
 import FileDropzone from './components/FileDropzone'
 import ImageGrid from './components/ImageGrid'
 import AnimatedBackground from './components/AnimatedBackground'
@@ -528,7 +530,7 @@ export default function NewApp() {
   return (
     <Suspense fallback={
       <div className="h-full flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        <LoadingSpinner size="lg" text="Загрузка приложения..." />
       </div>
     }>
       <div className="h-full text-slate-100 relative">
@@ -1175,12 +1177,12 @@ export default function NewApp() {
 
         {progress && progress.total > 0 && (
           <div className="px-4 py-4 border-b border-white/10 bg-black/20 backdrop-blur">
-            <AnimatedStats
+            <EnhancedStats
               totalFiles={progress.total}
               processedFiles={progress.current}
               timeElapsed={Math.floor((Date.now() - startTimeRef.current) / 1000)}
               averageSpeed={progress.current / Math.max(1, (Date.now() - startTimeRef.current) / 1000)}
-              chartData={statsData}
+              estimatedTimeRemaining={progress.etaMs ? Math.ceil(progress.etaMs / 1000) : undefined}
             />
           </div>
         )}

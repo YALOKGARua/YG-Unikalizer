@@ -3,6 +3,10 @@ import { useTranslation } from 'react-i18next'
 import { Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom'
 import { Icon } from './components/Icons'
 import { motion, AnimatePresence } from 'framer-motion'
+import MarkdownRenderer from './components/MarkdownRenderer'
+import LoadingSpinner from './components/LoadingSpinner'
+import NotificationCenter from './components/NotificationCenter'
+import ChangelogModal from './components/ChangelogModal'
 import { 
   FaCamera, 
   FaGamepad, 
@@ -125,7 +129,7 @@ export default function RootApp() {
             <motion.button 
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={async()=>{ try { const r = await window.api.getUpdateChangelog(); setNotesText((r && (r as any).notes) || t('notes.none') as string); setNotesOpen(true) } catch { setNotesText(t('notes.none') as string); setNotesOpen(true) } }} 
+              onClick={() => setNotesOpen(true)} 
               className="btn btn-ghost text-xs"
             >
               <span className="inline-flex items-center gap-1.5">
@@ -144,6 +148,7 @@ export default function RootApp() {
                 {t('actions.about')}
               </span>
             </motion.button>
+            <NotificationCenter />
             <select value={i18n.language} onChange={e=>{ const v = e.target.value; i18n.changeLanguage(v); try { localStorage.setItem('lang', v) } catch {} }} className="bg-slate-900 border border-white/10 rounded px-2 py-1 text-xs">
               <option value="ru">🇷🇺 RU</option>
               <option value="uk">🇺🇦 UK</option>
@@ -211,7 +216,11 @@ export default function RootApp() {
             <button onClick={()=>{ setFunGame('slots'); navigate('/fun/slots') }} className={`btn btn-ghost text-xs ${location.pathname.includes('/fun/slots')?'opacity-100':'opacity-70'}`}>Slots</button>
           </div>
         )}
-        <Suspense fallback={<div className="p-4 text-xs opacity-70">Loading…</div>}>
+        <Suspense fallback={
+          <div className="h-full flex items-center justify-center">
+            <LoadingSpinner size="lg" text="Загрузка..." />
+          </div>
+        }>
           <Routes>
             <Route path="/" element={<Navigate to="/photo" replace />} />
             <Route path="/photo" element={<NewApp />} />
@@ -230,20 +239,10 @@ export default function RootApp() {
           <Chat url={chatUrl} userId={'YALOKGAR'} userName={'YALOKGAR'} visible={false} onIncoming={()=>setChatBadge(v=>v+1)} />
         </Suspense>
       )}
-      {notesOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/80" onClick={()=>setNotesOpen(false)} />
-          <div className="relative w-[820px] max-w-[95vw] max-h-[85vh] rounded-xl border border-white/10 bg-slate-900 p-4">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-sm font-semibold">{t('panel.whatsNew')}</div>
-              <button className="btn btn-ghost text-xs" onClick={()=>setNotesOpen(false)}>{t('panel.close')}</button>
-            </div>
-            <div className="overflow-auto max-h-[70vh] text-sm whitespace-pre-wrap leading-6">
-              <div className="prose prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: notesText }} />
-            </div>
-          </div>
-        </div>
-      )}
+      <ChangelogModal 
+        isOpen={notesOpen} 
+        onClose={() => setNotesOpen(false)} 
+      />
       {aboutOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/80" onClick={()=>setAboutOpen(false)} />
@@ -252,8 +251,8 @@ export default function RootApp() {
               <div className="text-sm font-semibold">{t('panel.about')}</div>
               <button className="btn btn-ghost text-xs" onClick={()=>setAboutOpen(false)}>{t('panel.close')}</button>
             </div>
-            <div className="overflow-auto max-h-[70vh] text-sm whitespace-pre-wrap leading-6">
-              <div className="prose prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: aboutText }} />
+            <div className="overflow-auto max-h-[70vh]">
+              <MarkdownRenderer content={aboutText} />
             </div>
           </div>
         </div>

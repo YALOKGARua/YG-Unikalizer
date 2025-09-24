@@ -1759,6 +1759,17 @@ app.whenReady().then(() => {
     }
   })
 
+  ipcMain.handle('get-full-changelog', async () => {
+    try {
+      const root = path.join(__dirname, '..')
+      const changelogPath = path.join(root, 'CHANGELOG.md')
+      const data = await fs.promises.readFile(changelogPath, 'utf-8')
+      return { ok: true, data, html: data }
+    } catch (e) {
+      return { ok: false, error: String(e && e.message ? e.message : e), data: '' }
+    }
+  })
+
   ipcMain.handle('get-readme', async () => {
     try {
       const root = path.join(__dirname, '..')

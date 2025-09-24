@@ -190,6 +190,7 @@ import_electron.contextBridge.exposeInMainWorld("api", {
     return () => import_electron.ipcRenderer.removeListener("process-step", listener);
   },
   getUpdateChangelog: () => import_electron.ipcRenderer.invoke("get-update-changelog"),
+  getFullChangelog: () => import_electron.ipcRenderer.invoke("get-full-changelog"),
   getReadme: () => import_electron.ipcRenderer.invoke("get-readme"),
   clearStatsCache: () => import_electron.ipcRenderer.invoke("stats-cache-clear"),
   relaunchAsAdmin: () => import_electron.ipcRenderer.invoke("relaunch-admin"),

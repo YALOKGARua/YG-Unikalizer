@@ -33378,6 +33378,16 @@ app2.whenReady().then(() => {
       return { ok: false, notes: "" };
     }
   });
+  ipcMain2.handle("get-full-changelog", async () => {
+    try {
+      const root = path6.join(__dirname, "..");
+      const changelogPath = path6.join(root, "CHANGELOG.md");
+      const data = await fs3.promises.readFile(changelogPath, "utf-8");
+      return { ok: true, data, html: data };
+    } catch (e) {
+      return { ok: false, error: String(e && e.message ? e.message : e), data: "" };
+    }
+  });
   ipcMain2.handle("get-readme", async () => {
     try {
       const root = path6.join(__dirname, "..");

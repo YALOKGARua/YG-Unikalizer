@@ -164,6 +164,7 @@ contextBridge.exposeInMainWorld('api', {
     return () => ipcRenderer.removeListener('process-step', listener as any)
   },
   getUpdateChangelog: () => ipcRenderer.invoke('get-update-changelog'),
+  getFullChangelog: () => ipcRenderer.invoke('get-full-changelog'),
   getReadme: () => ipcRenderer.invoke('get-readme'),
   clearStatsCache: () => ipcRenderer.invoke('stats-cache-clear'),
   relaunchAsAdmin: () => ipcRenderer.invoke('relaunch-admin'),
