@@ -314,18 +314,6 @@ graph TB
 
 ---
 
-## 🤝 **Вклад в проект**
-
-<div align="center">
-
-### 💫 **Присоединяйтесь к разработке!**
-
-[![Contributions](https://img.shields.io/badge/💝_Contributions-Welcome-brightgreen?style=for-the-badge)](https://github.com/YALOKGAR/PhotoUnikalizer/blob/main/CONTRIBUTING.md)
-[![Issues](https://img.shields.io/badge/🐛_Issues-GitHub-red?style=for-the-badge)](https://github.com/YALOKGAR/PhotoUnikalizer/issues)
-[![Discussions](https://img.shields.io/badge/💬_Discussions-GitHub-blue?style=for-the-badge)](https://github.com/YALOKGAR/PhotoUnikalizer/discussions)
-
-</div>
-
 ### 🎯 **Как помочь проекту**
 
 ```bash
@@ -341,27 +329,6 @@ git push origin feature/amazing-feature
 
 # 5️⃣ Откройте Pull Request
 ```
-
----
-
-## 📞 **Поддержка и сообщество**
-
-<div align="center">
-
-### 🌟 **Присоединяйтесь к нашему сообществу**
-
-[![Telegram](https://img.shields.io/badge/💬_Telegram-Chat-26A5E4?style=for-the-badge&logo=telegram)](https://t.me/photounikalizer)
-[![Discord](https://img.shields.io/badge/🎮_Discord-Server-5865F2?style=for-the-badge&logo=discord)](https://discord.gg/photounikalizer)
-[![GitHub](https://img.shields.io/badge/🐙_GitHub-Repository-181717?style=for-the-badge&logo=github)](https://github.com/YALOKGAR/PhotoUnikalizer)
-
-### 📧 **Контакты**
-- 🐛 **Баги:** [GitHub Issues](https://github.com/YALOKGAR/PhotoUnikalizer/issues)
-- 💡 **Идеи:** [GitHub Discussions](https://github.com/YALOKGAR/PhotoUnikalizer/discussions)
-- 📧 **Email:** [photounikalizer@example.com](mailto:photounikalizer@example.com)
-
-</div>
-
----
 
 ## 🏆 **Благодарности**
 
@@ -393,7 +360,7 @@ git push origin feature/amazing-feature
 **PhotoUnikalizer** распространяется под лицензией **MIT**
 
 ```
-MIT License © 2024 YALOKGAR
+MIT License © 2025 YALOKGAR
 
 Разрешается свободное использование, изменение и распространение
 при условии сохранения уведомления об авторских правах.
