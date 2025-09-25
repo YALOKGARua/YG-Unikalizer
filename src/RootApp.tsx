@@ -17,7 +17,8 @@ import {
   FaDownload,
   FaGift,
   FaInfoCircle,
-  FaStickyNote
+  FaStickyNote,
+  FaUser
 } from 'react-icons/fa'
 
 const NewApp = lazy(() => import('./NewApp'))
@@ -25,6 +26,7 @@ const OtherApp = lazy(() => import('./OtherApp'))
 const CrashGame = lazy(() => import('./components/CrashGame'))
 const SlotsGame = lazy(() => import('./components/SlotsGame'))
 const Chat = lazy(() => import('./components/Chat'))
+const NameGenerator = lazy(() => import('./components/NameGenerator'))
 
 export default function RootApp() {
   const { i18n, t } = useTranslation()
@@ -33,7 +35,7 @@ export default function RootApp() {
   const [theme, setTheme] = useState<'dark'|'light'>(() => { try { return (localStorage.getItem('theme') as any) || 'dark' } catch { return 'dark' } })
   useEffect(() => { try { const root = document.documentElement; if (theme === 'dark') { root.classList.add('dark'); root.classList.remove('light') } else { root.classList.add('light'); root.classList.remove('dark') }; localStorage.setItem('theme', theme) } catch {} }, [theme])
   useEffect(() => { try { document.documentElement.setAttribute('dir', i18n.language === 'ar' ? 'rtl' : 'ltr') } catch {} }, [i18n.language])
-  const [tab, setTab] = useState<'photo'|'fun'|'other'>('photo')
+  const [tab, setTab] = useState<'photo'|'fun'|'other'|'names'>('photo')
   const [funGame, setFunGame] = useState<'crash'|'slots'>('crash')
   useEffect(() => {
     const p = location.pathname || '/photo'
@@ -42,6 +44,7 @@ export default function RootApp() {
       if (p.includes('/slots')) setFunGame('slots')
       else setFunGame('crash')
     } else if (p.startsWith('/other')) setTab('other')
+    else if (p.startsWith('/names')) setTab('names')
     else setTab('photo')
   }, [location.pathname])
   const [chatBadge, setChatBadge] = useState(0)
@@ -198,6 +201,17 @@ export default function RootApp() {
           <motion.button 
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
+            onClick={()=>navigate('/names')} 
+            className={`nav-btn ${tab==='names'?'active':''}`}
+          >
+            <span className="inline-flex items-center gap-2">
+              <FaUser className="w-4 h-4" />
+              Генератор имен
+            </span>
+          </motion.button>
+          <motion.button 
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             onClick={()=>{ setChatBadge(0); navigate('/other') }} 
             className={`nav-btn ${tab==='other'?'active':''}`}
           >
@@ -229,6 +243,11 @@ export default function RootApp() {
               <Route path="crash" element={<CrashGame />} />
               <Route path="slots" element={<SlotsGame />} />
             </Route>
+            <Route path="/names" element={
+              <div className="p-6">
+                <NameGenerator />
+              </div>
+            } />
             <Route path="/other" element={<OtherApp onIncoming={()=>setChatBadge(v=>v+1)} />} />
             <Route path="*" element={<Navigate to="/photo" replace />} />
           </Routes>

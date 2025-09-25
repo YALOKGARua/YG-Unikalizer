@@ -42,63 +42,262 @@ function toFileUrl(p: string) {
   return encodeURI('file://' + s)
 }
 
-type ProfileKind = 'camera'|'phone'|'action'|'drone'|'scanner'
+type ProfileKind = 'camera'|'phone'|'action'|'drone'|'scanner'|'webcam'|'film'|'security'|'gaming'|'automotive'|'medical'|'astro'|'satellite'|'cinema'|'microscope'|'surveillance'|'broadcast'
 
 const GEAR_PRESETS: Record<ProfileKind, any> = {
   camera: {
-    makes: ['Canon', 'Nikon', 'Sony', 'Fujifilm', 'Panasonic'],
+    makes: ['Canon', 'Nikon', 'Sony', 'Fujifilm', 'Panasonic', 'Olympus', 'Pentax', 'Leica', 'Hasselblad', 'Phase One', 'Sigma', 'Blackmagic'],
     modelsByMake: {
-      Canon: ['EOS R5', 'EOS 5D Mark IV', 'EOS 90D', 'EOS R6 Mark II'],
-      Nikon: ['Z7 II', 'D850', 'Z6', 'Z8'],
-      Sony: ['Alpha A7 IV', 'Alpha A7R III', 'Alpha A6400', 'Alpha A1'],
-      Fujifilm: ['X‑T5', 'X‑S10', 'X100V', 'GFX 50S'],
-      Panasonic: ['Lumix S5 II', 'Lumix GH6', 'Lumix G9']
+      Canon: ['EOS R5', 'EOS R6 Mark II', 'EOS R8', 'EOS R10', 'EOS 5D Mark IV', 'EOS 90D', 'EOS M50 Mark II', 'EOS 6D Mark II', 'EOS 80D', 'EOS Rebel T8i'],
+      Nikon: ['Z9', 'Z8', 'Z7 II', 'Z6 III', 'Z5', 'Z50', 'Zfc', 'D850', 'D780', 'D7500', 'D5600'],
+      Sony: ['Alpha A7R V', 'Alpha A7 IV', 'Alpha A7S III', 'Alpha A1', 'Alpha A7C II', 'Alpha A6700', 'Alpha A6400', 'Alpha FX30', 'Alpha A7R III', 'Alpha A6000'],
+      Fujifilm: ['X‑T5', 'X‑H2S', 'X‑H2', 'X‑S20', 'X‑T30 II', 'X100V', 'X100VI', 'GFX 100S', 'GFX 50S II', 'X‑E4'],
+      Panasonic: ['Lumix S5 II', 'Lumix S5 IIX', 'Lumix GH6', 'Lumix GH7', 'Lumix G9 II', 'Lumix S1R', 'Lumix G95', 'Lumix FZ2500'],
+      Olympus: ['OM-1', 'OM-5', 'E-M1 Mark III', 'E-M5 Mark III', 'E-M10 Mark IV', 'PEN E-P7', 'Tough TG-7'],
+      Pentax: ['K-3 Mark III', 'K-1 Mark II', 'KF', 'K-70', 'Q-S1', 'WG-90'],
+      Leica: ['M11', 'M10-R', 'Q2', 'Q2 Monochrom', 'SL2-S', 'C-Lux', 'D-Lux 7'],
+      Hasselblad: ['X2D 100C', 'X1D II 50C', '907X 50C', 'H6D-100c', 'A7D'],
+      'Phase One': ['IQ4 150MP', 'XF IQ4 100MP', 'XT IQ4 150MP'],
+      Sigma: ['fp L', 'fp', 'sd Quattro H'],
+      Blackmagic: ['Pocket 6K Pro', 'Pocket 4K', 'URSA Mini Pro 12K']
     },
     lensesByMake: {
-      Canon: ['RF 24‑70mm f/2.8L', 'EF 50mm f/1.8 STM', 'RF 70‑200mm f/2.8L', 'RF 35mm f/1.8'],
-      Nikon: ['Z 24‑70mm f/2.8', 'AF‑S 50mm f/1.8G', 'Z 70‑200mm f/2.8', 'Z 35mm f/1.8'],
-      Sony: ['FE 24‑70mm f/2.8 GM', 'FE 50mm f/1.8', 'FE 85mm f/1.8', 'FE 35mm f/1.8'],
-      Fujifilm: ['XF 23mm f/1.4', 'XF 18‑55mm f/2.8‑4', 'XF 56mm f/1.2', 'XF 35mm f/1.4'],
-      Panasonic: ['LUMIX S 24‑105mm f/4', 'LEICA 12‑60mm f/2.8‑4', 'LUMIX G 25mm f/1.7']
+      Canon: ['RF 24‑70mm f/2.8L IS USM', 'RF 50mm f/1.2L USM', 'RF 85mm f/1.2L USM', 'RF 70‑200mm f/2.8L IS USM', 'RF 35mm f/1.8 IS STM', 'EF 50mm f/1.8 STM', 'RF 100mm f/2.8L Macro IS USM', 'RF 16-35mm f/2.8L IS USM'],
+      Nikon: ['Z 24‑70mm f/2.8 S', 'Z 50mm f/1.2 S', 'Z 85mm f/1.2 S', 'Z 70‑200mm f/2.8 VR S', 'Z 35mm f/1.8 S', 'AF‑S 50mm f/1.8G', 'Z 105mm f/2.8 Macro VR S', 'Z 14-24mm f/2.8 S'],
+      Sony: ['FE 24‑70mm f/2.8 GM II', 'FE 50mm f/1.2 GM', 'FE 85mm f/1.4 GM', 'FE 70‑200mm f/2.8 GM OSS', 'FE 35mm f/1.8', 'FE 50mm f/1.8', 'FE 90mm f/2.8 Macro G OSS', 'FE 16-35mm f/2.8 GM'],
+      Fujifilm: ['XF 23mm f/1.4 R LM WR', 'XF 50mm f/1.0 R WR', 'XF 56mm f/1.2 R WR', 'XF 70‑300mm f/4‑5.6 R LM OIS WR', 'XF 35mm f/1.4 R', 'XF 18‑55mm f/2.8‑4 R LM OIS', 'XF 80mm f/2.8 R LM OIS WR Macro'],
+      Panasonic: ['LUMIX S 24‑105mm f/4 Macro O.I.S.', 'LUMIX S 50mm f/1.8', 'LUMIX S 85mm f/1.8', 'LUMIX S 70‑200mm f/2.8 O.I.S.', 'LEICA DG 12‑60mm f/2.8‑4', 'LUMIX G 25mm f/1.7 ASPH.'],
+      Olympus: ['M.Zuiko 12-40mm f/2.8 PRO', 'M.Zuiko 25mm f/1.2 PRO', 'M.Zuiko 45mm f/1.2 PRO', 'M.Zuiko 40-150mm f/2.8 PRO', 'M.Zuiko 17mm f/1.8', 'M.Zuiko 75mm f/1.8'],
+      Pentax: ['HD PENTAX-D FA 24-70mm f/2.8ED SDM WR', 'HD PENTAX-FA 50mm f/1.4 SDM AW', 'HD PENTAX-D FA 85mm f/1.4ED SDM AW', 'HD PENTAX-D FA 70-200mm f/2.8ED DC AW'],
+      Leica: ['APO-Summicron-M 50mm f/2 ASPH.', 'Summilux-M 35mm f/1.4 ASPH.', 'APO-Summicron-SL 75mm f/2 ASPH.', 'Vario-Elmarit-SL 24-70mm f/2.8 ASPH.'],
+      Hasselblad: ['XCD 45mm f/4 P', 'XCD 80mm f/1.9', 'XCD 90mm f/3.2', 'XCD 35-75mm f/3.5-4.5'],
+      'Phase One': ['Schneider 80mm f/2.8 LS', 'Schneider 110mm f/2.8 LS', 'Rodenstock 32mm f/4'],
+      Sigma: ['24-70mm f/2.8 DG DN Art', '85mm f/1.4 DG DN Art', '14-24mm f/2.8 DG DN Art'],
+      Blackmagic: ['MFT Mount', 'EF Mount', 'PL Mount']
     }
   },
   phone: {
-    makes: ['Apple', 'Samsung', 'Xiaomi', 'Google', 'Huawei'],
+    makes: ['Apple', 'Samsung', 'Xiaomi', 'Google', 'Huawei', 'OnePlus', 'Oppo', 'Vivo', 'Nothing', 'Honor'],
     modelsByMake: {
-      Apple: ['iPhone 15 Pro', 'iPhone 14 Pro', 'iPhone 13'],
-      Samsung: ['Galaxy S24', 'Galaxy S23', 'Galaxy Note 20'],
-      Xiaomi: ['Mi 13', 'Mi 11', 'Redmi Note 12'],
-      Google: ['Pixel 8 Pro', 'Pixel 7', 'Pixel 6a'],
-      Huawei: ['P60 Pro', 'P50', 'Mate 40']
+      Apple: ['iPhone 17 Pro Max', 'iPhone 17 Pro', 'iPhone 17 Air', 'iPhone 17', 'iPhone 16 Pro Max', 'iPhone 16 Pro', 'iPhone 16', 'iPhone 15 Pro Max', 'iPhone 15 Pro', 'iPhone 15', 'iPhone 14 Pro Max', 'iPhone 14 Pro', 'iPhone 14', 'iPhone 13 Pro', 'iPhone 13', 'iPhone SE (3rd gen)'],
+      Samsung: ['Galaxy S24 Ultra', 'Galaxy S24+', 'Galaxy S24', 'Galaxy S23 Ultra', 'Galaxy S23+', 'Galaxy S23 FE', 'Galaxy Z Fold6', 'Galaxy Z Flip6', 'Galaxy A55', 'Galaxy A35', 'Galaxy Note 20 Ultra'],
+      Xiaomi: ['Xiaomi 14 Ultra', 'Xiaomi 14', 'Xiaomi 13T Pro', 'Xiaomi 13 Pro', 'Redmi Note 13 Pro+', 'Redmi Note 13 Pro', 'Redmi K70 Pro', 'POCO F6 Pro', 'Mi 13', 'Mi 12S Ultra'],
+      Google: ['Pixel 9 Pro XL', 'Pixel 9 Pro', 'Pixel 9', 'Pixel 8a', 'Pixel 8 Pro', 'Pixel 8', 'Pixel 7a', 'Pixel 7 Pro', 'Pixel 7', 'Pixel 6a'],
+      Huawei: ['Pura 70 Ultra', 'Pura 70 Pro', 'Mate 60 Pro+', 'P60 Pro', 'Mate 50 Pro', 'P50 Pro', 'nova 12 Ultra'],
+      OnePlus: ['OnePlus 12', 'OnePlus 12R', 'OnePlus 11', 'OnePlus 10T', 'OnePlus Nord 4', 'OnePlus Open'],
+      Oppo: ['Find X7 Ultra', 'Find X6 Pro', 'Reno 12 Pro', 'Find N3', 'A79'],
+      Vivo: ['X100 Pro', 'X90 Pro+', 'V30 Pro', 'iQOO 12 Pro', 'S18 Pro'],
+      Nothing: ['Phone (2a)', 'Phone (2)', 'Phone (1)'],
+      Honor: ['Magic6 Pro', 'Magic5 Pro', '200 Pro', '90 Pro', 'X9b']
     },
-    lenses: ['Wide 26mm f/1.9', 'UltraWide 13mm f/2.2', 'Tele 77mm f/2.8']
+    lenses: ['Main 24mm f/1.4-2.2', 'UltraWide 13-16mm f/2.0-2.4', 'Telephoto 77-120mm f/1.8-3.5', 'Periscope 200-300mm f/2.8-4.9', 'Macro 25mm f/2.4', 'Action Button Camera', 'ProRAW Max 48MP', 'Cinematic 4K ProRes']
   },
   action: {
-    makes: ['GoPro', 'Insta360', 'DJI'],
+    makes: ['GoPro', 'Insta360', 'DJI', 'Sony', 'Garmin', 'AKASO', 'Apeman', 'Yi Technology', 'SJCAM'],
     modelsByMake: {
-      GoPro: ['HERO 12 Black', 'HERO 11', 'HERO 10'],
-      Insta360: ['X3', 'ONE R', 'GO 3'],
-      DJI: ['Osmo Action 4', 'Osmo Action 3']
+      GoPro: ['HERO 13 Black', 'HERO 12 Black', 'HERO 11 Black', 'HERO 10 Black', 'HERO 9 Black', 'HERO 8 Black', 'MAX'],
+      Insta360: ['X4', 'X3', 'ONE X3', 'GO 3S', 'GO 3', 'ONE RS', 'ONE R', 'Ace Pro'],
+      DJI: ['Osmo Action 5 Pro', 'Osmo Action 4', 'Osmo Action 3', 'Osmo Pocket 3', 'Osmo Pocket 2'],
+      Sony: ['FX30', 'FDR-X3000', 'HDR-AS300'],
+      Garmin: ['VIRB X', 'VIRB XE'],
+      AKASO: ['Brave 8', 'Brave 7 LE', 'EK7000 Pro'],
+      Apeman: ['A100', 'A87', 'A79 Pro'],
+      'Yi Technology': ['4K+', '4K Action', 'Lite'],
+      SJCAM: ['SJ11', 'SJ10X', 'C300']
     },
-    lenses: ['UltraWide', 'Wide']
+    lenses: ['UltraWide 8-16mm f/2.8', 'Wide 23-27mm f/2.0', 'Linear 27mm f/2.8', 'SuperView', 'HyperSmooth']
   },
   drone: {
-    makes: ['DJI', 'Autel', 'Parrot'],
+    makes: ['DJI', 'Autel', 'Parrot', 'Skydio', 'PowerVision', 'Yuneec', 'Holy Stone', 'Potensic'],
     modelsByMake: {
-      DJI: ['Mavic 3', 'Air 2S', 'Mini 3 Pro'],
-      Autel: ['EVO Lite+', 'EVO II'],
-      Parrot: ['Anafi']
+      DJI: ['Air 3S', 'Mavic 3 Pro', 'Mavic 3 Classic', 'Air 3', 'Mini 4 Pro', 'Mini 3 Pro', 'Mini 3', 'Avata 2', 'Air 2S', 'FPV', 'Inspire 3'],
+      Autel: ['EVO Max 4T', 'EVO Nano+', 'EVO Lite+', 'EVO II Pro 6K'],
+      Parrot: ['Anafi USA', 'Anafi AI', 'Anafi FPV'],
+      Skydio: ['Skydio 2+', 'Skydio X2'],
+      PowerVision: ['PowerEgg X', 'PowerDolphin'],
+      Yuneec: ['Mantis G', 'Typhoon H520'],
+      'Holy Stone': ['HS720G', 'HS175D'],
+      Potensic: ['ATOM SE', 'Dreamer Pro']
     },
-    lenses: ['24mm f/2.8', '22mm f/2.8']
+    lenses: ['Hasselblad 24mm f/2.8-11', 'Hasselblad 70mm f/2.8', 'Hasselblad 166mm f/2.8', 'CMOS 24mm f/1.7', 'Gimbal 22-28mm f/2.8', 'Fixed 85mm f/2.8']
   },
   scanner: {
-    makes: ['Epson', 'Canon', 'Plustek'],
+    makes: ['Epson', 'Canon', 'Plustek', 'Fujitsu', 'Brother', 'HP', 'Kodak', 'Pacific Image'],
     modelsByMake: {
-      Epson: ['Perfection V600', 'Perfection V850'],
-      Canon: ['CanoScan 9000F', 'LiDE 400'],
-      Plustek: ['OpticFilm 8200i', 'ePhoto Z300']
+      Epson: ['Perfection V850 Pro', 'Perfection V600', 'Perfection V39', 'Expression 12000XL', 'FastFoto FF-680W'],
+      Canon: ['CanoScan 9000F Mark II', 'CanoScan LiDE 400', 'CanoScan LiDE 300', 'imageFORMULA DR-C225W'],
+      Plustek: ['OpticFilm 8200i Ai', 'OpticFilm 8100', 'ePhoto Z300+', 'OpticBook 4800'],
+      Fujitsu: ['ScanSnap iX1600', 'ScanSnap S1300i', 'fi-8170'],
+      Brother: ['ADS-4900W', 'ADS-2700W', 'DSmobile DS-740D'],
+      HP: ['ScanJet Pro 4500 fn1', 'ScanJet Pro 2500 f1', 'Smart Tank 7602'],
+      Kodak: ['SCANZA', 'RODPFS35', 'i2900'],
+      'Pacific Image': ['PrimeFilm XA', 'PrimeFilm XE', 'ImageBox MF']
     },
-    lenses: ['CCD', 'CIS']
+    lenses: ['CCD Linear Sensor', 'CIS Contact Sensor', 'LED Backlight', 'Xenon Flash', 'Film Adapter']
+  },
+  webcam: {
+    makes: ['Logitech', 'Microsoft', 'Razer', 'Elgato', 'ASUS', 'Creative', 'Anker', 'Opal'],
+    modelsByMake: {
+      Logitech: ['Brio 4K Stream', 'MX Brio', 'C920s Pro', 'C922 Pro Stream', 'StreamCam', 'C930e', 'C270'],
+      Microsoft: ['LifeCam Studio', 'LifeCam HD-3000', 'Modern Webcam'],
+      Razer: ['Kiyo Pro Ultra', 'Kiyo Pro', 'Kiyo X', 'Kiyo'],
+      Elgato: ['Facecam Pro', 'Facecam', 'Facecam MK.2'],
+      ASUS: ['ROG Eye S', 'ROG Eye', 'Webcam C3'],
+      Creative: ['Live! Cam Sync 1080p', 'Live! Cam Chat HD'],
+      Anker: ['PowerConf C200', 'PowerConf C300'],
+      Opal: ['C1', 'Tadpole']
+    },
+    lenses: ['Fixed 24mm f/2.0', 'Fixed 28mm f/2.4', 'Autofocus 78° FOV', 'Wide 90° FOV', 'Auto HDR']
+  },
+  film: {
+    makes: ['Canon', 'Nikon', 'Pentax', 'Minolta', 'Olympus', 'Leica', 'Contax', 'Mamiya', 'Bronica', 'Rolleiflex'],
+    modelsByMake: {
+      Canon: ['AE-1 Program', 'A-1', 'EOS-1V', 'F-1', 'AV-1', 'T90', 'EOS 3'],
+      Nikon: ['FM2', 'FE2', 'F3', 'F6', 'FM', 'FE', 'F100', 'F5'],
+      Pentax: ['K1000', 'ME Super', 'LX', 'MX', '67 II', '645N'],
+      Minolta: ['X-700', 'SRT-101', 'XD-11', 'Maxxum 7', 'Autocord'],
+      Olympus: ['OM-1', 'OM-2', 'OM-4', 'OM-10', 'Trip 35', 'XA2'],
+      Leica: ['M6', 'M3', 'M2', 'R6.2', 'IIIf', 'M4'],
+      Contax: ['RTS III', 'G2', 'T2', 'RX', '645'],
+      Mamiya: ['RB67', 'RZ67', '645 Pro', 'C330', 'C220'],
+      Bronica: ['SQ-A', 'ETRSi', 'GS-1', 'RF645'],
+      Rolleiflex: ['2.8F', '3.5F', 'SL66', 'TLR']
+    },
+    lenses: ['50mm f/1.4', '85mm f/1.8', '35mm f/2.8', '105mm f/2.5', '28mm f/2.8', '135mm f/3.5', '24mm f/2.8', '200mm f/4']
+  },
+  security: {
+    makes: ['Hikvision', 'Dahua', 'Axis', 'Bosch', 'Hanwha', 'Uniview', 'Reolink', 'Arlo', 'Ring', 'Nest'],
+    modelsByMake: {
+      Hikvision: ['DS-2CD2087G2-LU', 'DS-2CD2386G2-ISU/SL', 'DS-2DE3A400BW-DE', 'DS-2CD2147G2-L', 'DS-2CD2T87G2-L'],
+      Dahua: ['IPC-HFW3849T1-AS-PV', 'IPC-HDBW3441R-ZS', 'SD1A404XB-GNR', 'IPC-HDW3849HP-AS-PV', 'DH-IPC-HFW2431S-S-S2'],
+      Axis: ['M3058-PLVE', 'P3807-PVE', 'Q6055-E', 'M2026-LE Mk II', 'P1377'],
+      Bosch: ['MIC IP fusion 9000i', 'AUTODOME IP starlight 7000i', 'FLEXIDOME IP outdoor 5000i', 'DINION IP 6000 HD'],
+      Hanwha: ['PNM-9084RQZ', 'XNO-8080R', 'QNP-6320H', 'ANO-L6012R', 'XND-8081F'],
+      Uniview: ['IPC3634SR3-DPF28', 'IPC2125SR3-PF28', 'IPC6415SR-X38U', 'IPC3232ER3-DPZ28'],
+      Reolink: ['RLC-823A', 'RLC-811A', 'RLC-510A', 'Argus 3 Pro', 'E1 Zoom'],
+      Arlo: ['Ultra 2', 'Pro 4', 'Essential', 'Go 2', 'Video Doorbell'],
+      Ring: ['Stick Up Cam Battery', 'Spotlight Cam Plus', 'Floodlight Cam Wired Pro', 'Video Doorbell Pro 2'],
+      Nest: ['Cam Outdoor', 'Cam Indoor', 'Doorbell (battery)', 'Cam IQ Outdoor']
+    },
+    lenses: ['2.8mm f/2.0', '4mm f/1.6', '6mm f/1.4', '8mm f/2.4', '12mm f/1.4', 'Varifocal 2.8-12mm', 'PTZ 4.3-129mm', 'Fisheye 1.27mm']
+  },
+  gaming: {
+    makes: ['PlayStation', 'Xbox', 'Nintendo', 'Steam', 'ROG', 'Elgato', 'Razer', 'Corsair'],
+    modelsByMake: {
+      PlayStation: ['PlayStation 5', 'PlayStation 5 Pro', 'PlayStation Portal', 'PS5 HD Camera'],
+      Xbox: ['Xbox Series X', 'Xbox Series S', 'Xbox One X', 'Kinect for Xbox'],
+      Nintendo: ['Switch OLED', 'Switch Lite', 'Switch Pro Controller'],
+      Steam: ['Steam Deck OLED', 'Steam Deck LCD', 'Steam Controller'],
+      ROG: ['ROG Ally', 'ROG Ally X', 'ROG Phone 8 Pro'],
+      Elgato: ['Game Capture 4K60 S+', 'HD60 X', 'Stream Deck', 'Cam Link 4K'],
+      Razer: ['Kiyo Pro Ultra', 'Seiren V3 Pro', 'StreamController X'],
+      Corsair: ['Elgato 4K60 Pro MK.2', 'Stream Deck XL', 'Facecam Pro']
+    },
+    lenses: ['HDR Gaming Capture', '4K@120fps', 'Ray Tracing Capture', 'VRR Support', 'Low Latency']
+  },
+  automotive: {
+    makes: ['Tesla', 'BMW', 'Mercedes', 'Audi', 'Garmin', 'Blackvue', 'Thinkware', 'Nextbase', 'Viofo'],
+    modelsByMake: {
+      Tesla: ['Model S Plaid', 'Model 3', 'Model X', 'Model Y', 'Cybertruck'],
+      BMW: ['iDrive 8', 'BMW Live Cockpit', 'Parking Assistant Plus', '360° Camera'],
+      Mercedes: ['MBUX', 'Surround View', 'Parking Package', 'Driver Assistance Package'],
+      Audi: ['MMI touch', 'Audi Virtual Cockpit', 'Top View Camera', 'Park Assist'],
+      Garmin: ['Dash Cam 67W', 'Dash Cam Mini 2', 'Dash Cam Tandem', 'Dash Cam Live'],
+      Blackvue: ['DR900X-2CH', 'DR770X-2CH', 'DR590X-2CH', 'DR490L-2CH'],
+      Thinkware: ['U1000', 'Q800PRO', 'F200PRO', 'FA200'],
+      Nextbase: ['622GW', '522GW', '422GW', '322GW'],
+      Viofo: ['A139 Pro', 'A129 Plus Duo', 'A119 V3', 'MT1']
+    },
+    lenses: ['Wide 140° FOV', 'Rear 120° FOV', '360° Surround View', 'Night Vision', 'Parking Mode', 'G-Sensor']
+  },
+  medical: {
+    makes: ['Olympus Medical', 'Fujifilm Healthcare', 'Canon Medical', 'Philips', 'Siemens Healthineers', 'GE Healthcare'],
+    modelsByMake: {
+      'Olympus Medical': ['EVIS X1', 'CV-190', 'OES Pro', 'VISERA ELITE III', 'ENDOEYE FLEX 3D'],
+      'Fujifilm Healthcare': ['ELUXEO 7000', 'EPX-4450HD', 'SonoSite Edge II', 'FCR Prima T2'],
+      'Canon Medical': ['Alphenix Core+', 'CXDI-820C Wireless', 'Vitrea Advanced Visualization'],
+      Philips: ['EPIQ Elite', 'ClearVue 850', 'Azurion', 'DigitalDiagnost C90'],
+      'Siemens Healthineers': ['ACUSON Sequoia', 'SOMATOM Force', 'Cios Spin', 'Artis Q'],
+      'GE Healthcare': ['LOGIQ E10', 'Venue Go', 'Discovery MI', 'Revolution CT']
+    },
+    lenses: ['DICOM Compliant', 'High Resolution Sensor', 'X-Ray Compatible', 'Ultrasound Probe', 'Endoscopic Lens']
+  },
+  astro: {
+    makes: ['ZWO', 'QHY', 'SBIG', 'Moravian', 'Atik', 'PlayerOne', 'Celestron', 'Meade'],
+    modelsByMake: {
+      ZWO: ['ASI6200MM Pro', 'ASI2600MC Pro', 'ASI183MM Pro', 'ASI294MC Pro', 'ASI533MC Pro'],
+      QHY: ['QHY600M', 'QHY268M', 'QHY183M', 'QHY294M', 'QHY367C'],
+      SBIG: ['STXL-6303E', 'STX-16803', 'STF-8300M', 'STXL-11002M'],
+      Moravian: ['G4-16000', 'G3-16200', 'G2-8300', 'C1-6000'],
+      Atik: ['Horizon', 'Apx60', '460EX', '383L+'],
+      PlayerOne: ['Neptune-C II', 'Poseidon-M', 'Apollo-M MAX', 'Ceres-C'],
+      Celestron: ['NexImage 5', 'NexImage Burst', 'Skyris 618C'],
+      Meade: ['Deep Sky Imager Pro III', 'LPI-G Advanced']
+    },
+    lenses: ['Cooled CCD', 'CMOS Sensor', 'H-alpha Filter', 'OIII Filter', 'SII Filter', 'RGB Filter Set', 'Narrowband']
+  },
+  satellite: {
+    makes: ['Landsat', 'Sentinel', 'WorldView', 'GeoEye', 'SPOT', 'IKONOS', 'QuickBird', 'Pleiades'],
+    modelsByMake: {
+      Landsat: ['Landsat 9', 'Landsat 8', 'Landsat 7', 'Landsat 5 TM'],
+      Sentinel: ['Sentinel-2A', 'Sentinel-2B', 'Sentinel-1A', 'Sentinel-3A'],
+      WorldView: ['WorldView-4', 'WorldView-3', 'WorldView-2', 'WorldView-1'],
+      GeoEye: ['GeoEye-1', 'GeoEye-2'],
+      SPOT: ['SPOT-7', 'SPOT-6', 'SPOT-5'],
+      IKONOS: ['IKONOS-2'],
+      QuickBird: ['QuickBird-2'],
+      Pleiades: ['Pleiades-1A', 'Pleiades-1B']
+    },
+    lenses: ['Multispectral Sensor', 'Panchromatic', 'Hyperspectral', 'Thermal Infrared', 'SAR', 'VNIR', 'SWIR']
+  },
+  cinema: {
+    makes: ['RED', 'ARRI', 'Blackmagic', 'Sony Professional', 'Canon Cinema', 'Panasonic Professional'],
+    modelsByMake: {
+      RED: ['V-Raptor XL', 'V-Raptor', 'Komodo 6K', 'Ranger Monstro', 'Gemini 5K S35'],
+      ARRI: ['Alexa 35', 'Alexa Mini LF', 'Alexa SXT', 'Amira'],
+      Blackmagic: ['URSA Mini Pro 12K', 'Pocket Cinema 6K Pro', 'Studio Camera 4K Plus', 'ATEM Camera'],
+      'Sony Professional': ['FX9', 'FX6', 'FX3', 'Venice 2', 'FS7 II'],
+      'Canon Cinema': ['EOS C70', 'EOS C300 Mark III', 'EOS C500 Mark II', 'EOS C200'],
+      'Panasonic Professional': ['EVA1', 'VariCam LT', 'AG-CX350', 'HC-X2000']
+    },
+    lenses: ['PL Mount', 'EF Mount', 'RF Mount', 'E Mount', 'MFT Mount', 'Cinema Zoom', 'Cinema Prime']
+  },
+  microscope: {
+    makes: ['Olympus', 'Nikon', 'Zeiss', 'Leica Microsystems', 'Keyence', 'AmScope'],
+    modelsByMake: {
+      Olympus: ['BX53', 'CX23', 'IX73', 'SZX16', 'LEXT OLS5000'],
+      Nikon: ['Eclipse Ni-E', 'Eclipse Ti2', 'SMZ1270', 'AZ100M'],
+      Zeiss: ['Axio Observer', 'Axio Scope.A1', 'SteREO Discovery.V20', 'LSM 980'],
+      'Leica Microsystems': ['DM6 B', 'DM750', 'M165 FC', 'SP8 LIGHTNING'],
+      Keyence: ['VHX-7000', 'VK-X1000', 'BZ-X810'],
+      AmScope: ['ME520T-A', 'SM-4TZ-144A', 'B120C-E1']
+    },
+    lenses: ['10x Objective', '40x Objective', '100x Oil Immersion', 'Phase Contrast', 'DIC', 'Fluorescence', 'Darkfield']
+  },
+  surveillance: {
+    makes: ['FLIR', 'Pelco', 'Avigilon', 'Milestone', 'Genetec', 'Hanwha Techwin', 'Honeywell'],
+    modelsByMake: {
+      FLIR: ['PT-617-HD', 'Saros DH-390', 'Quasar 4K', 'Elara FC-Series O'],
+      Pelco: ['Spectra Enhanced', 'Optera IMM', 'Sarix Professional', 'VideoXpert'],
+      Avigilon: ['H5A Camera Line', 'H4 HD', 'H3 Thermal', 'Alta'],
+      Milestone: ['XProtect Corporate', 'XProtect Professional+', 'XProtect Express+'],
+      Genetec: ['Security Center', 'Omnicast', 'Stratocast'],
+      'Hanwha Techwin': ['Wisenet P', 'Wisenet Q', 'Wisenet X'],
+      Honeywell: ['equIP', 'HDZ', 'HQA', 'HBW']
+    },
+    lenses: ['Thermal Imaging', 'PTZ 30x Zoom', 'AI Analytics', 'Face Recognition', 'LPR', 'Behavioral Analytics']
+  },
+  broadcast: {
+    makes: ['Sony Professional', 'Panasonic Broadcast', 'JVC', 'Grass Valley', 'Canon Broadcast', 'Hitachi'],
+    modelsByMake: {
+      'Sony Professional': ['HDC-5500', 'PXW-Z750', 'HDC-3500', 'PXW-X400', 'FDR-AX700'],
+      'Panasonic Broadcast': ['AK-UC4000', 'AG-UX180', 'AW-UE155', 'AK-HC5000'],
+      JVC: ['GY-HC500', 'GY-HM250', 'GY-HC900', 'GY-HM170'],
+      'Grass Valley': ['LDX 100', 'LDX 86N', 'LDX C86N'],
+      'Canon Broadcast': ['XF605', 'XF405', 'XA75', 'XA65'],
+      Hitachi: ['SK-HD1300', 'Z-HD5500', 'DK-H100']
+    },
+    lenses: ['Studio Zoom', 'ENG Lens', 'Box Lens', 'Broadcast Prime', 'Teleprompter', 'Servo Zoom']
   }
 }
 
@@ -287,12 +486,15 @@ export default function NewApp() {
       setBusy(false); 
       setActive('ready');
       setShowConfetti(true);
-      toast.success(`🎉 Обработка завершена! ${results.length} фото готово`, {
-        duration: 4000,
-        style: {
-          background: '#059669',
-          color: '#fff',
-        },
+      setResults(currentResults => {
+        toast.success(`🎉 Обработка завершена! ${currentResults.length} фото готово`, {
+          duration: 4000,
+          style: {
+            background: '#059669',
+            color: '#fff',
+          },
+        });
+        return currentResults;
       });
       setTimeout(() => setShowConfetti(false), 5000);
     })
@@ -857,6 +1059,18 @@ export default function NewApp() {
                         <option value="action">📹 Экшн</option>
                         <option value="drone">🚁 Дрон</option>
                         <option value="scanner">🖨️ Сканер</option>
+                        <option value="webcam">🎥 Веб-камера</option>
+                        <option value="film">🎞️ Пленочная</option>
+                        <option value="security">🔒 Видеонаблюдение</option>
+                        <option value="gaming">🎮 Игровые</option>
+                        <option value="automotive">🚗 Автомобильные</option>
+                        <option value="medical">🏥 Медицинские</option>
+                        <option value="astro">🌌 Астрофото</option>
+                        <option value="satellite">📡 Спутниковые</option>
+                        <option value="cinema">🎬 Кинокамеры</option>
+                        <option value="microscope">🔬 Микроскопы</option>
+                        <option value="surveillance">👁️ Промнаблюдение</option>
+                        <option value="broadcast">📺 Телевизионные</option>
                       </select>
                     </label>
                     <label className="flex flex-col gap-2 p-3 rounded-lg bg-indigo-800/10 hover:bg-indigo-800/20 transition-all border border-indigo-500/10">
@@ -1179,9 +1393,9 @@ export default function NewApp() {
           <div className="px-4 py-4 border-b border-white/10 bg-black/20 backdrop-blur">
             <EnhancedStats
               totalFiles={progress.total}
-              processedFiles={progress.current}
+              processedFiles={results.length}
               timeElapsed={Math.floor((Date.now() - startTimeRef.current) / 1000)}
-              averageSpeed={progress.current / Math.max(1, (Date.now() - startTimeRef.current) / 1000)}
+              averageSpeed={results.length / Math.max(1, (Date.now() - startTimeRef.current) / 1000)}
               estimatedTimeRemaining={progress.etaMs ? Math.ceil(progress.etaMs / 1000) : undefined}
             />
           </div>
