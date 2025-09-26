@@ -39,7 +39,7 @@ interface Window {
     decodeRgbaFile: (p: string) => Promise<{ width: number; height: number; stride: number; data: number[] } | null>
     hashAHashBatch: (paths: string[]) => Promise<{ ok: boolean; hashes?: Array<string | number | null>; error?: string }>
     wasmCodecs: {
-      ensure: (payload: { items: { name: string; url: string; sha256?: string }[] }) => Promise<{ ok: boolean; dir?: string; error?: string }>
+      ensure: (items: { name: string; url: string; sha256?: string }[]) => Promise<{ ok: boolean; dir?: string; error?: string }>
       load: (name: string) => Promise<{ ok: boolean; data?: Uint8Array; error?: string }>
     }
     saveBytes: (payload: { data: number[]; defaultPath?: string }) => Promise<{ ok: boolean; path?: string; error?: string }>

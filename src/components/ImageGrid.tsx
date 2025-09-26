@@ -71,7 +71,7 @@ const SortableImageCard = ({
 
       <div className="aspect-video bg-slate-900 flex items-center justify-center overflow-hidden">
         <img 
-          src={`file://${item.path}`} 
+          src={typeof (window as any)?.api?.fileStats === 'function' ? `file://${item.path.startsWith('/')?item.path:('/'+item.path.replace(/\\/g,'/'))}` : `file://${item.path}`}
           alt="" 
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
           loading="lazy"
@@ -131,6 +131,12 @@ const ImageGrid = ({
   sortable = true
 }: ImageGridProps) => {
   const [localItems, setLocalItems] = useState(items)
+
+  if (localItems !== items) {
+    if (Array.isArray(items) && items.length !== localItems.length) {
+      setLocalItems(items)
+    }
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor),

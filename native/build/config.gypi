@@ -17,7 +17,7 @@
     "include_dirs": [],
     "libraries": [],
     "msbuild_toolset": "v143",
-    "msvs_windows_target_platform_version": "10.0.19041.0"
+    "msvs_windows_target_platform_version": "10.0.26100.0"
   },
   "variables": {
     "arm_fpu": "neon",
@@ -495,15 +495,15 @@
     "v8_use_siphash": 1,
     "want_separate_host_toolset": 1,
     "nodedir": "C:\\Users\\YALOKGAR\\AppData\\Local\\node-gyp\\Cache\\38.1.2",
-    "python": "C:\\Python313\\python.exe",
+    "python": "C:\\Users\\YALOKGAR\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
     "standalone_static_library": 1,
-    "msbuild_path": "C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\MSBuild\\Current\\Bin\\MSBuild.exe",
+    "msbuild_path": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Current\\Bin\\MSBuild.exe",
     "target": "38.1.2",
     "cache": "C:\\Users\\YALOKGAR\\AppData\\Local\\npm-cache",
     "globalconfig": "C:\\Users\\YALOKGAR\\AppData\\Roaming\\npm\\etc\\npmrc",
     "global_prefix": "C:\\Users\\YALOKGAR\\AppData\\Roaming\\npm",
     "init_module": "C:\\Users\\YALOKGAR\\.npm-init.js",
-    "local_prefix": "C:\\Users\\YALOKGAR\\Desktop\\PhotoUnikalizer",
+    "local_prefix": "C:\\Users\\YALOKGAR\\PhotoUnikalizer",
     "node_gyp": "C:\\Program Files\\nodejs\\node_modules\\npm\\node_modules\\node-gyp\\bin\\node-gyp.js",
     "npm_version": "11.5.1",
     "prefix": "C:\\Users\\YALOKGAR\\AppData\\Roaming\\npm",

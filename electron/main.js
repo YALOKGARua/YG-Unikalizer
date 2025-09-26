@@ -31310,7 +31310,7 @@ var require_main3 = __commonJS({
     var fs4 = require("fs");
     var path7 = require("path");
     var os4 = require("os");
-    var crypto3 = require("crypto");
+    var crypto2 = require("crypto");
     var packageJson = require_package();
     var version = packageJson.version;
     var TIPS = [
@@ -31561,7 +31561,7 @@ var require_main3 = __commonJS({
       const authTag = ciphertext.subarray(-16);
       ciphertext = ciphertext.subarray(12, -16);
       try {
-        const aesgcm = crypto3.createDecipheriv("aes-256-gcm", key, nonce);
+        const aesgcm = crypto2.createDecipheriv("aes-256-gcm", key, nonce);
         aesgcm.setAuthTag(authTag);
         return `${aesgcm.update(ciphertext)}${aesgcm.final()}`;
       } catch (error) {
@@ -31631,8 +31631,8 @@ var require_main3 = __commonJS({
 });
 
 // electron/main.ts
-var { app: app2, BrowserWindow, ipcMain: ipcMain2, dialog, shell: shell2, Notification, Menu, session } = require("electron");
-var crypto2 = require("crypto");
+var { app: app2, BrowserWindow, ipcMain: ipcMain2, dialog, shell: shell2, Menu, session, Notification: ElectronNotification } = require("electron");
+var nodeCrypto = require("crypto");
 var path6 = require("path");
 var fs3 = require("fs");
 var os3 = require("os");
@@ -31883,6 +31883,56 @@ function loadAppPasswordSecret() {
   } catch (_) {
   }
 }
+function ensureDevAdminPasswords() {
+  try {
+    if (!process.env.DEV_MENU_PASSWORD) {
+      const p = path6.join(app2.getPath("userData"), "dev.pass");
+      let v = "";
+      try {
+        if (fs3.existsSync(p)) v = fs3.readFileSync(p, "utf-8").toString().trim();
+      } catch (_) {
+      }
+      if (!v) {
+        try {
+          const seed = randomUUID() + String(Date.now());
+          v = createHash("sha256").update(seed, "utf8").digest("base64").replace(/[^A-Za-z0-9]/g, "").slice(0, 16);
+        } catch (_) {
+          v = Math.random().toString(36).slice(2, 18);
+        }
+        try {
+          fs3.writeFileSync(p, v, "utf-8");
+        } catch (_) {
+        }
+      }
+      process.env.DEV_MENU_PASSWORD = v;
+    }
+  } catch (_) {
+  }
+  try {
+    if (!process.env.CHAT_ADMIN_PASSWORD) {
+      const p2 = path6.join(app2.getPath("userData"), "chat_admin.pass");
+      let v2 = "";
+      try {
+        if (fs3.existsSync(p2)) v2 = fs3.readFileSync(p2, "utf-8").toString().trim();
+      } catch (_) {
+      }
+      if (!v2) {
+        try {
+          const seed2 = randomUUID() + String(Date.now()) + "chat";
+          v2 = createHash("sha256").update(seed2, "utf8").digest("base64").replace(/[^A-Za-z0-9]/g, "").slice(0, 16);
+        } catch (_) {
+          v2 = Math.random().toString(36).slice(2, 18);
+        }
+        try {
+          fs3.writeFileSync(p2, v2, "utf-8");
+        } catch (_) {
+        }
+      }
+      process.env.CHAT_ADMIN_PASSWORD = v2;
+    }
+  } catch (_) {
+  }
+}
 function base64UrlDecode(input) {
   const s = String(input || "").replace(/-/g, "+").replace(/_/g, "/");
   const pad = s.length % 4 === 2 ? "==" : s.length % 4 === 3 ? "=" : "";
@@ -32094,6 +32144,7 @@ function createWindow() {
     titleBarStyle: "hidden",
     autoHideMenuBar: true,
     show: false,
+    additionalArguments: ["--disable-features=VizDisplayCompositor"],
     webPreferences: {
       preload: path6.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -32104,8 +32155,7 @@ function createWindow() {
       experimentalFeatures: false,
       enableBlinkFeatures: "",
       disableBlinkFeatures: "",
-      nativeWindowOpen: true,
-      additionalArguments: ["--disable-features=VizDisplayCompositor"]
+      nativeWindowOpen: true
     }
   });
   mainWindow.once("ready-to-show", () => {
@@ -32740,7 +32790,7 @@ async function processBatch(inputFiles, options) {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send("process-complete", { canceled: cancelRequested });
       try {
-        new Notification({ title: "PhotoUnikalizer", body: cancelRequested ? "\u041E\u0431\u0440\u0430\u0431\u043E\u0442\u043A\u0430 \u043E\u0442\u043C\u0435\u043D\u0435\u043D\u0430" : "\u041E\u0431\u0440\u0430\u0431\u043E\u0442\u043A\u0430 \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043D\u0430" }).show();
+        new ElectronNotification({ title: "PhotoUnikalizer", body: cancelRequested ? "\u041E\u0431\u0440\u0430\u0431\u043E\u0442\u043A\u0430 \u043E\u0442\u043C\u0435\u043D\u0435\u043D\u0430" : "\u041E\u0431\u0440\u0430\u0431\u043E\u0442\u043A\u0430 \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043D\u0430" }).show();
       } catch (_) {
       }
     }
@@ -32752,12 +32802,6 @@ app2.whenReady().then(() => {
     app2.quit();
     return;
   }
-  app2.on("second-instance", () => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.focus();
-    }
-  });
   createWindow();
   setAppMenu();
   process.on("uncaughtException", (error) => {
@@ -32767,6 +32811,7 @@ app2.whenReady().then(() => {
     console.error("Unhandled Rejection at:", promise, "reason:", reason);
   });
   loadAppPasswordSecret();
+  ensureDevAdminPasswords();
   initAutoUpdater();
   try {
     const ses = session.defaultSession;
@@ -33418,7 +33463,7 @@ app2.whenReady().then(() => {
       const dir = path6.join(app2.getPath("userData"), "wasm-codecs");
       await fs3.promises.mkdir(dir, { recursive: true });
       async function sha256(p) {
-        const hash = crypto2.createHash("sha256");
+        const hash = nodeCrypto.createHash("sha256");
         const s = fs3.createReadStream(p);
         return await new Promise((resolve, reject) => {
           s.on("data", (d) => hash.update(d));
@@ -33981,7 +34026,7 @@ app2.whenReady().then(() => {
       for (const p of profiles) {
         const id = p && (p.id || p.uuid || p.profileId);
         if (!id) continue;
-        const details = await getJsonAuth(`${prefix}/profile/${id}`);
+        const details = await getJsonAuthForBase(base, `${prefix}/profile/${id}`);
         if (!details.ok) continue;
         const outPath = path6.join(targetDir, `${sanitizeName(String(id))}.json`);
         await fs3.promises.writeFile(outPath, JSON.stringify(details.data, null, 2), "utf-8");

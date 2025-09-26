@@ -1,5 +1,5 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, Notification, Menu, session } = require('electron')
-const crypto = require('crypto')
+const { app, BrowserWindow, ipcMain, dialog, shell, Menu, session, Notification: ElectronNotification } = require('electron')
+const nodeCrypto = require('crypto')
 const path = require('path')
 const fs = require('fs')
 const os = require('os')
@@ -601,6 +601,7 @@ function createWindow() {
     titleBarStyle: 'hidden',
     autoHideMenuBar: true,
     show: false,
+    additionalArguments: ['--disable-features=VizDisplayCompositor'],
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -611,8 +612,7 @@ function createWindow() {
       experimentalFeatures: false,
       enableBlinkFeatures: '',
       disableBlinkFeatures: '',
-      nativeWindowOpen: true,
-      additionalArguments: ['--disable-features=VizDisplayCompositor']
+      nativeWindowOpen: true
     }
   })
 
@@ -1198,7 +1198,7 @@ async function processBatch(inputFiles, options) {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('process-complete', { canceled: cancelRequested })
       try {
-        new Notification({ title: 'PhotoUnikalizer', body: cancelRequested ? 'Обработка отменена' : 'Обработка завершена' }).show()
+        new ElectronNotification({ title: 'PhotoUnikalizer', body: cancelRequested ? 'Обработка отменена' : 'Обработка завершена' }).show()
       } catch (_) {}
     }
   }
@@ -1212,12 +1212,7 @@ app.whenReady().then(() => {
     return
   }
 
-  app.on('second-instance', () => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      if (mainWindow.isMinimized()) mainWindow.restore()
-      mainWindow.focus()
-    }
-  })
+  
 
   createWindow()
   setAppMenu()
@@ -1231,6 +1226,7 @@ app.whenReady().then(() => {
   })
   
   loadAppPasswordSecret()
+  ensureDevAdminPasswords()
   initAutoUpdater()
   
   try {
@@ -1800,7 +1796,7 @@ app.whenReady().then(() => {
       const dir = path.join(app.getPath('userData'), 'wasm-codecs')
       await fs.promises.mkdir(dir, { recursive: true })
       async function sha256(p) {
-        const hash = crypto.createHash('sha256')
+        const hash = nodeCrypto.createHash('sha256')
         const s = fs.createReadStream(p)
         return await new Promise((resolve, reject) => {
           s.on('data', d => hash.update(d)); s.on('end', () => resolve(hash.digest('hex'))); s.on('error', reject)
@@ -2250,7 +2246,7 @@ app.whenReady().then(() => {
       for (const p of profiles) {
         const id = p && (p.id || p.uuid || p.profileId)
         if (!id) continue
-        const details = await getJsonAuth(`${prefix}/profile/${id}`)
+        const details = await getJsonAuthForBase(base, `${prefix}/profile/${id}`)
         if (!details.ok) continue
         const outPath = path.join(targetDir, `${sanitizeName(String(id))}.json`)
         await fs.promises.writeFile(outPath, JSON.stringify(details.data, null, 2), 'utf-8')

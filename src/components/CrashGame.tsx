@@ -33,8 +33,8 @@ const CrashGame = () => {
 
   const generateCrashPoint = () => {
     const random = Math.random()
-    if (random < 0.03) return 0
-    return Math.floor(100 / (1 - random)) / 100
+    const v = Math.floor(100 / Math.max(1e-6, (1 - random))) / 100
+    return Math.max(1.01, v)
   }
 
   const startGame = useCallback(() => {
@@ -79,7 +79,7 @@ const CrashGame = () => {
   }, [bet, balance, autoCashout, userCashedOut])
 
   const crashGame = () => {
-    clearInterval(intervalRef.current)
+    if (intervalRef.current) clearInterval(intervalRef.current)
     setIsCrashed(true)
     setIsPlaying(false)
     

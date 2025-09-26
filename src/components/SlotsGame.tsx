@@ -36,7 +36,8 @@ const SlotsGame = () => {
   const [balance, setBalance] = useState(10000)
   const [bet, setBet] = useState(100)
   const [isSpinning, setIsSpinning] = useState(false)
-  const [reels, setReels] = useState<typeof SYMBOLS[][]>([])
+  type SymbolItem = { id: string; emoji: string; value: number; color: string }
+  const [reels, setReels] = useState<SymbolItem[][]>([])
   const [winningLines, setWinningLines] = useState<number[]>([])
   const [lastWin, setLastWin] = useState(0)
   const [totalSpins, setTotalSpins] = useState(0)
@@ -60,9 +61,9 @@ const SlotsGame = () => {
   }, [])
 
   const initializeReels = () => {
-    const initialReels = []
+    const initialReels: SymbolItem[][] = []
     for (let i = 0; i < 5; i++) {
-      const reel = []
+      const reel: SymbolItem[] = []
       for (let j = 0; j < 3; j++) {
         reel.push(SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)])
       }
@@ -72,7 +73,13 @@ const SlotsGame = () => {
   }
 
   const spin = async () => {
-    if (isSpinning || bet > balance || bet <= 0) return
+    if (isSpinning || bet > balance || bet <= 0) {
+      if (autoPlay && bet > balance) {
+        if (autoPlayIntervalRef.current) clearInterval(autoPlayIntervalRef.current)
+        setAutoPlay(false)
+      }
+      return
+    }
     
     setIsSpinning(true)
     setBalance(prev => prev - bet)
@@ -82,11 +89,11 @@ const SlotsGame = () => {
     setTotalSpins(prev => prev + 1)
     
     const spinDuration = turboMode ? 500 : 1500
-    const newReels: typeof SYMBOLS[][] = []
+    const newReels: SymbolItem[][] = []
     
     for (let i = 0; i < 5; i++) {
       setTimeout(() => {
-        const reel = []
+        const reel: SymbolItem[] = []
         for (let j = 0; j < 3; j++) {
           reel.push(SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)])
         }
@@ -100,7 +107,7 @@ const SlotsGame = () => {
     }
   }
 
-  const checkWin = (currentReels: typeof SYMBOLS[][]) => {
+  const checkWin = (currentReels: SymbolItem[][]) => {
     let totalWinAmount = 0
     const winLines: number[] = []
     let maxMultiplier = 1

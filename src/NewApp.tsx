@@ -478,7 +478,8 @@ export default function NewApp() {
     const off = window.api.onProgress(d => {
       setProgress({ current: d.index + 1, total: d.total, lastFile: d.file, etaMs: Number(d.etaMs||0), speedBps: Number(d.speedBps||0), percent: Number(d.percent)||0 })
       if (d && d.status === 'ok' && d.outPath) {
-        setResults(prev => [...prev, { src: d.file, out: d.outPath }])
+        const srcPath = Array.isArray(files) && typeof d.index==='number' && files[d.index] ? files[d.index] : d.file
+        setResults(prev => [...prev, { src: srcPath, out: d.outPath }])
         setStatsData(prev => [...prev, { name: `Файл ${d.index + 1}`, value: d.index + 1 }])
       }
     })

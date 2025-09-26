@@ -4,11 +4,22 @@ let wasm: any = null
 
 async function loadWasm() {
   if (wasm) return wasm
-  const res = await fetch('/wasm/pu.wasm')
-  const buf = await res.arrayBuffer()
-  const { instance } = await WebAssembly.instantiate(buf, {}) as any
-  wasm = instance && instance.exports ? instance.exports : null
-  return wasm
+  const candidates: string[] = []
+  try { candidates.push(new URL('/wasm/pu.wasm', (self as any).location?.origin || '').toString()) } catch {}
+  try { candidates.push(new URL('wasm/pu.wasm', (self as any).location?.href || '').toString()) } catch {}
+  try { candidates.push('/wasm/pu.wasm') } catch {}
+  let lastErr: any = null
+  for (const url of Array.from(new Set(candidates)).filter(Boolean)) {
+    try {
+      const res = await fetch(url)
+      if (!res.ok) continue
+      const buf = await res.arrayBuffer()
+      const { instance } = await WebAssembly.instantiate(buf, {}) as any
+      wasm = instance && instance.exports ? instance.exports : null
+      if (wasm) return wasm
+    } catch (e) { lastErr = e }
+  }
+  throw lastErr || new Error('wasm-not-found')
 }
 
 self.onmessage = async (e: MessageEvent) => {

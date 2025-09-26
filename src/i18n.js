@@ -770,7 +770,7 @@ i18n
   .init({
     resources,
     lng: initialLng,
-    fallbackLng: 'ua',
+    fallbackLng: 'uk',
     supportedLngs: ['en','ru','uk','ar','zh','pl','es','fr','ja','ko','kk','it','sv','nb','fi','ro','ro-MD'],
     interpolation: { escapeValue: false }
   })
