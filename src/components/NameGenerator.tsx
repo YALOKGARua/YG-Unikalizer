@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { FaUser, FaGlobe, FaCopy, FaRandom, FaMale, FaFemale } from 'react-icons/fa'
+import { FaUser, FaGlobe, FaCopy, FaRandom, FaMale, FaFemale, FaLanguage } from 'react-icons/fa'
 import { toast } from 'sonner'
 
 const NAMES_DATABASE = {
@@ -226,11 +226,32 @@ export default function NameGenerator({ className = '' }: NameGeneratorProps) {
   const [generatedName, setGeneratedName] = useState('')
   const [generateCount, setGenerateCount] = useState(1)
   const [generatedList, setGeneratedList] = useState<string[]>([])
+  const [useTransliteration, setUseTransliteration] = useState(false)
 
   const countries = Object.keys(NAMES_DATABASE)
 
+  const transliterate = (text: string): string => {
+    const transliterationMap: Record<string, string> = {
+      'А': 'A', 'Б': 'B', 'В': 'V', 'Г': 'G', 'Д': 'D', 'Е': 'E', 'Ё': 'Yo', 'Ж': 'Zh', 'З': 'Z',
+      'И': 'I', 'Й': 'Y', 'К': 'K', 'Л': 'L', 'М': 'M', 'Н': 'N', 'О': 'O', 'П': 'P', 'Р': 'R',
+      'С': 'S', 'Т': 'T', 'У': 'U', 'Ф': 'F', 'Х': 'Kh', 'Ц': 'Ts', 'Ч': 'Ch', 'Ш': 'Sh', 'Щ': 'Shch',
+      'Ъ': '', 'Ы': 'Y', 'Ь': '', 'Э': 'E', 'Ю': 'Yu', 'Я': 'Ya',
+      'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'yo', 'ж': 'zh', 'з': 'z',
+      'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r',
+      'с': 's', 'т': 't', 'у': 'u', 'ф': 'f', 'х': 'kh', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'shch',
+      'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya',
+      'Ґ': 'G', 'Є': 'Ye', 'І': 'I', 'Ї': 'Yi',
+      'ґ': 'g', 'є': 'ye', 'і': 'i', 'ї': 'yi',
+      'Ѝ': 'I', 'ѝ': 'i'
+    }
+    
+    let result = text.split('').map(char => transliterationMap[char] || char).join('')
+    result = result.replace(/[ьъЬЪ]/g, '')
+    return result
+  }
+
   const generateRandomName = () => {
-    const countryData = NAMES_DATABASE[selectedCountry]
+    const countryData = NAMES_DATABASE[selectedCountry as keyof typeof NAMES_DATABASE]
     if (!countryData) return ''
 
     const gender = selectedGender === 'random' ? (Math.random() > 0.5 ? 'male' : 'female') : selectedGender
@@ -240,7 +261,8 @@ export default function NameGenerator({ className = '' }: NameGeneratorProps) {
     const randomName = names[Math.floor(Math.random() * names.length)]
     const randomLastName = lastNames[Math.floor(Math.random() * lastNames.length)]
 
-    return `${randomName} ${randomLastName}`
+    const fullName = `${randomName} ${randomLastName}`
+    return useTransliteration ? transliterate(fullName) : fullName
   }
 
   const handleGenerate = () => {
@@ -255,28 +277,51 @@ export default function NameGenerator({ className = '' }: NameGeneratorProps) {
     }
   }
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text).then(() => {
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
       toast.success(`Скопировано: ${text}`, {
         duration: 2000,
         style: { background: '#059669', color: '#fff' }
       })
-    })
+    } catch (err) {
+      const textArea = document.createElement('textarea')
+      textArea.value = text
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+      toast.success(`Скопировано: ${text}`, {
+        duration: 2000,
+        style: { background: '#059669', color: '#fff' }
+      })
+    }
   }
 
-  const copyAllNames = () => {
+  const copyAllNames = async () => {
     const allNames = generatedList.join('\n')
-    navigator.clipboard.writeText(allNames).then(() => {
+    try {
+      await navigator.clipboard.writeText(allNames)
       toast.success(`Скопировано ${generatedList.length} имен`, {
         duration: 2000,
         style: { background: '#059669', color: '#fff' }
       })
-    })
+    } catch (err) {
+      const textArea = document.createElement('textarea')
+      textArea.value = allNames
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+      toast.success(`Скопировано ${generatedList.length} имен`, {
+        duration: 2000,
+        style: { background: '#059669', color: '#fff' }
+      })
+    }
   }
 
   return (
     <div className={`space-y-6 ${className}`}>
-      {/* Заголовок */}
       <div className="text-center">
         <h2 className="text-2xl font-bold text-white mb-2 flex items-center justify-center gap-3">
           <FaUser className="w-6 h-6 text-blue-400" />
@@ -285,15 +330,13 @@ export default function NameGenerator({ className = '' }: NameGeneratorProps) {
         <p className="text-slate-400">Генерация реалистичных имен и фамилий из разных стран мира</p>
       </div>
 
-      {/* Настройки */}
       <div className="glass-card rounded-xl p-6">
         <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
           <FaGlobe className="w-5 h-5 text-green-400" />
           Настройки генерации
         </h3>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-          {/* Выбор страны */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
           <div className="space-y-2">
             <label className="text-sm font-medium text-slate-300">Страна</label>
             <select
@@ -307,7 +350,6 @@ export default function NameGenerator({ className = '' }: NameGeneratorProps) {
             </select>
           </div>
 
-          {/* Выбор пола */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-slate-300">Пол</label>
             <div className="flex gap-2">
@@ -344,7 +386,6 @@ export default function NameGenerator({ className = '' }: NameGeneratorProps) {
             </div>
           </div>
 
-          {/* Количество имен */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-slate-300">Количество</label>
             <input
@@ -357,7 +398,35 @@ export default function NameGenerator({ className = '' }: NameGeneratorProps) {
             />
           </div>
 
-          {/* Кнопка генерации */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-300 flex items-center gap-1">
+              <FaLanguage className="w-3 h-3" />
+              Алфавит
+            </label>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setUseTransliteration(false)}
+                className={`flex-1 px-3 py-2 rounded-lg border transition-all text-sm ${
+                  !useTransliteration
+                    ? 'bg-indigo-600 border-indigo-500 text-white'
+                    : 'bg-slate-800/50 border-white/10 text-slate-300 hover:border-white/20'
+                }`}
+              >
+                Кириллица
+              </button>
+              <button
+                onClick={() => setUseTransliteration(true)}
+                className={`flex-1 px-3 py-2 rounded-lg border transition-all text-sm ${
+                  useTransliteration
+                    ? 'bg-orange-600 border-orange-500 text-white'
+                    : 'bg-slate-800/50 border-white/10 text-slate-300 hover:border-white/20'
+                }`}
+              >
+                Латиница
+              </button>
+            </div>
+          </div>
+
           <div className="space-y-2">
             <label className="text-sm font-medium text-slate-300">Действие</label>
             <motion.button
@@ -373,7 +442,6 @@ export default function NameGenerator({ className = '' }: NameGeneratorProps) {
         </div>
       </div>
 
-      {/* Результаты */}
       <AnimatePresence>
         {(generatedName || generatedList.length > 0) && (
           <motion.div
@@ -383,7 +451,18 @@ export default function NameGenerator({ className = '' }: NameGeneratorProps) {
             className="glass-card rounded-xl p-6"
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white">Результат</h3>
+              <div className="flex items-center gap-3">
+                <h3 className="text-lg font-semibold text-white">Результат</h3>
+                {generatedList.length > 0 && (
+                  <span className={`px-2 py-1 rounded text-xs font-medium ${
+                    useTransliteration 
+                      ? 'bg-orange-600/20 text-orange-300' 
+                      : 'bg-indigo-600/20 text-indigo-300'
+                  }`}>
+                    {useTransliteration ? 'Латиница' : 'Кириллица'}
+                  </span>
+                )}
+              </div>
               {generatedList.length > 0 && (
                 <motion.button
                   whileHover={{ scale: 1.05 }}
@@ -401,7 +480,17 @@ export default function NameGenerator({ className = '' }: NameGeneratorProps) {
               <div className="flex items-center gap-3 p-4 bg-slate-800/50 rounded-lg border border-white/10">
                 <div className="flex-1">
                   <div className="text-xl font-bold text-white">{generatedName}</div>
-                  <div className="text-sm text-slate-400">{selectedCountry}</div>
+                  <div className="flex items-center gap-2 text-sm text-slate-400">
+                    <span>{selectedCountry}</span>
+                    <span className="text-slate-600">•</span>
+                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                      useTransliteration 
+                        ? 'bg-orange-600/20 text-orange-300' 
+                        : 'bg-indigo-600/20 text-indigo-300'
+                    }`}>
+                      {useTransliteration ? 'Латиница' : 'Кириллица'}
+                    </span>
+                  </div>
                 </div>
                 <motion.button
                   whileHover={{ scale: 1.05 }}
@@ -444,7 +533,6 @@ export default function NameGenerator({ className = '' }: NameGeneratorProps) {
         )}
       </AnimatePresence>
 
-      {/* Статистика */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="glass-card rounded-lg p-4 text-center">
           <div className="text-2xl font-bold text-blue-400">{countries.length}</div>
@@ -471,13 +559,11 @@ export default function NameGenerator({ className = '' }: NameGeneratorProps) {
         </div>
       </div>
 
-      {/* Европейские страны */}
       <div className="glass-card rounded-xl p-4">
         <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
           🇪🇺 Европейские страны
         </h3>
         <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-7 gap-2 mb-4">
-          {/* Западная Европа */}
           {['Украина', 'Россия', 'Великобритания', 'Германия', 'Франция', 'Италия', 'Испания', 'Нідерланди', 'Бельгія', 'Швейцарія', 'Австрія', 'Ірландія', 'Португалія'].map(country => (
             <div key={country} className="text-center p-2 rounded-lg bg-slate-800/30 border border-white/10 hover:border-white/20 transition-colors">
               <div className="text-xs font-medium text-slate-300">{country}</div>
@@ -486,7 +572,6 @@ export default function NameGenerator({ className = '' }: NameGeneratorProps) {
         </div>
         
         <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-7 gap-2 mb-4">
-          {/* Северная Европа */}
           {['Швеція', 'Норвегія', 'Данія', 'Фінляндія', 'Ісландія'].map(country => (
             <div key={country} className="text-center p-2 rounded-lg bg-blue-800/30 border border-blue-400/20 hover:border-blue-400/40 transition-colors">
               <div className="text-xs font-medium text-blue-200">🇸🇪 {country}</div>
@@ -495,7 +580,6 @@ export default function NameGenerator({ className = '' }: NameGeneratorProps) {
         </div>
 
         <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-7 gap-2 mb-4">
-          {/* Балтийские страны */}
           {['Естонія', 'Литва', 'Латвія'].map(country => (
             <div key={country} className="text-center p-2 rounded-lg bg-green-800/30 border border-green-400/20 hover:border-green-400/40 transition-colors">
               <div className="text-xs font-medium text-green-200">🏛️ {country}</div>
@@ -504,7 +588,6 @@ export default function NameGenerator({ className = '' }: NameGeneratorProps) {
         </div>
 
         <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-7 gap-2 mb-4">
-          {/* Центральная и Восточная Европа */}
           {['Польша', 'Чехія', 'Словаччина', 'Хорватія', 'Словенія', 'Румунія', 'Болгарія', 'Молдова'].map(country => (
             <div key={country} className="text-center p-2 rounded-lg bg-purple-800/30 border border-purple-400/20 hover:border-purple-400/40 transition-colors">
               <div className="text-xs font-medium text-purple-200">🏰 {country}</div>
@@ -513,7 +596,6 @@ export default function NameGenerator({ className = '' }: NameGeneratorProps) {
         </div>
 
         <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-7 gap-2 mb-4">
-          {/* Балканы */}
           {['Греція', 'Сербія', 'Чорногорія', 'Боснія і Герцеговина', 'Північна Македонія', 'Албанія'].map(country => (
             <div key={country} className="text-center p-2 rounded-lg bg-orange-800/30 border border-orange-400/20 hover:border-orange-400/40 transition-colors">
               <div className="text-xs font-medium text-orange-200">⛰️ {country}</div>
@@ -522,7 +604,6 @@ export default function NameGenerator({ className = '' }: NameGeneratorProps) {
         </div>
 
         <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-7 gap-2">
-          {/* Островные государства */}
           {['Мальта', 'Кіпр'].map(country => (
             <div key={country} className="text-center p-2 rounded-lg bg-cyan-800/30 border border-cyan-400/20 hover:border-cyan-400/40 transition-colors">
               <div className="text-xs font-medium text-cyan-200">🏝️ {country}</div>
