@@ -758,7 +758,7 @@ function compareVersions(a, b) {
 
 async function checkGithubForUpdate() {
   try {
-  const ownerRepo = 'YALOKGARua/PhotoUnikalizer'
+  const ownerRepo = 'YALOKGARua/YG-Unikalizer'
     const latest = await fetchJson(`https://api.github.com/repos/${ownerRepo}/releases/latest`, 8000).catch(() => null)
     if (!latest || !latest.tag_name) return null
     const current = app.getVersion()
@@ -1696,7 +1696,7 @@ app.whenReady().then(() => {
       const srcInfo = lastUpdateInfo || fallbackUpdateInfo
       let notesGithub = extract(srcInfo)
       const version = (srcInfo && (srcInfo.version || srcInfo.tag)) || app.getVersion()
-      const ownerRepo = 'YALOKGARua/PhotoUnikalizer'
+      const ownerRepo = 'YALOKGARua/YG-Unikalizer'
       if (!notesGithub) {
         let data = null
         try {
