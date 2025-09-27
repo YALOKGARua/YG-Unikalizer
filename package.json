@@ -8,11 +8,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/YALOKGARua/PhotoUnikalizer.git"
+    "url": "git+https://github.com/YALOKGARua/YG-Unikalizer.git"
   },
-  "homepage": "https://github.com/YALOKGARua/PhotoUnikalizer#readme",
+  "homepage": "https://github.com/YALOKGARua/YG-Unikalizer#readme",
   "bugs": {
-    "url": "https://github.com/YALOKGARua/PhotoUnikalizer/issues"
+    "url": "https://github.com/YALOKGARua/YG-Unikalizer/issues"
   },
   "keywords": [
     "photo",
