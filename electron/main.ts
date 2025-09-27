@@ -595,7 +595,7 @@ function createWindow() {
     height: 840,
     minWidth: 1024,
     minHeight: 700,
-    title: 'PhotoUnikalizer',
+    title: 'YG Unikalizer',
     backgroundColor: '#0b1020',
     frame: false,
     titleBarStyle: 'hidden',
@@ -758,7 +758,7 @@ function compareVersions(a, b) {
 
 async function checkGithubForUpdate() {
   try {
-    const ownerRepo = 'YALOKGARua/PhotoUnikalizer'
+  const ownerRepo = 'YALOKGARua/PhotoUnikalizer'
     const latest = await fetchJson(`https://api.github.com/repos/${ownerRepo}/releases/latest`, 8000).catch(() => null)
     if (!latest || !latest.tag_name) return null
     const current = app.getVersion()
@@ -870,7 +870,7 @@ async function getOnlineDefaults() {
       out.email = u.email
       out.url = `https://${u.login.username}.example.com`
       out.owner = out.author
-      out.creatorTool = 'PhotoUnikalizer'
+      out.creatorTool = 'YG Unikalizer'
     }
     return out
   } catch (_) {
@@ -1013,7 +1013,7 @@ async function processOne(inputPath, index, total, options, progressContext) {
     tags.AllDates = toDateString(new Date(Date.now() + ms))
   }
   if (options.meta.uniqueId) tags.ImageUniqueID = randomUUID()
-  if (options.meta.softwareTag !== false) tags.Software = 'PhotoUnikalizer'
+  if (options.meta.softwareTag !== false) tags.Software = 'YG Unikalizer'
 
   if (options.meta && options.meta.fake === true) {
     const seed = options.meta.fakePerFile ? randomUUID() : 'static'
@@ -1198,14 +1198,14 @@ async function processBatch(inputFiles, options) {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('process-complete', { canceled: cancelRequested })
       try {
-        new ElectronNotification({ title: 'PhotoUnikalizer', body: cancelRequested ? 'Обработка отменена' : 'Обработка завершена' }).show()
+        new ElectronNotification({ title: 'YG Unikalizer', body: cancelRequested ? 'Обработка отменена' : 'Обработка завершена' }).show()
       } catch (_) {}
     }
   }
 }
 
 app.whenReady().then(() => {
-  app.setAppUserModelId('com.yalokgar.photounikalizer')
+  app.setAppUserModelId('com.yalokgaria.yg-unikalizer')
   
   if (!app.requestSingleInstanceLock()) {
     app.quit()

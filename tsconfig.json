@@ -18,6 +18,7 @@
     "electron",
     "server",
     "public",
-    "src/env.d.ts"
+    "src/env.d.ts",
+    "private/src/subscription"
   ]
 }

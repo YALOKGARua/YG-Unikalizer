@@ -70,7 +70,7 @@ export default function ChangelogModal({ isOpen, onClose }: ChangelogModalProps)
                 <h2 className="text-xl font-bold text-white">История изменений</h2>
                 <p className="text-sm text-slate-400 flex items-center gap-2">
                   <FaCalendar className="w-3 h-3" />
-                  PhotoUnikalizer - все обновления
+                  YG Unikalizer - все обновления
                   {lastUpdated && (
                     <>
                       <span className="text-slate-600">•</span>

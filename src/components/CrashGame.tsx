@@ -5,6 +5,11 @@ import CountUp from 'react-countup'
 import confetti from 'canvas-confetti'
 import { FaRocket, FaCoins, FaFire, FaTrophy, FaChartLine } from 'react-icons/fa'
 import Tilt from 'react-parallax-tilt'
+import FeatureGate, { PremiumBadge } from './FeatureGate'
+import FeatureGateFloating, { PremiumBadgeFloating } from './FeatureGateFloating'
+import FeatureGateCompact, { PremiumBadgeCompact } from './FeatureGateCompact'
+import { useAppStore } from '../../private/src/subscription/store'
+import { toast } from 'sonner'
 
 interface GameHistory {
   multiplier: number
@@ -39,6 +44,12 @@ const CrashGame = () => {
 
   const startGame = useCallback(() => {
     if (bet > balance || bet <= 0) return
+    
+    const { isSubscribed } = useAppStore.getState()
+    if (bet > 1000 && !isSubscribed()) {
+      toast.error('Максимальная ставка для бесплатной версии: 1000. Подпишитесь для больших ставок!')
+      return
+    }
     
     setBalance(prev => prev - bet)
     setIsPlaying(true)
@@ -311,26 +322,31 @@ const CrashGame = () => {
 
             <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-white/10 space-y-4">
               <div>
-                <label className="text-white/60 text-sm mb-2 block">Ставка</label>
-                <input
-                  type="number"
-                  value={bet}
-                  onChange={(e) => setBet(Number(e.target.value))}
-                  className="w-full bg-slate-900/50 border border-white/10 rounded-lg px-4 py-3 text-white"
-                  min={1}
-                  max={balance}
-                />
-                <div className="flex gap-2 mt-2">
-                  {[100, 500, 1000, 5000].map(amount => (
-                    <button
-                      key={amount}
-                      onClick={() => quickBet(amount)}
-                      className="flex-1 py-1 bg-slate-700/50 hover:bg-slate-600/50 rounded text-xs text-white/80"
-                    >
-                      {amount}
-                    </button>
-                  ))}
-                </div>
+                <label className="text-white/60 text-sm mb-2 block flex items-center gap-2">
+                  Ставка
+                  {bet > 1000 && <PremiumBadgeCompact feature="high_stakes" />}
+                </label>
+                <FeatureGateCompact feature="high_stakes" showUpgrade={bet > 1000}>
+                  <input
+                    type="number"
+                    value={bet}
+                    onChange={(e) => setBet(Number(e.target.value))}
+                    className="w-full bg-slate-900/50 border border-white/10 rounded-lg px-4 py-3 text-white"
+                    min={1}
+                    max={balance}
+                  />
+                  <div className="flex gap-2 mt-2">
+                    {[100, 500, 1000, 5000].map(amount => (
+                      <button
+                        key={amount}
+                        onClick={() => quickBet(amount)}
+                        className="flex-1 py-1 bg-slate-700/50 hover:bg-slate-600/50 rounded text-xs text-white/80"
+                      >
+                        {amount}
+                      </button>
+                    ))}
+                  </div>
+                </FeatureGateCompact>
               </div>
 
               <div>
@@ -408,7 +424,7 @@ const CrashGame = () => {
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         @keyframes crash {
           0% { transform: translateY(0) rotate(0); }
           100% { transform: translateY(100px) rotate(180deg); opacity: 0; }

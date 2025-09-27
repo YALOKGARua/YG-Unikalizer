@@ -1,7 +1,7 @@
-; NSIS custom installer actions for PhotoUnikalizer
+; NSIS custom installer actions for YG Unikalizer
 
 !macro customInstall
-  StrCpy $0 "$INSTDIR\PhotoUnikalizer.exe"
+  StrCpy $0 "$INSTDIR\YG-Unikalizer.exe"
 
   WriteRegStr HKLM "Software\Classes\SystemFileAssociations\image\shell\PhotoUnikalizer" "MUIVerb" "Send to PhotoUnikalizer"
   WriteRegStr HKLM "Software\Classes\SystemFileAssociations\image\shell\PhotoUnikalizer" "Icon" "$0,0"

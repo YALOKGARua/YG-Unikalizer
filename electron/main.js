@@ -32138,7 +32138,7 @@ function createWindow() {
     height: 840,
     minWidth: 1024,
     minHeight: 700,
-    title: "PhotoUnikalizer",
+    title: "YG Unikalizer",
     backgroundColor: "#0b1020",
     frame: false,
     titleBarStyle: "hidden",

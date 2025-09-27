@@ -9,8 +9,13 @@ import FileDropzone from './components/FileDropzone'
 import ImageGrid from './components/ImageGrid'
 import AnimatedBackground from './components/AnimatedBackground'
 import { useSpring, animated, useSpringValue, useTrail, config } from '@react-spring/web'
-import { useAppStore } from './store'
+import { useAppStore } from '../private/src/subscription/store'
 import { toast } from 'sonner'
+import FeatureGate, { PremiumBadge } from './components/FeatureGate'
+import FeatureGateFloating, { PremiumBadgeFloating } from './components/FeatureGateFloating'
+import FeatureGateCompact, { PremiumBadgeCompact } from './components/FeatureGateCompact'
+import FeatureGateSide, { PremiumBadgeSide } from './components/FeatureGateSide'
+import CustomSelect from './components/CustomSelect'
 import Confetti from 'react-confetti'
 import { useWindowSize, useDebounce, useLocalStorage } from 'react-use'
 import { clsx } from 'clsx'
@@ -31,7 +36,8 @@ import {
   FaCamera,
   FaMobile,
   FaVideo,
-  FaTimes
+  FaTimes,
+  FaCrown
 } from 'react-icons/fa'
 
 const cn = (...classes: (string | undefined | null | boolean)[]) => twMerge(clsx(...classes))
@@ -406,6 +412,7 @@ export default function NewApp() {
   const [copyright, setCopyright] = useState('')
   const [creatorTool, setCreatorTool] = useState('')
   const [fakeTab, setFakeTab] = useState<'general'|'location'|'metadata'|'camera'>('general')
+  const [presetOption, setPresetOption] = useState('')
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState<{ current: number; total: number; lastFile: string; etaMs?: number; speedBps?: number; percent?: number }>({ current: 0, total: 0, lastFile: '' })
   const [results, setResults] = useState<{ src: string; out: string }[]>([])
@@ -426,6 +433,10 @@ export default function NewApp() {
   useDebounce(() => setDebouncedQuality(quality), 300, [quality])
   useDebounce(() => setDebouncedColorDrift(colorDrift), 300, [colorDrift])
 
+  const hasFeature = useAppStore(s=>s.hasFeature)
+  const proAdvanced = hasFeature('advanced_drift')
+  const proApi = hasFeature('api_access')
+
   useEffect(() => {
     ;(async () => {
       try {
@@ -444,6 +455,15 @@ export default function NewApp() {
   useEffect(() => {
     try { window.api.ui.saveState({ files, outputDir, format, quality, active }) } catch {}
   }, [files, outputDir, format, quality, active])
+
+  useEffect(() => {
+    if (!proAdvanced && (format === 'webp' || format === 'avif' || format === 'heic')) setFormat('jpg')
+  }, [proAdvanced])
+
+  useEffect(() => {
+    const qn = Number(quality || 0)
+    if (!proAdvanced && qn > 85) setQuality(85)
+  }, [proAdvanced, quality])
 
   useEffect(() => {
     const p = GEAR_PRESETS[fakeProfile]
@@ -473,6 +493,12 @@ export default function NewApp() {
     setFakeState(preset.state || '')
     setFakeCountry(preset.country || '')
   }, [locationPreset])
+
+  
+
+  useEffect(() => {
+    if (!proApi && onlineAuto) setOnlineAuto(false)
+  }, [proApi, onlineAuto])
 
   useEffect(() => {
     const off = window.api.onProgress(d => {
@@ -571,6 +597,13 @@ export default function NewApp() {
 
   const start = async () => {
     if (!canStart) return
+    
+    const { isSubscribed } = useAppStore.getState()
+    if (files.length > 5 && !isSubscribed()) {
+      toast.error('Бесплатная версия ограничена 5 файлами. Подпишитесь для неограниченной обработки!')
+      return
+    }
+    
     setBusy(true)
     startTimeRef.current = Date.now()
     setProgress({ current: 0, total: files.length, lastFile: '', etaMs: 0, speedBps: 0, percent: 0 })
@@ -659,7 +692,21 @@ export default function NewApp() {
           style: { background: '#7c3aed', color: '#fff' },
           action: {
             label: 'Отменить',
-            onClick: () => toast.dismiss()
+            onClick: () => {
+              setPresetOption('')
+              setFakeProfile('camera')
+              setFakeMake('')
+              setFakeModel('')
+              setFakeLens('')
+              setFakeIso('')
+              setFakeExposureTime('')
+              setFakeFNumber('')
+              setFakeFocalLength('')
+              setAuthor('')
+              setKeywords('')
+              setCopyright('')
+              toast.dismiss()
+            }
           }
         })
         break
@@ -676,7 +723,7 @@ export default function NewApp() {
         toast.success('✈️ Применен шаблон путешествий', {
           duration: 3000,
           style: { background: '#0891b2', color: '#fff' },
-          action: { label: 'Отменить', onClick: () => toast.dismiss() }
+          action: { label: 'Отменить', onClick: () => { setPresetOption(''); setFakeMake(''); setFakeModel(''); setFakeGps(false); setLocationPreset('none'); setFakeIso(''); setFakeExposureTime(''); setKeywords(''); setDescription(''); toast.dismiss() } }
         })
         break
       case 'nature':
@@ -691,7 +738,7 @@ export default function NewApp() {
         toast.success('🌿 Применен природный шаблон', {
           duration: 3000,
           style: { background: '#059669', color: '#fff' },
-          action: { label: 'Отменить', onClick: () => toast.dismiss() }
+          action: { label: 'Отменить', onClick: () => { setPresetOption(''); setFakeMake(''); setFakeModel(''); setFakeLens(''); setFakeIso(''); setFakeFocalLength(''); setKeywords(''); setDescription(''); toast.dismiss() } }
         })
         break
       case 'studio':
@@ -707,7 +754,7 @@ export default function NewApp() {
         toast.success('💡 Применен студийный шаблон', {
           duration: 3000,
           style: { background: '#dc2626', color: '#fff' },
-          action: { label: 'Отменить', onClick: () => toast.dismiss() }
+          action: { label: 'Отменить', onClick: () => { setPresetOption(''); setFakeMake(''); setFakeModel(''); setFakeIso(''); setFakeExposureTime(''); setFakeFNumber(''); setFakeFlash(''); setKeywords(''); setCreatorTool(''); toast.dismiss() } }
         })
         break
       case 'street':
@@ -724,7 +771,7 @@ export default function NewApp() {
         toast.success('🏙️ Применен уличный шаблон', {
           duration: 3000,
           style: { background: '#ea580c', color: '#fff' },
-          action: { label: 'Отменить', onClick: () => toast.dismiss() }
+          action: { label: 'Отменить', onClick: () => { setPresetOption(''); setFakeMake(''); setFakeModel(''); setFakeLens(''); setFakeIso(''); setFakeExposureTime(''); setFakeFNumber(''); setFakeColorSpace(''); setKeywords(''); setDescription(''); toast.dismiss() } }
         })
         break
     }
@@ -738,6 +785,7 @@ export default function NewApp() {
     }>
       <div className="h-full text-slate-100 relative">
         <AnimatedBackground />
+        
         {showConfetti && (
           <Confetti
             width={width}
@@ -749,7 +797,7 @@ export default function NewApp() {
         )}
         <div className="toaster-container" />
       
-      <div className="h-full">
+      <div className="h-full relative">
         <div className="px-4 py-3 border-b border-white/10 bg-black/20 backdrop-blur overflow-x-auto with-gutter">
           <div className="flex items-center gap-3 flex-wrap">
             <ModernButton onClick={selectImages} variant="primary" icon={<FaImage className="w-4 h-4" />} tilt>
@@ -765,14 +813,15 @@ export default function NewApp() {
               {t('common.pickFolder')}
             </ModernButton>
             {!!outputDir && (
-              <div className="text-xs opacity-80 truncate max-w-[320px] px-3 py-2 bg-slate-800/60 rounded-lg border border-white/10">
-                📁 {outputDir.split(/[/\\]/).pop()}
-              </div>
+              <div className="text-xs opacity-80 truncate max-w-[320px] px-3 py-2 bg-slate-800/60 rounded-lg border border-white/10">📁 {outputDir.split(/[/\\]/).pop()}</div>
             )}
             {!busy && (
-              <ModernButton onClick={start} variant="primary" icon={<FaPlay className="w-4 h-4" />} disabled={!canStart} loading={busy}>
-                {t('buttons.start')}
-              </ModernButton>
+              <FeatureGateCompact feature="batch_processing" showUpgrade={files.length > 3}>
+                <ModernButton onClick={start} variant="primary" icon={<FaPlay className="w-4 h-4" />} disabled={!canStart} loading={busy}>
+                  {t('buttons.start')}
+                  {files.length > 3 && <PremiumBadgeCompact feature="batch_processing" />}
+                </ModernButton>
+              </FeatureGateCompact>
             )}
             {busy && (
               <ModernButton onClick={cancel} variant="secondary" icon={<FaStop className="w-4 h-4" />}>
@@ -791,37 +840,81 @@ export default function NewApp() {
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 text-xs">
               <label className="flex flex-col gap-2">
                 <span className="opacity-70 font-medium">Формат</span>
-                <select value={format} onChange={e=>setFormat(e.target.value as any)} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-white/20 transition-colors">
-                  <option value="jpg">JPG</option>
-                  <option value="png">PNG</option>
-                  <option value="webp">WEBP</option>
-                  <option value="avif">AVIF</option>
-                  <option value="heic">HEIC</option>
-                </select>
+                <CustomSelect
+                  value={format || 'jpg'}
+                  onChange={(value) => setFormat(value as any)}
+                  options={[
+                    { value: 'jpg', label: 'JPG', icon: '📷' },
+                    { value: 'png', label: 'PNG', icon: '🖼️' },
+                    { value: 'webp', label: 'WEBP', icon: (
+                      <span className="inline-flex items-center gap-1">
+                        <span>🌐</span>
+                        {proAdvanced && <FaCrown className="w-3 h-3 text-amber-400" />}
+                      </span>
+                    ) },
+                    { value: 'avif', label: 'AVIF', icon: (
+                      <span className="inline-flex items-center gap-1">
+                        <span>⚡</span>
+                        {proAdvanced && <FaCrown className="w-3 h-3 text-amber-400" />}
+                      </span>
+                    ) },
+                    { value: 'heic', label: 'HEIC', icon: (
+                      <span className="inline-flex items-center gap-1">
+                        <span>🍎</span>
+                        {proAdvanced && <FaCrown className="w-3 h-3 text-amber-400" />}
+                      </span>
+                    ) }
+                  ]}
+                  lockedValues={proAdvanced ? [] : ['webp','avif','heic']}
+                  onLockedClick={()=>{ try { window.dispatchEvent(new CustomEvent('open-subscription')) } catch {} }}
+                  placeholder="Выберите формат"
+                />
               </label>
               <label className="flex flex-col gap-2">
                 <span className="opacity-70 font-medium">Качество</span>
-                <input type="number" min={1} max={100} value={quality} onChange={e=>setQuality(Number(e.target.value)||0)} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-white/20 transition-colors" />
+                <input 
+                  type="number" min={1} max={proAdvanced?100:85} value={quality} onChange={e=>{ const v = Number(e.target.value)||0; if (!proAdvanced && v>85) { try { window.dispatchEvent(new CustomEvent('open-subscription')) } catch {}; setQuality(85) } else { setQuality(v) } }} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-white/20 transition-colors" 
+                />
               </label>
-              <label className="flex flex-col gap-2">
-                <span className="opacity-70 font-medium">Цветовой дрифт %</span>
-                <input type="number" min={0} max={10} value={colorDrift} onChange={e=>setColorDrift(Number(e.target.value)||0)} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-white/20 transition-colors" />
-              </label>
-              <label className="flex flex-col gap-2">
-                <span className="opacity-70 font-medium">Дрифт размера %</span>
-                <input type="number" min={0} max={10} value={resizeDrift} onChange={e=>setResizeDrift(Number(e.target.value)||0)} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-white/20 transition-colors" />
-              </label>
+              <FeatureGateSide feature="advanced_drift">
+                <label className="flex flex-col gap-2">
+                  <span className="opacity-70 font-medium flex items-center gap-2">
+                    Цвет. дрифт %
+                    <PremiumBadgeSide feature="advanced_drift" />
+                  </span>
+                  <input 
+                    type="number" min={0} max={10} value={colorDrift} onChange={e=>setColorDrift(Number(e.target.value)||0)} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-white/20 transition-colors" 
+                  />
+                </label>
+              </FeatureGateSide>
+              <FeatureGateSide feature="advanced_drift">
+                <label className="flex flex-col gap-2">
+                  <span className="opacity-70 font-medium flex items-center gap-2">
+                    Размер дрифт %
+                    <PremiumBadgeSide feature="advanced_drift" />
+                  </span>
+                  <input 
+                    type="number" min={0} max={10} value={resizeDrift} onChange={e=>setResizeDrift(Number(e.target.value)||0)} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-white/20 transition-colors" 
+                  />
+                </label>
+              </FeatureGateSide>
               <label className="flex flex-col gap-2">
                 <span className="opacity-70 font-medium">Макс. ширина</span>
-                <input type="number" min={0} value={resizeMaxW} onChange={e=>setResizeMaxW(Number(e.target.value)||0)} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-white/20 transition-colors" />
+                <input 
+                  type="number" min={0} value={resizeMaxW} onChange={e=>setResizeMaxW(Number(e.target.value)||0)} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-white/20 transition-colors" 
+                />
               </label>
             </div>
           </div>
 
           <div className="glass-card rounded-xl p-4">
             <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
-              <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
-              Метаданные
+              <div className="p-2.5 rounded-xl bg-gradient-to-r from-emerald-500/30 to-green-500/30 border border-emerald-400/40">
+                <div className="w-3 h-3 bg-gradient-to-r from-emerald-400 to-green-400 rounded-full animate-pulse shadow-lg"></div>
+              </div>
+              <span className="bg-gradient-to-r from-emerald-400 to-green-400 bg-clip-text text-transparent">
+                Метаданные
+              </span>
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
               <div className="space-y-3">
@@ -890,13 +983,19 @@ export default function NewApp() {
                 </label>
               </div>
               <div className="space-y-3">
-                <label className="flex flex-col gap-2">
-                  <span className="opacity-70 font-medium">Дата</span>
-                  <select value={dateStrategy} onChange={e=>setDateStrategy(e.target.value as any)} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-white/20 transition-colors">
-                    <option value="now">Текущее время</option>
-                    <option value="offset">Смещение</option>
-                  </select>
-                </label>
+                  <label className="flex flex-col gap-2">
+                    <span className="opacity-70 font-medium">Дата</span>
+                  <CustomSelect
+                      value={dateStrategy}
+                      onChange={(value) => setDateStrategy(value as any)}
+                      options={[
+                        { value: 'now', label: 'Текущее время', icon: '🕐' },
+                        { value: 'offset', label: 'Смещение', icon: '⏰' }
+                      ]}
+                    lockedValues={[]}
+                      placeholder="Выберите стратегию"
+                    />
+                  </label>
                 {dateStrategy === 'offset' && (
                   <label className="flex flex-col gap-2">
                     <span className="opacity-70 font-medium">Смещение, мин</span>
@@ -972,24 +1071,30 @@ export default function NewApp() {
                 </button>
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleApplyPreset()}
-                  className="px-4 py-2 bg-gradient-to-r from-pink-600 to-purple-600 text-white rounded-lg text-sm font-medium hover:from-pink-700 hover:to-purple-700 transition-all shadow-lg"
-                >
-                  <Icon name="tabler:sparkles" className="w-4 h-4 inline mr-2" />
-                  Применить шаблон
-                </button>
-                <select 
-                  onChange={(e) => handleApplyPreset(e.target.value)}
-                  className="px-3 py-2 bg-slate-800/50 border border-white/10 rounded-lg text-sm hover:border-purple-400/30 transition-colors"
-                >
-                  <option value="">Выбрать шаблон...</option>
-                  <option value="professional">Профессиональная съемка</option>
-                  <option value="travel">Путешествие</option>
-                  <option value="nature">Природа</option>
-                  <option value="studio">Студийная съемка</option>
-                  <option value="street">Уличная фотография</option>
-                </select>
+                <FeatureGateCompact feature="advanced_drift">
+                  <button
+                    onClick={() => handleApplyPreset()}
+                    className="px-4 py-2 bg-gradient-to-r from-pink-600 to-purple-600 text-white rounded-lg text-sm font-medium hover:from-pink-700 hover:to-purple-700 transition-all shadow-lg"
+                  >
+                    <Icon name="tabler:sparkles" className="w-4 h-4 inline mr-2" />
+                    Применить шаблон
+                  </button>
+                </FeatureGateCompact>
+                <FeatureGateCompact feature="advanced_drift">
+                  <CustomSelect
+                    value={presetOption}
+                    onChange={(value) => { setPresetOption(value); handleApplyPreset(value) }}
+                    options={[
+                      { value: 'professional', label: 'Профессиональная съемка', icon: '🎯' },
+                      { value: 'travel', label: 'Путешествие', icon: '✈️' },
+                      { value: 'nature', label: 'Природа', icon: '🌿' },
+                      { value: 'studio', label: 'Студийная съемка', icon: '💡' },
+                      { value: 'street', label: 'Уличная фотография', icon: '🏙️' }
+                    ]}
+                    placeholder="Выбрать шаблон..."
+                    className="text-sm min-w-[220px]"
+                  />
+                </FeatureGateCompact>
               </div>
             </div>
 
@@ -1024,18 +1129,20 @@ export default function NewApp() {
                       <p className="text-[10px] text-slate-500 mt-0.5">Разные параметры для каждого</p>
                     </div>
                   </label>
-                  <label className="flex items-center gap-3 p-3 rounded-lg bg-purple-800/10 hover:bg-purple-800/20 transition-all cursor-pointer group border border-purple-500/10">
-                    <input 
-                      type="checkbox" 
-                      checked={onlineAuto} 
-                      onChange={e=>setOnlineAuto(e.target.checked)} 
-                      className="w-4 h-4 text-purple-600 bg-gray-700 border-gray-600 rounded focus:ring-purple-500"
-                    />
-                    <div className="flex-1">
-                      <span className="text-sm text-purple-200">Online дефолты</span>
-                      <p className="text-[10px] text-slate-500 mt-0.5">Использовать онлайн базу</p>
-                    </div>
-                  </label>
+                  <FeatureGateSide feature="api_access">
+                    <label className="flex items-center gap-3 p-3 rounded-lg bg-purple-800/10 hover:bg-purple-800/20 transition-all cursor-pointer group border border-purple-500/10">
+                      <input 
+                        type="checkbox" 
+                        checked={onlineAuto} 
+                        onChange={e=>setOnlineAuto(e.target.checked)} 
+                        className="w-4 h-4 text-purple-600 bg-gray-700 border-gray-600 rounded focus:ring-purple-500"
+                      />
+                      <div className="flex-1">
+                        <span className="text-sm text-purple-200">Online дефолты</span>
+                        <p className="text-[10px] text-slate-500 mt-0.5">Использовать онлайн базу</p>
+                      </div>
+                    </label>
+                  </FeatureGateSide>
                 </div>
               </div>
             )}
@@ -1050,59 +1157,61 @@ export default function NewApp() {
                   <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
                     <label className="flex flex-col gap-2 p-3 rounded-lg bg-indigo-800/10 hover:bg-indigo-800/20 transition-all border border-indigo-500/10">
                       <span className="text-xs font-medium text-indigo-300">Профиль</span>
-                      <select 
-                        value={fakeProfile} 
-                        onChange={e=>setFakeProfile(e.target.value as ProfileKind)} 
-                        className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-indigo-400/30 transition-colors text-sm"
-                      >
-                        <option value="camera">📷 Камера</option>
-                        <option value="phone">📱 Телефон</option>
-                        <option value="action">📹 Экшн</option>
-                        <option value="drone">🚁 Дрон</option>
-                        <option value="scanner">🖨️ Сканер</option>
-                        <option value="webcam">🎥 Веб-камера</option>
-                        <option value="film">🎞️ Пленочная</option>
-                        <option value="security">🔒 Видеонаблюдение</option>
-                        <option value="gaming">🎮 Игровые</option>
-                        <option value="automotive">🚗 Автомобильные</option>
-                        <option value="medical">🏥 Медицинские</option>
-                        <option value="astro">🌌 Астрофото</option>
-                        <option value="satellite">📡 Спутниковые</option>
-                        <option value="cinema">🎬 Кинокамеры</option>
-                        <option value="microscope">🔬 Микроскопы</option>
-                        <option value="surveillance">👁️ Промнаблюдение</option>
-                        <option value="broadcast">📺 Телевизионные</option>
-                      </select>
+                      <CustomSelect
+                        value={fakeProfile}
+                        onChange={(value) => setFakeProfile(value as ProfileKind)}
+                        options={[
+                          { value: 'camera', label: 'Камера', icon: '📷' },
+                          { value: 'phone', label: 'Телефон', icon: '📱' },
+                          { value: 'action', label: 'Экшн', icon: '📹' },
+                          { value: 'drone', label: 'Дрон', icon: '🚁' },
+                          { value: 'scanner', label: 'Сканер', icon: '🖨️' },
+                          { value: 'webcam', label: 'Веб-камера', icon: '🎥' },
+                          { value: 'film', label: 'Пленочная', icon: '🎞️' },
+                          { value: 'security', label: 'Видеонаблюдение', icon: '🔒' },
+                          { value: 'gaming', label: 'Игровые', icon: '🎮' },
+                          { value: 'automotive', label: 'Автомобильные', icon: '🚗' },
+                          { value: 'medical', label: 'Медицинские', icon: '🏥' },
+                          { value: 'astro', label: 'Астрофото', icon: '🌌' },
+                          { value: 'satellite', label: 'Спутниковые', icon: '📡' },
+                          { value: 'cinema', label: 'Кинокамеры', icon: '🎬' },
+                          { value: 'microscope', label: 'Микроскопы', icon: '🔬' },
+                          { value: 'surveillance', label: 'Промнаблюдение', icon: '👁️' },
+                          { value: 'broadcast', label: 'Телевизионные', icon: '📺' }
+                        ]}
+                        placeholder="Выберите профиль"
+                        className="text-sm"
+                      />
                     </label>
                     <label className="flex flex-col gap-2 p-3 rounded-lg bg-indigo-800/10 hover:bg-indigo-800/20 transition-all border border-indigo-500/10">
                       <span className="text-xs font-medium text-indigo-300">Производитель</span>
-                      <select 
-                        value={fakeMake} 
-                        onChange={e=>setFakeMake(e.target.value)} 
-                        className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-indigo-400/30 transition-colors text-sm"
-                      >
-                        {makeOptions.map(x => <option key={x} value={x}>{x}</option>)}
-                      </select>
+                      <CustomSelect
+                        value={fakeMake}
+                        onChange={(value) => setFakeMake(value)}
+                        options={makeOptions.map(x => ({ value: x, label: x, icon: '📷' }))}
+                        placeholder="Выберите производителя"
+                        className="text-sm"
+                      />
                     </label>
                     <label className="flex flex-col gap-2 p-3 rounded-lg bg-indigo-800/10 hover:bg-indigo-800/20 transition-all border border-indigo-500/10">
                       <span className="text-xs font-medium text-indigo-300">Модель</span>
-                      <select 
-                        value={fakeModel} 
-                        onChange={e=>setFakeModel(e.target.value)} 
-                        className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-indigo-400/30 transition-colors text-sm"
-                      >
-                        {modelOptions.map(x => <option key={x} value={x}>{x}</option>)}
-                      </select>
+                      <CustomSelect
+                        value={fakeModel}
+                        onChange={(value) => setFakeModel(value)}
+                        options={modelOptions.map(x => ({ value: x, label: x, icon: '📸' }))}
+                        placeholder="Выберите модель"
+                        className="text-sm"
+                      />
                     </label>
                     <label className="flex flex-col gap-2 p-3 rounded-lg bg-indigo-800/10 hover:bg-indigo-800/20 transition-all border border-indigo-500/10">
                       <span className="text-xs font-medium text-indigo-300">Объектив</span>
-                      <select 
-                        value={fakeLens} 
-                        onChange={e=>setFakeLens(e.target.value)} 
-                        className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-indigo-400/30 transition-colors text-sm"
-                      >
-                        {lensOptions.map(x => <option key={x} value={x}>{x}</option>)}
-                      </select>
+                      <CustomSelect
+                        value={fakeLens}
+                        onChange={(value) => setFakeLens(value)}
+                        options={lensOptions.map(x => ({ value: x, label: x, icon: '🔍' }))}
+                        placeholder="Выберите объектив"
+                        className="text-sm"
+                      />
                     </label>
                     <label className="flex flex-col gap-2 p-3 rounded-lg bg-indigo-800/10 hover:bg-indigo-800/20 transition-all border border-indigo-500/10">
                       <span className="text-xs font-medium text-indigo-300">Software</span>
@@ -1125,6 +1234,7 @@ export default function NewApp() {
                   </div>
                 </div>
 
+                <FeatureGate feature="advanced_drift">
                 <div className="bg-gradient-to-br from-blue-900/20 to-cyan-900/20 backdrop-blur-sm rounded-xl p-4 border border-blue-500/20">
                   <h4 className="text-sm font-semibold text-blue-300 mb-3 flex items-center gap-2">
                     <FaCog className="w-3 h-3" />
@@ -1133,113 +1243,119 @@ export default function NewApp() {
                   <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
                     <label className="flex flex-col gap-2 p-3 rounded-lg bg-blue-800/10 hover:bg-blue-800/20 transition-all border border-blue-500/10">
                       <span className="text-xs font-medium text-blue-300">ISO</span>
-                      <select 
-                        value={String(fakeIso)} 
-                        onChange={e=>setFakeIso(e.target.value ? Number(e.target.value) : '')} 
-                        className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-blue-400/30 transition-colors text-sm"
-                      >
-                        <option value="">Авто</option>
-                        {ISO_PRESETS.map(x => <option key={x} value={x}>{x}</option>)}
-                      </select>
+                      <CustomSelect
+                        value={String(fakeIso)}
+                        onChange={(value) => setFakeIso(value ? Number(value) : '')}
+                        options={[
+                          { value: '', label: 'Авто', icon: '🤖' },
+                          ...ISO_PRESETS.map(x => ({ value: String(x), label: String(x), icon: '📸' }))
+                        ]}
+                        lockedValues={[]}
+                        placeholder="Выберите ISO"
+                        className="text-sm"
+                      />
                     </label>
                     <label className="flex flex-col gap-2 p-3 rounded-lg bg-blue-800/10 hover:bg-blue-800/20 transition-all border border-blue-500/10">
                       <span className="text-xs font-medium text-blue-300">Выдержка</span>
-                      <select 
-                        value={fakeExposureTime} 
-                        onChange={e=>setFakeExposureTime(e.target.value)} 
-                        className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-blue-400/30 transition-colors text-sm"
-                      >
-                        <option value="">Авто</option>
-                        {EXPOSURE_TIMES.map(x => <option key={x} value={x}>{x}</option>)}
-                      </select>
+                      <CustomSelect
+                        value={fakeExposureTime}
+                        onChange={(value) => setFakeExposureTime(value)}
+                        options={[
+                          { value: '', label: 'Авто', icon: '🤖' },
+                          ...EXPOSURE_TIMES.map(x => ({ value: x, label: x, icon: '⏱️' }))
+                        ]}
+                        lockedValues={[]}
+                        placeholder="Выберите выдержку"
+                        className="text-sm"
+                      />
                     </label>
                     <label className="flex flex-col gap-2 p-3 rounded-lg bg-blue-800/10 hover:bg-blue-800/20 transition-all border border-blue-500/10">
                       <span className="text-xs font-medium text-blue-300">Диафрагма</span>
-                      <select 
-                        value={String(fakeFNumber)} 
-                        onChange={e=>setFakeFNumber(e.target.value ? Number(e.target.value) : '')} 
-                        className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-blue-400/30 transition-colors text-sm"
-                      >
-                        <option value="">Авто</option>
-                        {FNUMBERS.map(x => <option key={x} value={x}>f/{x}</option>)}
-                      </select>
+                      <CustomSelect
+                        value={String(fakeFNumber)}
+                        onChange={(value) => setFakeFNumber(value ? Number(value) : '')}
+                        options={[{ value: '', label: 'Авто' }, ...FNUMBERS.map(x => ({ value: String(x), label: `f/${x}` }))]}
+                        lockedValues={[]}
+                        placeholder="Диафрагма"
+                        className="text-sm"
+                      />
                     </label>
                     <label className="flex flex-col gap-2 p-3 rounded-lg bg-blue-800/10 hover:bg-blue-800/20 transition-all border border-blue-500/10">
                       <span className="text-xs font-medium text-blue-300">Фокус (мм)</span>
-                      <select 
-                        value={String(fakeFocalLength)} 
-                        onChange={e=>setFakeFocalLength(e.target.value ? Number(e.target.value) : '')} 
-                        className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-blue-400/30 transition-colors text-sm"
-                      >
-                        <option value="">Авто</option>
-                        {FOCALS.map(x => <option key={x} value={x}>{x}мм</option>)}
-                      </select>
+                      <CustomSelect
+                        value={String(fakeFocalLength)}
+                        onChange={(value) => setFakeFocalLength(value ? Number(value) : '')}
+                        options={[{ value: '', label: 'Авто' }, ...FOCALS.map(x => ({ value: String(x), label: `${x}мм` }))]}
+                        lockedValues={[]}
+                        placeholder="Фокус"
+                        className="text-sm"
+                      />
                     </label>
                     <label className="flex flex-col gap-2 p-3 rounded-lg bg-blue-800/10 hover:bg-blue-800/20 transition-all border border-blue-500/10">
                       <span className="text-xs font-medium text-blue-300">Программа</span>
-                      <select 
-                        value={String(fakeExposureProgram)} 
-                        onChange={e=>setFakeExposureProgram(e.target.value ? Number(e.target.value) : '')} 
-                        className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-blue-400/30 transition-colors text-sm"
-                      >
-                        <option value="">Авто</option>
-                        {EXPOSURE_PROGRAMS.map(x => <option key={x.v} value={x.v}>{x.label}</option>)}
-                      </select>
+                      <CustomSelect
+                        value={String(fakeExposureProgram)}
+                        onChange={(value) => setFakeExposureProgram(value ? Number(value) : '')}
+                        options={[{ value: '', label: 'Авто' }, ...EXPOSURE_PROGRAMS.map(x => ({ value: String(x.v), label: x.label }))]}
+                        lockedValues={[]}
+                        placeholder="Программа"
+                        className="text-sm"
+                      />
                     </label>
                     <label className="flex flex-col gap-2 p-3 rounded-lg bg-blue-800/10 hover:bg-blue-800/20 transition-all border border-blue-500/10">
                       <span className="text-xs font-medium text-blue-300">Замер</span>
-                      <select 
-                        value={String(fakeMeteringMode)} 
-                        onChange={e=>setFakeMeteringMode(e.target.value ? Number(e.target.value) : '')} 
-                        className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-blue-400/30 transition-colors text-sm"
-                      >
-                        <option value="">Авто</option>
-                        {METERING_MODES.map(x => <option key={x.v} value={x.v}>{x.label}</option>)}
-                      </select>
+                      <CustomSelect
+                        value={String(fakeMeteringMode)}
+                        onChange={(value) => setFakeMeteringMode(value ? Number(value) : '')}
+                        options={[{ value: '', label: 'Авто' }, ...METERING_MODES.map(x => ({ value: String(x.v), label: x.label }))]}
+                        lockedValues={[]}
+                        placeholder="Замер"
+                        className="text-sm"
+                      />
                     </label>
                     <label className="flex flex-col gap-2 p-3 rounded-lg bg-blue-800/10 hover:bg-blue-800/20 transition-all border border-blue-500/10">
                       <span className="text-xs font-medium text-blue-300">Вспышка</span>
-                      <select 
-                        value={String(fakeFlash)} 
-                        onChange={e=>setFakeFlash(e.target.value ? Number(e.target.value) : '')} 
-                        className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-blue-400/30 transition-colors text-sm"
-                      >
-                        <option value="">Авто</option>
-                        {FLASH_MODES.map(x => <option key={x.v} value={x.v}>{x.label}</option>)}
-                      </select>
+                      <CustomSelect
+                        value={String(fakeFlash)}
+                        onChange={(value) => setFakeFlash(value ? Number(value) : '')}
+                        options={[{ value: '', label: 'Авто' }, ...FLASH_MODES.map(x => ({ value: String(x.v), label: x.label }))]}
+                        lockedValues={[]}
+                        placeholder="Вспышка"
+                        className="text-sm"
+                      />
                     </label>
                     <label className="flex flex-col gap-2 p-3 rounded-lg bg-blue-800/10 hover:bg-blue-800/20 transition-all border border-blue-500/10">
                       <span className="text-xs font-medium text-blue-300">Баланс белого</span>
-                      <select 
-                        value={String(fakeWhiteBalance)} 
-                        onChange={e=>setFakeWhiteBalance(e.target.value ? Number(e.target.value) : '')} 
-                        className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-blue-400/30 transition-colors text-sm"
-                      >
-                        <option value="">Авто</option>
-                        {WHITE_BALANCES.map(x => <option key={x.v} value={x.v}>{x.label}</option>)}
-                      </select>
+                      <CustomSelect
+                        value={String(fakeWhiteBalance)}
+                        onChange={(value) => setFakeWhiteBalance(value ? Number(value) : '')}
+                        options={[{ value: '', label: 'Авто' }, ...WHITE_BALANCES.map(x => ({ value: String(x.v), label: x.label }))]}
+                        lockedValues={[]}
+                        placeholder="Баланс белого"
+                        className="text-sm"
+                      />
                     </label>
                     <label className="flex flex-col gap-2 p-3 rounded-lg bg-blue-800/10 hover:bg-blue-800/20 transition-all border border-blue-500/10">
                       <span className="text-xs font-medium text-blue-300">Цвет. пространство</span>
-                      <select 
-                        value={fakeColorSpace} 
-                        onChange={e=>setFakeColorSpace(e.target.value)} 
-                        className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-blue-400/30 transition-colors text-sm"
-                      >
-                        <option value="">Авто</option>
-                        {COLOR_SPACES.map(x => <option key={x} value={x}>{x}</option>)}
-                      </select>
+                      <CustomSelect
+                        value={fakeColorSpace || ''}
+                        onChange={(value) => setFakeColorSpace(value)}
+                        options={[{ value: '', label: 'Авто' }, ...COLOR_SPACES.map(x => ({ value: x, label: x }))]}
+                        lockedValues={[]}
+                        placeholder="Цвет. пространство"
+                        className="text-sm"
+                      />
                     </label>
                     <label className="flex flex-col gap-2 p-3 rounded-lg bg-blue-800/10 hover:bg-blue-800/20 transition-all border border-blue-500/10">
                       <span className="text-xs font-medium text-blue-300">Рейтинг</span>
-                      <select 
-                        value={String(fakeRating)} 
-                        onChange={e=>setFakeRating(e.target.value ? Number(e.target.value) : '')} 
-                        className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-blue-400/30 transition-colors text-sm"
-                      >
-                        <option value="">Нет</option>
-                        {RATINGS.map(x => <option key={x} value={x}>{x > 0 ? '⭐'.repeat(x) : 'Нет'}</option>)}
-                      </select>
+                      <CustomSelect
+                        value={String(fakeRating)}
+                        onChange={(value) => setFakeRating(value ? Number(value) : '')}
+                        options={[{ value: '', label: 'Нет' }, ...RATINGS.map(x => ({ value: String(x), label: x > 0 ? '⭐'.repeat(x) : 'Нет' }))]}
+                        lockedValues={[]}
+                        placeholder="Рейтинг"
+                        className="text-sm"
+                      />
                     </label>
                     <label className="flex flex-col gap-2 p-3 rounded-lg bg-blue-800/10 hover:bg-blue-800/20 transition-all border border-blue-500/10 md:col-span-2 xl:col-span-2">
                       <span className="text-xs font-medium text-blue-300">Заголовок</span>
@@ -1261,6 +1377,7 @@ export default function NewApp() {
                     </label>
                   </div>
                 </div>
+                </FeatureGate>
               </div>
             )}
 
@@ -1289,11 +1406,13 @@ export default function NewApp() {
                         <Icon name="tabler:map-2" className="w-4 h-4" />
                         Пресет локации
                       </span>
-                      <select value={locationPreset} onChange={e=>setLocationPreset(e.target.value)} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-green-400/30 transition-colors text-sm">
-                        {LOCATION_PRESETS.map(x => (
-                          <option key={x.id} value={x.id}>{x.id==='none' ? t('location.none', { defaultValue: x.label }) : x.label}</option>
-                        ))}
-                      </select>
+                      <CustomSelect
+                        value={locationPreset}
+                        onChange={(value) => setLocationPreset(value)}
+                        options={LOCATION_PRESETS.map(x => ({ value: x.id, label: x.id==='none' ? t('location.none', { defaultValue: x.label }) : x.label }))}
+                        placeholder="— Без пресета —"
+                        className="text-sm"
+                      />
                     </label>
                     <label className="flex flex-col gap-2 p-3 rounded-lg bg-green-800/10 hover:bg-green-800/20 transition-all border border-green-500/10">
                       <span className="text-xs font-medium text-green-300 flex items-center gap-2">
@@ -1401,6 +1520,7 @@ export default function NewApp() {
             />
           </div>
         )}
+
 
         <div className="grid grid-cols-12 gap-0">
           <aside className="col-span-2 xl:col-span-2 border-r border-white/10 bg-gradient-to-b from-slate-950/60 to-slate-900/60 backdrop-blur-sm">
@@ -1609,8 +1729,8 @@ export default function NewApp() {
             </div>
           </div>
         )}
+        </div>
       </div>
-    </div>
     </Suspense>
   )
 }

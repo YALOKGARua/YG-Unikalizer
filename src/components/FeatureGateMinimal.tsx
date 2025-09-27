@@ -1,0 +1,1 @@
+export { default, PremiumBadgeMinimal } from '../../private/src/subscription/FeatureGateMinimal'

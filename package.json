@@ -1,10 +1,10 @@
 {
-  "name": "photounikalizer",
-  "version": "3.1.2",
+  "name": "yg-unikalizer",
+  "version": "3.2.0",
   "private": true,
   "main": "electron/main.js",
-  "author": "YALOKGAR <yalokgar@gmail.com>",
-  "description": "PhotoUnikalizer – unique and anonymize photos with smart drifts and rich fake EXIF/IPTC.",
+  "author": "YALOKGARIA <yalokgar@gmail.com>",
+  "description": "YG Unikalizer – unique and anonymize photos with smart drifts and rich fake EXIF/IPTC.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -144,9 +144,9 @@
     }
   },
   "build": {
-    "appId": "com.yalokgar.photounikalizer",
-    "productName": "PhotoUnikalizer",
-    "artifactName": "PhotoUnikalizer-${version}-${os}-${arch}.${ext}",
+    "appId": "com.yalokgaria.yg-unikalizer",
+    "productName": "YG Unikalizer",
+    "artifactName": "YG-Unikalizer-${version}-${os}-${arch}.${ext}",
     "copyright": "Copyright (C) 2025 YALOKGAR",
     "files": [
       "dist/**",
@@ -174,7 +174,7 @@
       "buildResources": "build"
     },
     "win": {
-      "executableName": "PhotoUnikalizer",
+      "executableName": "YG-Unikalizer",
       "icon": "build/icon.ico",
       "requestedExecutionLevel": "requireAdministrator",
       "target": [
@@ -195,11 +195,11 @@
     "nsis": {
       "oneClick": true,
       "perMachine": true,
-      "artifactName": "PhotoUnikalizer-Setup-${version}.exe",
+      "artifactName": "YG-Unikalizer-Setup-${version}.exe",
       "include": "build/installer.nsh"
     },
     "portable": {
-      "artifactName": "PhotoUnikalizer-Portable-${version}.exe"
+      "artifactName": "YG-Unikalizer-Portable-${version}.exe"
     }
   }
 }

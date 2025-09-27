@@ -1,0 +1,1 @@
+export { default, PremiumBadgeFloating } from '../../private/src/subscription/FeatureGateFloating'

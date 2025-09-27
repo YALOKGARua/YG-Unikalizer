@@ -1,0 +1,1 @@
+export { default, PremiumBadgeCompact } from '../../private/src/subscription/FeatureGateCompact'

@@ -1,0 +1,1 @@
+export { default, PremiumBadgeSide } from '../../private/src/subscription/FeatureGateSide'

@@ -1,7 +1,7 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import './styles.css'
-import RootApp from './RootApp'
+import RootApp from '../private/src/subscription/RootApp'
 import './i18n'
 import { HashRouter } from 'react-router-dom'
 import { Toaster } from 'sonner'
