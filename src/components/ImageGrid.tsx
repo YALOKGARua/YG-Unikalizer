@@ -181,7 +181,7 @@ const ImageGrid = ({
           items={localItems.map(item => item.id)}
           strategy={verticalListSortingStrategy}
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
             <AnimatePresence>
               {localItems.map((item) => (
                 <SortableImageCard
@@ -200,7 +200,7 @@ const ImageGrid = ({
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
       <AnimatePresence>
         {localItems.map((item, index) => (
           <Tilt

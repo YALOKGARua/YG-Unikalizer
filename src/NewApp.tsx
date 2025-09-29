@@ -1518,7 +1518,7 @@ export default function NewApp() {
         )}
 
         {progress && progress.total > 0 && (
-          <div className="px-4 py-4 border-b border-white/10 bg-black/20 backdrop-blur">
+          <div className="px-2 md:px-4 py-3 md:py-4 border-b border-white/10 bg-black/20 backdrop-blur">
             <EnhancedStats
               totalFiles={progress.total}
               processedFiles={results.length}
@@ -1531,7 +1531,7 @@ export default function NewApp() {
 
 
         <div className="grid grid-cols-12 gap-0">
-          <aside className="col-span-2 xl:col-span-2 border-r border-white/10 bg-gradient-to-b from-slate-950/60 to-slate-900/60 backdrop-blur-sm">
+          <aside className="hidden lg:block col-span-3 xl:col-span-2 border-r border-white/10 bg-gradient-to-b from-slate-950/60 to-slate-900/60 backdrop-blur-sm">
             <nav className="p-3 space-y-2">
               <button
                 onClick={() => setActive('files')}
@@ -1589,7 +1589,7 @@ export default function NewApp() {
             </nav>
           </aside>
 
-          <section className="col-span-10 xl:col-span-10 p-4 with-gutter">
+          <section className="col-span-12 lg:col-span-9 xl:col-span-10 p-2 md:p-4 with-gutter">
             {active==='files' && (
               <animated.div style={useSpring({ from: { opacity: 0 }, to: { opacity: 1 } })} className="space-y-6">
                 {files.length === 0 && (
@@ -1652,7 +1652,7 @@ export default function NewApp() {
             {active==='ready' && (
               <animated.div style={useSpring({ from: { opacity: 0 }, to: { opacity: 1 } })} className="space-y-4">
                 {!!results.length && (
-                  <div ref={resultsGridRef} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 @container">
+                  <div ref={resultsGridRef} className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-3 @container">
                     {results.map((r, i) => (
                       <div key={r.out+i} className="group bg-slate-900/60 rounded-md overflow-hidden border border-white/5 relative cursor-pointer">
                         <div className="h-36 bg-slate-900 flex items-center justify-center overflow-hidden relative">

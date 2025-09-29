@@ -284,6 +284,20 @@ body {
 .titlebtn:hover { background: rgba(255,255,255,.08) }
 .titlebtn.close:hover { background: rgba(244,63,94,.25) }
 
+@media (max-width: 1023px) {
+  .titlebar { height: 26px }
+}
+
+@media (max-width: 1366px) and (max-height: 800px) {
+  .settings-modal { font-size: 12px }
+  .settings-modal .text-base { font-size: 13px !important; line-height: 1.25 }
+  .settings-modal .text-sm { font-size: 12px !important; line-height: 1.25 }
+  .settings-modal .text-xs { font-size: 11px !important; line-height: 1.25 }
+  .settings-modal .btn { padding: 6px 10px }
+  .settings-modal input, .settings-modal select { padding: 6px 8px }
+  .settings-modal .grid > label { padding: 6px 8px }
+}
+
 .cv-auto {
   content-visibility: auto;
   contain-intrinsic-size: 160px 160px;
