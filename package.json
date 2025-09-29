@@ -1,6 +1,6 @@
 {
   "name": "yg-unikalizer",
-  "version": "3.2.0",
+  "version": "3.3.0",
   "private": true,
   "main": "electron/main.js",
   "author": "YALOKGARIA <yalokgar@gmail.com>",
@@ -42,7 +42,7 @@
     "electron:build": "node scripts/build-electron.js",
     "native:prebuild": "cd native && prebuildify --napi --strip",
     "assets:icons": "node scripts/make-icons.js",
-    "open:sendto": "powershell -NoProfile -Command \"Start-Process explorer.exe ($env:APPDATA+'\\Microsoft\\Windows\\SendTo')\""
+    "open:sendto": "powershell -NoProfile -Command \"Start-Process explorer.exe ($env:APPDATA+'\\\\Microsoft\\\\Windows\\\\SendTo')\""
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -157,8 +157,7 @@
       "CHANGELOG.md",
       "README.md",
       "package.json",
-      "docs/**",
-      "public/wasm/**",
+      "public/wasm/pu.wasm",
       "!**/.vscode/**",
       "!**/.github/**",
       "!**/test/**"
@@ -183,12 +182,6 @@
           "arch": [
             "x64"
           ]
-        },
-        {
-          "target": "portable",
-          "arch": [
-            "x64"
-          ]
         }
       ]
     },
@@ -197,9 +190,6 @@
       "perMachine": true,
       "artifactName": "YG-Unikalizer-Setup-${version}.exe",
       "include": "build/installer.nsh"
-    },
-    "portable": {
-      "artifactName": "YG-Unikalizer-Portable-${version}.exe"
     }
   }
 }

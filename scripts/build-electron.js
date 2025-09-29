@@ -14,7 +14,7 @@ async function build() {
       format: 'cjs',
       bundle: true,
       target: ['node18'],
-      sourcemap: true,
+      sourcemap: process.env.NODE_ENV === 'development',
       external: ['sharp', 'node-gyp-build', 'photounikalizer_native', 'electron']
     }))
   }
@@ -26,7 +26,7 @@ async function build() {
       format: 'cjs',
       bundle: true,
       target: ['node18'],
-      sourcemap: true,
+      sourcemap: process.env.NODE_ENV === 'development',
       external: ['sharp', 'node-gyp-build', 'photounikalizer_native', 'electron', 'ws']
     }))
   }

@@ -124,6 +124,51 @@ const store = new Store({ name: 'settings' })
 let devUnlocked = false
 const DEV_PASSWORD = String(process.env.DEV_MENU_PASSWORD || '')
 
+let appSettings = (() => {
+  try { return (store.get('appSettings') as any) || null } catch (_) { return null }
+})() || {
+  performance: {
+    maxConcurrency: 2,
+    nativeHashConcurrency: 2,
+    sharpConcurrency: 2,
+    sharpCacheMemoryMB: 128,
+    sharpCacheItems: 256,
+    backgroundThrottling: true,
+    pauseOnBlur: true,
+    reduceAnimations: true,
+    confettiEnabled: false
+  }
+}
+function getSettings() { return appSettings }
+function setSettings(next) {
+  const prev = appSettings || {}
+  const merged = { ...prev, ...(next||{}) }
+  if (prev.performance || merged.performance) merged.performance = { ...(prev.performance||{}), ...((next&&next.performance)||{}) }
+  appSettings = merged
+  try { store.set('appSettings', appSettings) } catch (_) {}
+  applySettingsToRuntime()
+  return appSettings
+}
+function applySettingsToRuntime() {
+  const perf = (appSettings && appSettings.performance) || {}
+  try {
+    const hw = Math.max(1, (os.cpus() || []).length - 1)
+    const conc = Math.max(1, Number(perf.sharpConcurrency || hw))
+    sharp.concurrency(Math.min(8, conc))
+  } catch (_) {}
+  try {
+    const mem = Math.max(16, Number(perf.sharpCacheMemoryMB || 256))
+    const items = Math.max(64, Number(perf.sharpCacheItems || 512))
+    sharp.cache({ memory: mem, files: 100, items })
+  } catch (_) {}
+  try {
+    if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents && !mainWindow.webContents.isDestroyed()) {
+      const bt = !!perf.backgroundThrottling
+      mainWindow.webContents.setBackgroundThrottling(bt)
+    }
+  } catch (_) {}
+}
+
 let nativeMod = null
 function loadNative() {
   if (nativeMod) return nativeMod
@@ -590,6 +635,7 @@ function resolveHtmlPath() {
 }
 
 function createWindow() {
+  const perf = (getSettings() && getSettings().performance) || {}
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 840,
@@ -612,7 +658,8 @@ function createWindow() {
       experimentalFeatures: false,
       enableBlinkFeatures: '',
       disableBlinkFeatures: '',
-      nativeWindowOpen: true
+      nativeWindowOpen: true,
+      backgroundThrottling: !!perf.backgroundThrottling
     }
   })
 
@@ -1151,8 +1198,9 @@ async function processBatch(inputFiles, options) {
   cancelRequested = false
   const thisBatchId = ++currentBatchId
   const total = inputFiles.length
+  const perf = (getSettings() && getSettings().performance) || {}
   const cpuBased = Math.max(1, Math.min(4, (os.cpus() || []).length - 1 || 1))
-  const concurrency = Math.max(1, Math.min(Number(options.maxConcurrency || cpuBased), 8))
+  const concurrency = Math.max(1, Math.min(Number(options.maxConcurrency || perf.maxConcurrency || cpuBased), 8))
   const sizesByPath = (options && options.sizesByPath) || {}
   const totalBytes = Number(options && options.totalBytes) || inputFiles.reduce((acc, p) => acc + (Number(sizesByPath[p]) || 0), 0)
   const startedAt = Date.now()
@@ -1178,6 +1226,11 @@ async function processBatch(inputFiles, options) {
   let nextIndex = 0
   async function worker() {
     while (true) {
+      try {
+        if (options && options.pauseOnBlur && mainWindow && !mainWindow.isDestroyed()) {
+          if (!mainWindow.isFocused()) { await new Promise(r => setTimeout(r, 150)); continue }
+        }
+      } catch (_) {}
       if (cancelRequested || thisBatchId !== currentBatchId) return
       const i = nextIndex
       if (i >= total) return
@@ -1216,6 +1269,7 @@ app.whenReady().then(() => {
 
   createWindow()
   setAppMenu()
+  try { applySettingsToRuntime() } catch (_) {}
 
   process.on('uncaughtException', (error) => {
     console.error('Uncaught Exception:', error)
@@ -1455,7 +1509,9 @@ app.whenReady().then(() => {
       payload.sizesByPath = sizesByPath
       payload.totalBytes = totalBytes
     } catch (_) {}
-    processBatch(payload.inputFiles, payload)
+    const perf = (getSettings() && getSettings().performance) || {}
+    const adjusted = { ...payload, maxConcurrency: Number(payload.maxConcurrency || perf.maxConcurrency || 2), pauseOnBlur: !!perf.pauseOnBlur }
+    processBatch(adjusted.inputFiles, adjusted)
     return { ok: true }
   })
 
@@ -1470,6 +1526,16 @@ app.whenReady().then(() => {
       const data = store.get('uiState') || {}
       return { ok: true, data }
     } catch (e) { return { ok: false, data: {} } }
+  })
+
+  ipcMain.handle('settings-get', async () => {
+    try { return { ok: true, data: getSettings() } } catch (e) { return { ok: false, data: getSettings() } }
+  })
+  ipcMain.handle('settings-set', async (_e, payload) => {
+    try {
+      const next = setSettings(payload || {})
+      return { ok: true, data: next }
+    } catch (e) { return { ok: false, data: getSettings(), error: String((e as any)?.message || e) } }
   })
 
   ipcMain.handle('save-preset', async (_e, payload) => {
@@ -1862,7 +1928,9 @@ app.whenReady().then(() => {
       if (!paths.length) return { ok: true, hashes: [] }
       const nat = loadNative()
       if (!nat) return { ok: false, error: 'native-unavailable' }
-      const limit = Math.max(1, Math.min(((os.cpus() || []).length - 1) || 1, 4))
+      const perf = (getSettings() && getSettings().performance) || {}
+      const limitCpu = Math.max(1, Math.min(((os.cpus() || []).length - 1) || 1, 4))
+      const limit = Math.max(1, Math.min(Number(perf.nativeHashConcurrency || limitCpu), 8))
       const hashes = new Array(paths.length).fill(null)
       let idx = 0
       async function worker() {
@@ -1872,6 +1940,10 @@ app.whenReady().then(() => {
           if (i >= paths.length) break
           const p = paths[i]
           try {
+            try {
+              const pauseOnBlur = !!((getSettings() && getSettings().performance && getSettings().performance.pauseOnBlur))
+              if (pauseOnBlur && mainWindow && !mainWindow.isDestroyed() && !mainWindow.isFocused()) { await new Promise(r => setTimeout(r, 100)); }
+            } catch (_) {}
             let dec = null
             try { dec = nat.wicDecodeGray8 ? nat.wicDecodeGray8(p) : null } catch (_) { dec = null }
             if (dec && dec.buffer && typeof dec.width === 'number' && typeof dec.height === 'number' && typeof dec.stride === 'number') {

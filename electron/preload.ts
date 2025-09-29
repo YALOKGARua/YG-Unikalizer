@@ -180,6 +180,10 @@ contextBridge.exposeInMainWorld('api', {
     saveState: (data: unknown) => ipcRenderer.invoke('ui-state-save', data),
     loadState: () => ipcRenderer.invoke('ui-state-load')
   },
+  settings: {
+    get: () => ipcRenderer.invoke('settings-get'),
+    set: (data: unknown) => ipcRenderer.invoke('settings-set', data)
+  },
   auth: {
     isRequired: () => ipcRenderer.invoke('auth-required'),
     login: (password: string, remember: boolean) => ipcRenderer.invoke('auth-login', { password, remember }),

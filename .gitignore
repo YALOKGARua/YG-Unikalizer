@@ -32,3 +32,5 @@ coverage/
 *.zip
 *.7z
 server/admin-events.jsonl
+command.txt
+.gitmodules

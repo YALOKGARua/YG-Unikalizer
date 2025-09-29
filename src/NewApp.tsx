@@ -371,6 +371,12 @@ export default function NewApp() {
   const [removeGps, setRemoveGps] = useState(true)
   const [dateStrategy, setDateStrategy] = useState<'now'|'offset'>('now')
   const [showConfetti, setShowConfetti] = useState(false)
+  const [perf, setPerf] = useState<{ reduceAnimations: boolean; confettiEnabled: boolean; maxConcurrency?: number }>({ reduceAnimations: true, confettiEnabled: false })
+  useEffect(() => {
+    (async () => {
+      try { const r = await (window.api as any).settings?.get?.(); const v = r && r.data && r.data.performance ? r.data.performance : null; if (v) setPerf((p:any)=>({ ...p, ...v })) } catch {}
+    })()
+  }, [])
   const { width, height } = useWindowSize()
   const [dateOffsetMinutes, setDateOffsetMinutes] = useState(0)
   const [uniqueId, setUniqueId] = useState(true)
@@ -662,7 +668,9 @@ export default function NewApp() {
         fakeCountry: fakeCountry || undefined
       }
     }
-    await window.api.processImages(payload)
+    const perfState = perf || {}
+    const withPerf = { ...payload, maxConcurrency: Number(perfState.maxConcurrency || 0) || undefined }
+    await window.api.processImages(withPerf)
   }
 
   const cancel = async () => { if (!busy) return; await window.api.cancel() }
@@ -784,9 +792,9 @@ export default function NewApp() {
       </div>
     }>
       <div className="h-full text-slate-100 relative">
-        <AnimatedBackground />
+        {!perf.reduceAnimations && <AnimatedBackground />}
         
-        {showConfetti && (
+        {perf.confettiEnabled && showConfetti && (
           <Confetti
             width={width}
             height={height}

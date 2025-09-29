@@ -206,6 +206,10 @@ import_electron.contextBridge.exposeInMainWorld("api", {
     saveState: (data) => import_electron.ipcRenderer.invoke("ui-state-save", data),
     loadState: () => import_electron.ipcRenderer.invoke("ui-state-load")
   },
+  settings: {
+    get: () => import_electron.ipcRenderer.invoke("settings-get"),
+    set: (data) => import_electron.ipcRenderer.invoke("settings-set", data)
+  },
   auth: {
     isRequired: () => import_electron.ipcRenderer.invoke("auth-required"),
     login: (password, remember) => import_electron.ipcRenderer.invoke("auth-login", { password, remember }),
@@ -410,4 +414,3 @@ import_electron.contextBridge.exposeInMainWorld("api", {
   hashAHashBatch: (paths) => import_electron.ipcRenderer.invoke("native-ahash-batch", { paths }),
   hashFileIncremental: (p) => import_electron.ipcRenderer.invoke("hash-file-incremental", { path: p })
 });
-//# sourceMappingURL=preload.js.map

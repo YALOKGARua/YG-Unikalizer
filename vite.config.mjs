@@ -10,7 +10,17 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    emptyOutDir: true
+    emptyOutDir: true,
+    sourcemap: false,
+    minify: 'esbuild',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          markdown: ['react-markdown', 'remark-gfm', 'rehype-highlight', 'react-syntax-highlighter', 'prismjs']
+        }
+      }
+    }
   },
   publicDir: 'public'
 })
