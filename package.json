@@ -1,6 +1,6 @@
 {
   "name": "yg-unikalizer",
-  "version": "3.3.1",
+  "version": "3.4.0",
   "private": true,
   "main": "electron/main.js",
   "author": "YALOKGARIA <yalokgar@gmail.com>",
@@ -157,20 +157,26 @@
       "node_modules/**",
       "native/prebuilds/**",
       "native/build/Release/*.node",
+      "rust-native/index.node",
+      "rust-native/*.node",
+      "rust-native/package.json",
       "CHANGELOG.md",
       "README.md",
       "package.json",
       "public/wasm/pu.wasm",
       "!**/.vscode/**",
       "!**/.github/**",
-      "!**/test/**"
+      "!**/test/**",
+      "!rust-native/target/**",
+      "!rust-native/node_modules/**"
     ],
     "compression": "maximum",
     "asar": true,
     "asarUnpack": [
       "node_modules/sharp/**/*",
       "native/build/Release/*.node",
-      "native/prebuilds/**"
+      "native/prebuilds/**",
+      "rust-native/*.node"
     ],
     "directories": {
       "buildResources": "build"

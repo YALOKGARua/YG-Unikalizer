@@ -33320,6 +33320,19 @@ app2.whenReady().then(() => {
       return { ok: false, error: String(e && e.message ? e.message : e) };
     }
   });
+  ipcMain2.handle("load-rust-module", async () => {
+    try {
+      const rustPath = path6.join(__dirname, "..", "rust-native", "index.node");
+      if (!fs3.existsSync(rustPath)) {
+        return null;
+      }
+      const rustModule = require(rustPath);
+      return rustModule;
+    } catch (error) {
+      console.error("Failed to load Rust module:", error);
+      return null;
+    }
+  });
   ipcMain2.handle("auth-required", async () => {
     return { ok: true, required: false, authed: true };
   });
@@ -33626,6 +33639,26 @@ app2.whenReady().then(() => {
       if (res.canceled || !res.filePath) return { ok: false };
       await fs3.promises.writeFile(res.filePath, data);
       return { ok: true, path: res.filePath };
+    } catch (e) {
+      return { ok: false, error: String(e && e.message ? e.message : e) };
+    }
+  });
+  ipcMain2.handle("rust-ahash-batch", async (_e, payload) => {
+    try {
+      const paths = payload && Array.isArray(payload.paths) ? payload.paths : [];
+      const algorithm = payload && payload.algorithm || "phash";
+      if (!paths.length) return { ok: true, hashes: [] };
+      const rustPath = path6.join(__dirname, "..", "rust-native", "index.node");
+      if (!fs3.existsSync(rustPath)) {
+        return { ok: false, error: "rust-unavailable" };
+      }
+      try {
+        const rust = require(rustPath);
+        const hashes = rust.batchHash(paths, algorithm);
+        return { ok: true, hashes, backend: "rust" };
+      } catch (error) {
+        return { ok: false, error: String(error) };
+      }
     } catch (e) {
       return { ok: false, error: String(e && e.message ? e.message : e) };
     }

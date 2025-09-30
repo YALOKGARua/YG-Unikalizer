@@ -371,7 +371,13 @@ export default function NewApp() {
   const [removeGps, setRemoveGps] = useState(true)
   const [dateStrategy, setDateStrategy] = useState<'now'|'offset'>('now')
   const [showConfetti, setShowConfetti] = useState(false)
-  const [perf, setPerf] = useState<{ reduceAnimations: boolean; confettiEnabled: boolean; maxConcurrency?: number }>({ reduceAnimations: true, confettiEnabled: false })
+  const [perf, setPerf] = useState<{ reduceAnimations: boolean; confettiEnabled: boolean; maxConcurrency?: number; backgroundAnimations?: boolean; lazyLoadImages?: boolean; virtualScrolling?: boolean }>({ 
+    reduceAnimations: false, 
+    confettiEnabled: false,
+    backgroundAnimations: false,
+    lazyLoadImages: false,
+    virtualScrolling: false
+  })
   useEffect(() => {
     (async () => {
       try { const r = await (window.api as any).settings?.get?.(); const v = r && r.data && r.data.performance ? r.data.performance : null; if (v) setPerf((p:any)=>({ ...p, ...v })) } catch {}
@@ -792,7 +798,7 @@ export default function NewApp() {
       </div>
     }>
       <div className="h-full text-slate-100 relative">
-        {!perf.reduceAnimations && <AnimatedBackground />}
+        {perf.backgroundAnimations && <AnimatedBackground />}
         
         {perf.confettiEnabled && showConfetti && (
           <Confetti
