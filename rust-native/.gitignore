@@ -1,0 +1,9 @@
+target/
+Cargo.lock
+*.node
+*.so
+*.dylib
+*.dll
+.cargo/
+dist/
+node_modules/

@@ -1,0 +1,25 @@
+{
+  "name": "yg-unikalizer-rust",
+  "version": "0.1.0",
+  "main": "index.node",
+  "napi": {
+    "name": "yg-unikalizer-rust",
+    "triples": {
+      "defaults": true,
+      "additional": [
+        "x86_64-pc-windows-msvc"
+      ]
+    }
+  },
+  "scripts": {
+    "build": "napi build --platform --release",
+    "build:debug": "napi build --platform",
+    "prepublishOnly": "napi prepublish -t npm",
+    "artifacts": "napi artifacts",
+    "bench": "node bench.js",
+    "test": "node test.js || node bench.js"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^2.18.0"
+  }
+}
