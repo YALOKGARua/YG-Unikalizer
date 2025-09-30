@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>YG Unikalizer - Mobile</title>
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      color: white;
+      min-height: 100vh;
+      padding: 20px;
+      overflow-x: hidden;
+    }
+
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+      padding-top: 20px;
+    }
+
+    .logo {
+      font-size: 48px;
+      margin-bottom: 10px;
+    }
+
+    h1 {
+      font-size: 24px;
+      margin-bottom: 10px;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+
+    .status.connected {
+      background: rgba(34, 197, 94, 0.2);
+      color: #22c55e;
+    }
+
+    .status.disconnected {
+      background: rgba(239, 68, 68, 0.2);
+      color: #ef4444;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .upload-area {
+      background: rgba(255, 255, 255, 0.05);
+      border: 2px dashed rgba(255, 255, 255, 0.2);
+      border-radius: 20px;
+      padding: 40px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-bottom: 20px;
+    }
+
+    .upload-area:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(59, 130, 246, 0.5);
+    }
+
+    .upload-area.dragging {
+      background: rgba(59, 130, 246, 0.1);
+      border-color: #3b82f6;
+      transform: scale(1.02);
+    }
+
+    .upload-icon {
+      font-size: 64px;
+      margin-bottom: 15px;
+      opacity: 0.5;
+    }
+
+    .upload-text {
+      font-size: 18px;
+      margin-bottom: 8px;
+    }
+
+    .upload-hint {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    .file-input {
+      display: none;
+    }
+
+    .files-list {
+      margin-top: 20px;
+    }
+
+    .file-item {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .file-icon {
+      font-size: 32px;
+    }
+
+    .file-info {
+      flex: 1;
+    }
+
+    .file-name {
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    .file-size {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    .file-status {
+      font-size: 20px;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 16px;
+      border-radius: 12px;
+      border: none;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .progress {
+      margin-top: 20px;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+    }
+
+    .progress-text {
+      font-size: 14px;
+      margin-bottom: 10px;
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .progress-bar {
+      height: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+      transition: width 0.3s;
+    }
+
+    .results {
+      margin-top: 20px;
+    }
+
+    .result-item {
+      background: rgba(34, 197, 94, 0.1);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 10px;
+    }
+
+    .result-item h3 {
+      font-size: 14px;
+      margin-bottom: 8px;
+      color: #22c55e;
+    }
+
+    .result-item p {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .spinner {
+      border: 3px solid rgba(255, 255, 255, 0.1);
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">📸</div>
+      <h1>YG Unikalizer Mobile</h1>
+      <div id="status" class="status disconnected">
+        <span class="status-dot"></span>
+        <span>Подключение...</span>
+      </div>
+      
+      <div id="debug-info" class="mt-2 text-xs text-slate-500">
+        <div>URL: <span id="current-url">Загрузка...</span></div>
+        <div>Session: <span id="session-info">Загрузка...</span></div>
+      </div>
+    </div>
+
+    <div id="upload-area" class="upload-area">
+      <div class="upload-icon">☁️</div>
+      <div class="upload-text">Выберите фото</div>
+      <div class="upload-hint">Нажмите или перетащите файлы</div>
+    </div>
+
+    <input type="file" id="file-input" class="file-input" multiple accept="image/*">
+
+    <div id="files-list" class="files-list"></div>
+
+    <button id="upload-btn" class="btn btn-primary" disabled>
+      <span>Загрузить на компьютер</span>
+    </button>
+
+    <div id="progress" class="progress" style="display: none;">
+      <div class="progress-text">Обработка: <span id="progress-text">0/0</span></div>
+      <div class="progress-bar">
+        <div id="progress-fill" class="progress-fill" style="width: 0%"></div>
+      </div>
+    </div>
+
+    <div id="results" class="results"></div>
+  </div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search)
+    const sessionId = urlParams.get('session')
+    const token = urlParams.get('token')
+
+    const serverUrl = window.location.origin
+    console.log('Server URL:', serverUrl)
+
+    let socket = null
+    let selectedFiles = []
+
+    const statusEl = document.getElementById('status')
+    const uploadArea = document.getElementById('upload-area')
+    const fileInput = document.getElementById('file-input')
+    const filesListEl = document.getElementById('files-list')
+    const uploadBtn = document.getElementById('upload-btn')
+    const progressEl = document.getElementById('progress')
+    const progressText = document.getElementById('progress-text')
+    const progressFill = document.getElementById('progress-fill')
+    const resultsEl = document.getElementById('results')
+    const currentUrlEl = document.getElementById('current-url')
+    const sessionInfoEl = document.getElementById('session-info')
+    
+    // Показываем отладочную информацию
+    currentUrlEl.textContent = serverUrl
+    sessionInfoEl.textContent = sessionId ? `${sessionId.slice(0, 8)}...` : 'Нет'
+
+    if (!sessionId || !token) {
+      alert('Неверная ссылка! Отсканируйте QR-код заново.')
+    } else {
+      connectToServer()
+    }
+
+    function connectToServer() {
+      socket = io(serverUrl)
+
+      socket.on('connect', () => {
+        console.log('Socket connected to:', serverUrl)
+        socket.emit('mobile-connect', { sessionId, token })
+      })
+
+      socket.on('connected', () => {
+        updateStatus(true)
+      })
+
+      socket.on('error', (data) => {
+        console.error('Socket error:', data)
+        alert('Ошибка подключения: ' + data.message)
+        updateStatus(false)
+      })
+      
+      socket.on('connect_error', (error) => {
+        console.error('Connection error:', error)
+        alert('Не удается подключиться к серверу. Проверьте Wi-Fi.')
+        updateStatus(false)
+      })
+
+      socket.on('disconnect', () => {
+        updateStatus(false)
+      })
+
+      socket.on('processing-started', ({ total }) => {
+        progressEl.style.display = 'block'
+        progressText.textContent = `0/${total}`
+        progressFill.style.width = '0%'
+      })
+
+      socket.on('processing-progress', ({ current, total, fileName }) => {
+        const percent = (current / total) * 100
+        progressText.textContent = `${current}/${total} - ${fileName}`
+        progressFill.style.width = `${percent}%`
+      })
+
+      socket.on('processing-complete', ({ results }) => {
+        progressEl.style.display = 'none'
+        showResults(results)
+      })
+    }
+
+    function updateStatus(connected) {
+      if (connected) {
+        statusEl.className = 'status connected'
+        statusEl.innerHTML = '<span class="status-dot"></span><span>Подключено</span>'
+      } else {
+        statusEl.className = 'status disconnected'
+        statusEl.innerHTML = '<span class="status-dot"></span><span>Отключено</span>'
+      }
+    }
+
+    uploadArea.addEventListener('click', () => fileInput.click())
+
+    uploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault()
+      uploadArea.classList.add('dragging')
+    })
+
+    uploadArea.addEventListener('dragleave', () => {
+      uploadArea.classList.remove('dragging')
+    })
+
+    uploadArea.addEventListener('drop', (e) => {
+      e.preventDefault()
+      uploadArea.classList.remove('dragging')
+      handleFiles(e.dataTransfer.files)
+    })
+
+    fileInput.addEventListener('change', (e) => {
+      handleFiles(e.target.files)
+    })
+
+    function handleFiles(files) {
+      selectedFiles = Array.from(files)
+      displayFiles()
+      uploadBtn.disabled = selectedFiles.length === 0
+    }
+
+    function displayFiles() {
+      filesListEl.innerHTML = ''
+      selectedFiles.forEach((file, index) => {
+        const div = document.createElement('div')
+        div.className = 'file-item'
+        div.innerHTML = `
+          <div class="file-icon">🖼️</div>
+          <div class="file-info">
+            <div class="file-name">${file.name}</div>
+            <div class="file-size">${formatBytes(file.size)}</div>
+          </div>
+          <div class="file-status" id="status-${index}">⏳</div>
+        `
+        filesListEl.appendChild(div)
+      })
+    }
+
+    uploadBtn.addEventListener('click', async () => {
+      uploadBtn.disabled = true
+      uploadBtn.innerHTML = '<div class="spinner"></div><span>Загрузка...</span>'
+
+      const formData = new FormData()
+      formData.append('sessionId', sessionId)
+      
+      selectedFiles.forEach((file) => {
+        formData.append('files', file)
+      })
+
+      try {
+        const response = await fetch(`${serverUrl}/api/upload`, {
+          method: 'POST',
+          body: formData
+        })
+
+        const result = await response.json()
+
+        if (result.success) {
+          selectedFiles.forEach((_, index) => {
+            document.getElementById(`status-${index}`).textContent = '✓'
+          })
+
+          setTimeout(() => {
+            selectedFiles = []
+            filesListEl.innerHTML = ''
+            uploadBtn.innerHTML = '<span>Загрузить на компьютер</span>'
+            uploadBtn.disabled = true
+            fileInput.value = ''
+          }, 1500)
+        }
+      } catch (error) {
+        alert('Ошибка загрузки: ' + error.message)
+        uploadBtn.disabled = false
+        uploadBtn.innerHTML = '<span>Загрузить на компьютер</span>'
+      }
+    })
+
+    function showResults(results) {
+      resultsEl.innerHTML = '<h2 style="margin-bottom: 15px; font-size: 18px;">✓ Готово!</h2>'
+      results.forEach(result => {
+        const div = document.createElement('div')
+        div.className = 'result-item'
+        div.innerHTML = `
+          <h3>${result.name}</h3>
+          <p>Обработано успешно</p>
+        `
+        resultsEl.appendChild(div)
+      })
+    }
+
+    function formatBytes(bytes) {
+      if (bytes === 0) return '0 Bytes'
+      const k = 1024
+      const sizes = ['Bytes', 'KB', 'MB', 'GB']
+      const i = Math.floor(Math.log(bytes) / Math.log(k))
+      return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
+    }
+  </script>
+</body>
+</html>

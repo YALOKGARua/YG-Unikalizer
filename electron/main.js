@@ -32870,6 +32870,22 @@ app2.whenReady().then(() => {
     app2.quit();
     return;
   }
+  setTimeout(() => {
+    try {
+      const serverPath = isDev ? path6.join(__dirname, "..", "server", "mobile-sync-server.js") : path6.join(process.resourcesPath, "app.asar", "server", "mobile-sync-server.js");
+      console.log("\u{1F4F1} Attempting to start Mobile Sync Server from:", serverPath);
+      if (!fs3.existsSync(serverPath)) {
+        console.error("\u274C Mobile Sync Server file not found:", serverPath);
+        return;
+      }
+      const { startMobileSyncServer } = require(serverPath);
+      startMobileSyncServer();
+      console.log("\u2705 Mobile Sync Server started successfully");
+    } catch (error) {
+      console.error("\u274C Failed to start Mobile Sync Server:", error);
+      console.error("Server path mode:", isDev ? "dev" : "production");
+    }
+  }, 1e3);
   createWindow();
   setAppMenu();
   try {

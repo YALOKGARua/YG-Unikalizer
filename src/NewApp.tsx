@@ -5,9 +5,10 @@ import ModernButton from './components/ModernButton'
 import AnimatedStats from './components/AnimatedStats'
 import EnhancedStats from './components/EnhancedStats'
 import LoadingSpinner from './components/LoadingSpinner'
-import FileDropzone from './components/FileDropzone'
 import ImageGrid from './components/ImageGrid'
 import AnimatedBackground from './components/AnimatedBackground'
+import TemplateManager from './components/TemplateManager'
+import MobileSync from './components/MobileSync'
 import { useSpring, animated, useSpringValue, useTrail, config } from '@react-spring/web'
 import { useAppStore } from '../private/src/subscription/store'
 import { toast } from 'sonner'
@@ -37,7 +38,8 @@ import {
   FaMobile,
   FaVideo,
   FaTimes,
-  FaCrown
+  FaCrown,
+  FaQrcode
 } from 'react-icons/fa'
 
 const cn = (...classes: (string | undefined | null | boolean)[]) => twMerge(clsx(...classes))
@@ -49,6 +51,53 @@ function toFileUrl(p: string) {
 }
 
 type ProfileKind = 'camera'|'phone'|'action'|'drone'|'scanner'|'webcam'|'film'|'security'|'gaming'|'automotive'|'medical'|'astro'|'satellite'|'cinema'|'microscope'|'surveillance'|'broadcast'
+
+interface CustomTemplate {
+  id: string
+  name: string
+  icon?: string
+  general?: {
+    fakeAuto?: boolean
+    fakePerFile?: boolean
+    onlineAuto?: boolean
+  }
+  location?: {
+    enabled?: boolean
+    lat?: string
+    lon?: string
+    altitude?: string
+    city?: string
+    state?: string
+    country?: string
+  }
+  metadata?: {
+    author?: string
+    description?: string
+    keywords?: string
+    copyright?: string
+    creatorTool?: string
+    title?: string
+    label?: string
+    rating?: number | ''
+    colorSpace?: string
+  }
+  camera?: {
+    profile?: ProfileKind
+    make?: string
+    model?: string
+    lens?: string
+    software?: string
+    serial?: string
+    iso?: number | ''
+    exposureTime?: string
+    fNumber?: number | ''
+    focalLength?: number | ''
+    exposureProgram?: number | ''
+    meteringMode?: number | ''
+    flash?: number | ''
+    whiteBalance?: number | ''
+  }
+}
 
 const GEAR_PRESETS: Record<ProfileKind, any> = {
   camera: {
@@ -362,6 +411,7 @@ export default function NewApp() {
   const addFiles = useAppStore(s=>s.addFiles)
   const removeAt = useAppStore(s=>s.removeAt)
   
+  const [customTemplates = [], setCustomTemplates] = useLocalStorage<CustomTemplate[]>('custom-templates', [])
   const [outputDir, setOutputDir] = useLocalStorage('output-dir', '')
   const [format, setFormat] = useLocalStorage<'jpg'|'png'|'webp'|'avif'|'heic'>('format', 'jpg')
   const [quality, setQuality] = useLocalStorage('quality', 85)
@@ -425,6 +475,8 @@ export default function NewApp() {
   const [creatorTool, setCreatorTool] = useState('')
   const [fakeTab, setFakeTab] = useState<'general'|'location'|'metadata'|'camera'>('general')
   const [presetOption, setPresetOption] = useState('')
+  const [templateManagerOpen, setTemplateManagerOpen] = useState(false)
+  const [mobileSyncOpen, setMobileSyncOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState<{ current: number; total: number; lastFile: string; etaMs?: number; speedBps?: number; percent?: number }>({ current: 0, total: 0, lastFile: '' })
   const [results, setResults] = useState<{ src: string; out: string }[]>([])
@@ -791,6 +843,121 @@ export default function NewApp() {
     }
   }
 
+  const getCurrentSettings = (): Partial<CustomTemplate> => ({
+    general: {
+      fakeAuto,
+      fakePerFile,
+      onlineAuto
+    },
+    location: {
+      enabled: fakeGps,
+      lat: fakeLat,
+      lon: fakeLon,
+      altitude: fakeAltitude,
+      city: fakeCity,
+      state: fakeState,
+      country: fakeCountry
+    },
+    metadata: {
+      author,
+      description,
+      keywords,
+      copyright,
+      creatorTool,
+      title: fakeTitle,
+      label: fakeLabel,
+      rating: fakeRating,
+      colorSpace: fakeColorSpace
+    },
+    camera: {
+      profile: fakeProfile,
+      make: fakeMake,
+      model: fakeModel,
+      lens: fakeLens,
+      software: fakeSoftware,
+      serial: fakeSerial,
+      iso: fakeIso,
+      exposureTime: fakeExposureTime,
+      fNumber: fakeFNumber,
+      focalLength: fakeFocalLength,
+      exposureProgram: fakeExposureProgram,
+      meteringMode: fakeMeteringMode,
+      flash: fakeFlash,
+      whiteBalance: fakeWhiteBalance
+    }
+  })
+
+  const saveTemplate = (template: CustomTemplate) => {
+    setCustomTemplates([...customTemplates, template])
+    toast.success(`✨ Шаблон "${template.name}" сохранен!`, {
+      duration: 3000,
+      style: { background: '#8b5cf6', color: '#fff' }
+    })
+  }
+
+  const applyCustomTemplate = (template: CustomTemplate) => {
+    if (template.general) {
+      if (template.general.fakeAuto !== undefined) setFakeAuto(template.general.fakeAuto)
+      if (template.general.fakePerFile !== undefined) setFakePerFile(template.general.fakePerFile)
+      if (template.general.onlineAuto !== undefined) setOnlineAuto(template.general.onlineAuto)
+    }
+
+    if (template.location) {
+      if (template.location.enabled !== undefined) setFakeGps(template.location.enabled)
+      if (template.location.lat) setFakeLat(template.location.lat)
+      if (template.location.lon) setFakeLon(template.location.lon)
+      if (template.location.altitude) setFakeAltitude(template.location.altitude)
+      if (template.location.city) setFakeCity(template.location.city)
+      if (template.location.state) setFakeState(template.location.state)
+      if (template.location.country) setFakeCountry(template.location.country)
+    }
+
+    if (template.metadata) {
+      if (template.metadata.author) setAuthor(template.metadata.author)
+      if (template.metadata.description) setDescription(template.metadata.description)
+      if (template.metadata.keywords) setKeywords(template.metadata.keywords)
+      if (template.metadata.copyright) setCopyright(template.metadata.copyright)
+      if (template.metadata.creatorTool) setCreatorTool(template.metadata.creatorTool)
+      if (template.metadata.title) setFakeTitle(template.metadata.title)
+      if (template.metadata.label) setFakeLabel(template.metadata.label)
+      if (template.metadata.rating !== undefined) setFakeRating(template.metadata.rating)
+      if (template.metadata.colorSpace) setFakeColorSpace(template.metadata.colorSpace)
+    }
+
+    if (template.camera) {
+      if (template.camera.profile) setFakeProfile(template.camera.profile)
+      if (template.camera.make) setFakeMake(template.camera.make)
+      if (template.camera.model) setFakeModel(template.camera.model)
+      if (template.camera.lens) setFakeLens(template.camera.lens)
+      if (template.camera.software) setFakeSoftware(template.camera.software)
+      if (template.camera.serial) setFakeSerial(template.camera.serial)
+      if (template.camera.iso !== undefined) setFakeIso(template.camera.iso)
+      if (template.camera.exposureTime) setFakeExposureTime(template.camera.exposureTime)
+      if (template.camera.fNumber !== undefined) setFakeFNumber(template.camera.fNumber)
+      if (template.camera.focalLength !== undefined) setFakeFocalLength(template.camera.focalLength)
+      if (template.camera.exposureProgram !== undefined) setFakeExposureProgram(template.camera.exposureProgram)
+      if (template.camera.meteringMode !== undefined) setFakeMeteringMode(template.camera.meteringMode)
+      if (template.camera.flash !== undefined) setFakeFlash(template.camera.flash)
+      if (template.camera.whiteBalance !== undefined) setFakeWhiteBalance(template.camera.whiteBalance)
+    }
+
+    toast.success(`${template.icon || '⭐'} Шаблон "${template.name}" применен!`, {
+      duration: 3000,
+      style: { background: '#8b5cf6', color: '#fff' }
+    })
+  }
+
+  const deleteTemplate = (id: string) => {
+    const template = customTemplates.find(t => t.id === id)
+    if (!template) return
+
+    setCustomTemplates(customTemplates.filter(t => t.id !== id))
+    toast.success(`🗑️ Шаблон "${template.name}" удален`, {
+      duration: 2000,
+      style: { background: '#ef4444', color: '#fff' }
+    })
+  }
+
   return (
     <Suspense fallback={
       <div className="h-full flex items-center justify-center">
@@ -819,6 +986,9 @@ export default function NewApp() {
             </ModernButton>
             <ModernButton onClick={selectFolder} variant="success" icon={<FaFolderOpen className="w-4 h-4" />} tilt>
               {t('buttons.addFolder')}
+            </ModernButton>
+            <ModernButton onClick={() => setMobileSyncOpen(true)} variant="primary" icon={<FaQrcode className="w-4 h-4" />} tilt>
+              📱 Mobile (test)
             </ModernButton>
             <ModernButton onClick={clearFiles} variant="danger" icon={<FaTrash className="w-4 h-4" />}>
               {t('buttons.clear')}
@@ -1085,6 +1255,18 @@ export default function NewApp() {
                 </button>
               </div>
               <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setTemplateManagerOpen(true)}
+                  className="px-4 py-2 bg-gradient-to-r from-pink-600 to-purple-600 text-white rounded-lg text-sm font-medium hover:from-pink-700 hover:to-purple-700 transition-all shadow-lg relative"
+                >
+                  <Icon name="tabler:bookmarks" className="w-4 h-4 inline mr-2" />
+                  Мои шаблоны
+                  {customTemplates.length > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-yellow-500 text-black text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                      {customTemplates.length}
+                    </span>
+                  )}
+                </button>
                 <FeatureGateCompact feature="advanced_drift">
                   <button
                     onClick={() => handleApplyPreset()}
@@ -1097,8 +1279,24 @@ export default function NewApp() {
                 <FeatureGateCompact feature="advanced_drift">
                   <CustomSelect
                     value={presetOption}
-                    onChange={(value) => { setPresetOption(value); handleApplyPreset(value) }}
+                    onChange={(value) => { 
+                      if (value.startsWith('custom-')) {
+                        const template = customTemplates.find(t => t.id === value.replace('custom-', ''))
+                        if (template) applyCustomTemplate(template)
+                      } else {
+                        setPresetOption(value)
+                        handleApplyPreset(value)
+                      }
+                    }}
                     options={[
+                      ...(customTemplates.length > 0 ? [
+                        ...customTemplates.map(t => ({
+                          value: `custom-${t.id}`,
+                          label: t.name,
+                          icon: t.icon || '⭐'
+                        })),
+                        { value: 'divider', label: '─────────────', icon: '' }
+                      ] : []),
                       { value: 'professional', label: 'Профессиональная съемка', icon: '🎯' },
                       { value: 'travel', label: 'Путешествие', icon: '✈️' },
                       { value: 'nature', label: 'Природа', icon: '🌿' },
@@ -1598,60 +1796,53 @@ export default function NewApp() {
           <section className="col-span-12 lg:col-span-9 xl:col-span-10 p-2 md:p-4 with-gutter">
             {active==='files' && (
               <animated.div style={useSpring({ from: { opacity: 0 }, to: { opacity: 1 } })} className="space-y-6">
-                {files.length === 0 && (
-                  <FileDropzone
-                    onFilesAdded={async (paths) => {
-                      const expanded = await window.api.expandPaths(paths)
-                      if (expanded && expanded.length) {
-                        addFiles(expanded)
-                        toast.success(`📁 Добавлено ${expanded.length} файлов`, {
-                          duration: 3000,
-                          style: { background: 'var(--bg-success)', color: 'var(--text-success)' }
-                        })
-                      }
-                    }}
+                <div ref={filesGridRef}>
+                  <ImageGrid
+                    items={files.map((path, index) => ({
+                      id: `file-${index}`,
+                      path,
+                      selected: selected.has(index)
+                    }))}
+                  onItemsChange={(items) => {
+                    const newPaths = items.map(item => item.path)
+                    setFiles(newPaths)
+                  }}
+                  onPreview={(item) => {
+                    setPreviewSrc(toFileUrl(item.path))
+                    setPreviewOpen(true)
+                  }}
+                  onRemove={(item) => {
+                    const index = files.indexOf(item.path)
+                    if (index !== -1) {
+                      removeAt(index)
+                      toast.success('🗑️ Файл удален', {
+                        duration: 2000,
+                        style: { background: 'var(--bg-warning)', color: 'var(--text-warning)' }
+                      })
+                    }
+                  }}
+                  onSelectionChange={(selectedItems) => {
+                    const indices = new Set(
+                      selectedItems.map(item => {
+                        const match = item.id.match(/file-(\d+)/)
+                        return match ? parseInt(match[1]) : -1
+                      }).filter(i => i !== -1)
+                    )
+                    setSelected(indices)
+                  }}
+                  onFilesAdded={async (paths) => {
+                    const expanded = await window.api.expandPaths(paths)
+                    if (expanded && expanded.length) {
+                      addFiles(expanded)
+                      toast.success(`📁 Добавлено ${expanded.length} файлов`, {
+                        duration: 3000,
+                        style: { background: 'var(--bg-success)', color: 'var(--text-success)' }
+                      })
+                    }
+                  }}
+                  sortable={true}
                   />
-                )}
-                
-                {files.length > 0 && (
-                  <div ref={filesGridRef}>
-                    <ImageGrid
-                      items={files.map((path, index) => ({
-                        id: `file-${index}`,
-                        path,
-                        selected: selected.has(index)
-                      }))}
-                    onItemsChange={(items) => {
-                      const newPaths = items.map(item => item.path)
-                      setFiles(newPaths)
-                    }}
-                    onPreview={(item) => {
-                      setPreviewSrc(toFileUrl(item.path))
-                      setPreviewOpen(true)
-                    }}
-                    onRemove={(item) => {
-                      const index = files.indexOf(item.path)
-                      if (index !== -1) {
-                        removeAt(index)
-                        toast.success('🗑️ Файл удален', {
-                          duration: 2000,
-                          style: { background: 'var(--bg-warning)', color: 'var(--text-warning)' }
-                        })
-                      }
-                    }}
-                    onSelectionChange={(selectedItems) => {
-                      const indices = new Set(
-                        selectedItems.map(item => {
-                          const match = item.id.match(/file-(\d+)/)
-                          return match ? parseInt(match[1]) : -1
-                        }).filter(i => i !== -1)
-                      )
-                      setSelected(indices)
-                    }}
-                    sortable={true}
-                  />
-                  </div>
-                )}
+                </div>
               </animated.div>
             )}
 
@@ -1745,6 +1936,29 @@ export default function NewApp() {
         )}
         </div>
       </div>
+
+      <TemplateManager
+        isOpen={templateManagerOpen}
+        onClose={() => setTemplateManagerOpen(false)}
+        templates={customTemplates}
+        onSave={saveTemplate}
+        onDelete={deleteTemplate}
+        onApply={applyCustomTemplate}
+        currentSettings={getCurrentSettings()}
+      />
+
+      {mobileSyncOpen && (
+        <MobileSync
+          onClose={() => setMobileSyncOpen(false)}
+          onFilesReceived={(paths) => {
+            addFiles(paths)
+            toast.success(`📱 Получено ${paths.length} фото с телефона`, {
+              duration: 3000,
+              style: { background: 'var(--bg-success)', color: 'var(--text-success)' }
+            })
+          }}
+        />
+      )}
     </Suspense>
   )
 }

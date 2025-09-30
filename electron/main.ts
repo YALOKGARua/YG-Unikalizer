@@ -1265,7 +1265,27 @@ app.whenReady().then(() => {
     return
   }
 
-  
+  setTimeout(() => {
+    try {
+      const serverPath = isDev 
+        ? path.join(__dirname, '..', 'server', 'mobile-sync-server.js')
+        : path.join(process.resourcesPath, 'app.asar', 'server', 'mobile-sync-server.js')
+      
+      console.log('📱 Attempting to start Mobile Sync Server from:', serverPath)
+      
+      if (!fs.existsSync(serverPath)) {
+        console.error('❌ Mobile Sync Server file not found:', serverPath)
+        return
+      }
+      
+      const { startMobileSyncServer } = require(serverPath)
+      startMobileSyncServer()
+      console.log('✅ Mobile Sync Server started successfully')
+    } catch (error) {
+      console.error('❌ Failed to start Mobile Sync Server:', error)
+      console.error('Server path mode:', isDev ? 'dev' : 'production')
+    }
+  }, 1000)
 
   createWindow()
   setAppMenu()
