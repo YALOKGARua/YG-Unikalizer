@@ -172,15 +172,48 @@ function getLocalIP() {
   return "localhost";
 }
 function startMobileSyncServer() {
-  httpServer.listen(PORT, () => {
-    console.log(`\u{1F680} Mobile Sync Server running on port ${PORT}`);
-    console.log(`\u{1F4F1} Local IP: ${getLocalIP()}`);
+  return new Promise((resolve, reject) => {
+    const server = httpServer.listen(PORT, () => {
+      console.log(`\u{1F680} Mobile Sync Server running on port ${PORT}`);
+      console.log(`\u{1F4F1} Local IP: ${getLocalIP()}`);
+      console.log(`\u{1F4F1} Server URL: http://${getLocalIP()}:${PORT}`);
+      console.log(`\u{1F4F1} Mobile URL: http://${getLocalIP()}:${PORT}/mobile`);
+      resolve({
+        port: PORT,
+        ip: getLocalIP(),
+        stop: () => httpServer.close()
+      });
+    });
+    server.on("error", (error) => {
+      if (error.code === "EADDRINUSE") {
+        console.error(`\u274C Port ${PORT} is already in use`);
+        console.log("\u{1F504} Trying to find available port...");
+        const tryNextPort = (port) => {
+          const testServer = httpServer.listen(port, () => {
+            console.log(`\u{1F680} Mobile Sync Server running on port ${port}`);
+            console.log(`\u{1F4F1} Local IP: ${getLocalIP()}`);
+            console.log(`\u{1F4F1} Server URL: http://${getLocalIP()}:${port}`);
+            console.log(`\u{1F4F1} Mobile URL: http://${getLocalIP()}:${port}/mobile`);
+            resolve({
+              port,
+              ip: getLocalIP(),
+              stop: () => httpServer.close()
+            });
+          });
+          testServer.on("error", (err) => {
+            if (err.code === "EADDRINUSE" && port < PORT + 10) {
+              tryNextPort(port + 1);
+            } else {
+              reject(err);
+            }
+          });
+        };
+        tryNextPort(PORT + 1);
+      } else {
+        reject(error);
+      }
+    });
   });
-  return {
-    port: PORT,
-    ip: getLocalIP(),
-    stop: () => httpServer.close()
-  };
 }
 if (require.main === module) {
   startMobileSyncServer();

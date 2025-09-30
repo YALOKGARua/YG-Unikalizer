@@ -1265,27 +1265,97 @@ app.whenReady().then(() => {
     return
   }
 
-  setTimeout(() => {
+  let mobileServerStarted = false
+  
+  const startMobileServer = () => {
+    if (mobileServerStarted) return
+    
     try {
-      const serverPath = isDev 
-        ? path.join(__dirname, '..', 'server', 'mobile-sync-server.js')
-        : path.join(process.resourcesPath, 'app.asar', 'server', 'mobile-sync-server.js')
+      let serverPath: string
+      
+      if (isDev) {
+        serverPath = path.join(__dirname, '..', 'server', 'mobile-sync-server.js')
+      } else {
+        const possiblePaths = [
+          path.join(process.resourcesPath, 'app.asar', 'server', 'mobile-sync-server.js'),
+          path.join(process.resourcesPath, 'server', 'mobile-sync-server.js'),
+          path.join(__dirname, '..', 'server', 'mobile-sync-server.js'),
+          path.join(process.cwd(), 'server', 'mobile-sync-server.js')
+        ]
+        
+        serverPath = possiblePaths.find(p => fs.existsSync(p)) || possiblePaths[0]
+      }
       
       console.log('📱 Attempting to start Mobile Sync Server from:', serverPath)
+      console.log('📱 Current working directory:', process.cwd())
+      console.log('📱 __dirname:', __dirname)
+      console.log('📱 isDev:', isDev)
       
       if (!fs.existsSync(serverPath)) {
         console.error('❌ Mobile Sync Server file not found:', serverPath)
-        return
+        console.error('❌ Trying alternative paths...')
+        
+        const alternativePaths = [
+          path.join(process.cwd(), 'server', 'mobile-sync-server.js'),
+          path.join(__dirname, 'server', 'mobile-sync-server.js'),
+          path.join(process.resourcesPath, 'server', 'mobile-sync-server.js')
+        ]
+        
+        for (const altPath of alternativePaths) {
+          if (fs.existsSync(altPath)) {
+            console.log('✅ Found server at alternative path:', altPath)
+            serverPath = altPath
+            break
+          }
+        }
+        
+        if (!fs.existsSync(serverPath)) {
+          console.error('❌ Mobile Sync Server not found in any location')
+          console.error('❌ Available files in server directory:')
+          const serverDir = path.dirname(serverPath)
+          if (fs.existsSync(serverDir)) {
+            const files = fs.readdirSync(serverDir)
+            console.error('❌ Files:', files)
+          }
+          return false
+        }
       }
       
+      console.log('📱 Server file exists, requiring...')
       const { startMobileSyncServer } = require(serverPath)
+      console.log('📱 Server module loaded, starting...')
+      
       startMobileSyncServer()
-      console.log('✅ Mobile Sync Server started successfully')
+        .then((serverInfo: any) => {
+          console.log('✅ Mobile Sync Server started successfully')
+          console.log('📱 Server info:', serverInfo)
+          mobileServerStarted = true
+        })
+        .catch((error: any) => {
+          console.error('❌ Mobile Sync Server failed to start:', error)
+          throw error
+        })
+      
+      return true
     } catch (error) {
       console.error('❌ Failed to start Mobile Sync Server:', error)
-      console.error('Server path mode:', isDev ? 'dev' : 'production')
+      console.error('❌ Error stack:', error.stack)
+      console.error('❌ Server path mode:', isDev ? 'dev' : 'production')
+      return false
     }
-  }, 1000)
+  }
+  
+  setTimeout(() => {
+    if (!startMobileServer()) {
+      console.log('🔄 Retrying mobile server start in 3 seconds...')
+      setTimeout(() => {
+        if (!startMobileServer()) {
+          console.log('🔄 Final retry for mobile server start in 5 seconds...')
+          setTimeout(startMobileServer, 5000)
+        }
+      }, 3000)
+    }
+  }, 2000)
 
   createWindow()
   setAppMenu()

@@ -60,15 +60,112 @@ export default function MobileSync({ onClose, onFilesReceived }: MobileSyncProps
       }).catch(() => null)
       
       if (!checkServer || !checkServer.ok) {
-        throw new Error('Сервер недоступен. Перезапустите приложение.')
+        console.log('🔄 Server not available, trying alternative ports...')
+        
+        const alternativePorts = [3031, 3032, 3033, 3034, 3035]
+        let workingServer = null
+        
+        for (const port of alternativePorts) {
+          try {
+            const testUrl = `http://localhost:${port}`
+            const testResponse = await fetch(`${testUrl}/api/session/create`, {
+              method: 'GET',
+              headers: { 'Content-Type': 'application/json' }
+            })
+            
+            if (testResponse.ok) {
+              workingServer = testUrl
+              console.log(`✅ Found working server on port ${port}`)
+              break
+            }
+          } catch (error) {
+            console.log(`❌ Port ${port} not available`)
+          }
+        }
+        
+        if (!workingServer) {
+          throw new Error('Мобильный сервер недоступен. Попробуйте перезапустить приложение или запустите сервер вручную командой: npm run mobile:server')
+        }
+        
+        const finalServerUrl = workingServer
+        const finalResponse = await fetch(`${finalServerUrl}/api/session/create`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' }
+        })
+        
+        if (!finalResponse.ok) {
+          throw new Error('Ошибка создания сессии на альтернативном порту')
+        }
+        
+        const data: SessionData = await finalResponse.json()
+        setSession(data)
+        
+        const getQRSize = () => {
+          if (window.innerWidth < 640) return 180
+          if (window.innerWidth < 1024) return 220
+          return 250
+        }
+        
+        const qr = await QRCode.toDataURL(data.url, {
+          width: getQRSize(),
+          margin: 2,
+          color: {
+            dark: '#000000',
+            light: '#FFFFFF'
+          },
+          type: 'image/png',
+          quality: 1.0,
+          errorCorrectionLevel: 'L'
+        })
+        
+        setQrCode(qr)
+        
+        const socket = io(finalServerUrl)
+        socketRef.current = socket
+        
+        socket.emit('desktop-connect', { sessionId: data.sessionId })
+        
+        socket.on('mobile-connected', () => {
+          setMobileConnected(true)
+          toast.success('📱 Телефон подключен!', {
+            duration: 3000,
+            style: { background: 'var(--bg-success)', color: 'var(--text-success)' }
+          })
+        })
+        
+        socket.on('mobile-disconnected', () => {
+          setMobileConnected(false)
+          toast.info('📱 Телефон отключен', {
+            duration: 2000
+          })
+        })
+        
+        socket.on('files-uploaded', ({ files }) => {
+          const paths = files.map((f: any) => f.path)
+          setFilesReceived(prev => prev + files.length)
+          onFilesReceived(paths)
+          
+          toast.success(`📸 Получено ${files.length} фото с телефона`, {
+            duration: 3000,
+            style: { background: 'var(--bg-success)', color: 'var(--text-success)' }
+          })
+        })
+        
+        return
       }
       
       const data: SessionData = await checkServer.json()
       
       setSession(data)
       
+      const getQRSize = () => {
+        if (window.innerWidth < 640) return 180
+        if (window.innerWidth < 1024) return 220
+        return 250
+      }
+      
       const qr = await QRCode.toDataURL(data.url, {
-        width: 250,
+        width: getQRSize(),
         margin: 2,
         color: {
           dark: '#000000',
@@ -141,7 +238,7 @@ export default function MobileSync({ onClose, onFilesReceived }: MobileSyncProps
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.9, y: 20 }}
         onClick={(e) => e.stopPropagation()}
-        className="relative bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-6 max-w-md w-full mx-4 border border-white/10 shadow-2xl"
+        className="relative bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-4 sm:p-6 max-w-xs sm:max-w-md lg:max-w-lg w-full mx-2 sm:mx-4 border border-white/10 shadow-2xl max-h-[90vh] overflow-y-auto"
       >
         <button
           onClick={onClose}
@@ -155,16 +252,16 @@ export default function MobileSync({ onClose, onFilesReceived }: MobileSyncProps
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2, type: 'spring' }}
-            className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-500/20 mb-6"
+            className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-blue-500/20 mb-4 sm:mb-6"
           >
-            <FaMobile className="w-8 h-8 text-blue-400" />
+            <FaMobile className="w-6 h-6 sm:w-8 sm:h-8 text-blue-400" />
           </motion.div>
 
-          <h2 className="text-3xl font-bold text-white mb-2">
+          <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-2">
             Мобильная синхронизация
           </h2>
           
-          <p className="text-slate-400 mb-6">
+          <p className="text-sm sm:text-base text-slate-400 mb-4 sm:mb-6">
             Отсканируйте QR-код на телефоне
           </p>
 
@@ -175,9 +272,9 @@ export default function MobileSync({ onClose, onFilesReceived }: MobileSyncProps
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="flex items-center justify-center h-[300px]"
+                className="flex items-center justify-center h-[200px] sm:h-[250px] lg:h-[300px]"
               >
-                <FaSpinner className="w-12 h-12 text-blue-400 animate-spin" />
+                <FaSpinner className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 text-blue-400 animate-spin" />
               </motion.div>
             ) : (
               <motion.div
@@ -187,17 +284,21 @@ export default function MobileSync({ onClose, onFilesReceived }: MobileSyncProps
                 exit={{ opacity: 0, scale: 0.8 }}
                 className="relative"
               >
-                <div className="bg-white rounded-2xl p-4 inline-block shadow-lg">
-                  <img src={qrCode} alt="QR Code" className="w-[250px] h-[250px]" />
+                <div className="bg-white rounded-xl sm:rounded-2xl p-2 sm:p-4 inline-block shadow-lg">
+                  <img 
+                    src={qrCode} 
+                    alt="QR Code" 
+                    className="w-[180px] h-[180px] sm:w-[220px] sm:h-[220px] lg:w-[250px] lg:h-[250px] max-w-full h-auto" 
+                  />
                 </div>
 
                 {mobileConnected && (
                   <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    className="absolute -top-4 -right-4 w-12 h-12 bg-green-500 rounded-full flex items-center justify-center shadow-lg"
+                    className="absolute -top-2 -right-2 sm:-top-4 sm:-right-4 w-8 h-8 sm:w-12 sm:h-12 bg-green-500 rounded-full flex items-center justify-center shadow-lg"
                   >
-                    <FaCheckCircle className="w-6 h-6 text-white" />
+                    <FaCheckCircle className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
                   </motion.div>
                 )}
               </motion.div>
@@ -209,10 +310,10 @@ export default function MobileSync({ onClose, onFilesReceived }: MobileSyncProps
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
-              className="mt-6 space-y-3"
+              className="mt-4 sm:mt-6 space-y-2 sm:space-y-3"
             >
-              <div className="flex items-center justify-center gap-3 text-sm">
-                <div className={`px-3 py-1 rounded-full ${
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 text-xs sm:text-sm">
+                <div className={`px-2 sm:px-3 py-1 rounded-full ${
                   mobileConnected 
                     ? 'bg-green-500/20 text-green-400' 
                     : 'bg-slate-700/50 text-slate-400'
@@ -220,15 +321,15 @@ export default function MobileSync({ onClose, onFilesReceived }: MobileSyncProps
                   {mobileConnected ? '✓ Подключено' : '○ Ожидание'}
                 </div>
                 {filesReceived > 0 && (
-                  <div className="px-3 py-1 rounded-full bg-blue-500/20 text-blue-400">
+                  <div className="px-2 sm:px-3 py-1 rounded-full bg-blue-500/20 text-blue-400">
                     <FaCloudUploadAlt className="inline w-3 h-3 mr-1" />
                     {filesReceived} файлов
                   </div>
                 )}
               </div>
 
-              <div className="text-xs text-slate-500 space-y-1">
-                <div>IP: {session.ip}:{session.port}</div>
+              <div className="text-xs text-slate-500 space-y-1 text-center">
+                <div className="break-all">IP: {session.ip}:{session.port}</div>
                 <div>Код: {session.token}</div>
               </div>
             </motion.div>
@@ -238,9 +339,9 @@ export default function MobileSync({ onClose, onFilesReceived }: MobileSyncProps
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.7 }}
-            className="mt-6 p-4 bg-blue-500/10 rounded-xl border border-blue-500/20"
+            className="mt-4 sm:mt-6 p-3 sm:p-4 bg-blue-500/10 rounded-xl border border-blue-500/20"
           >
-            <p className="text-sm text-blue-300 mb-2">
+            <p className="text-xs sm:text-sm text-blue-300 mb-2">
               💡 Как использовать:
             </p>
             <ol className="text-xs text-slate-400 text-left space-y-1">
@@ -250,32 +351,49 @@ export default function MobileSync({ onClose, onFilesReceived }: MobileSyncProps
               <li>4. Загрузите фото</li>
             </ol>
             
-            <div className="mt-3 p-2 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+            <div className="mt-2 sm:mt-3 p-2 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
               <p className="text-xs text-yellow-300">
                 ⚠️ Если QR не читается, используйте ссылку ниже
               </p>
             </div>
             
+            <div className="mt-2 sm:mt-3 p-2 bg-red-500/10 border border-red-500/20 rounded-lg">
+              <p className="text-xs text-red-300 mb-2">
+                🔧 Если мобильная синхронизация не работает:
+              </p>
+              <button
+                onClick={() => {
+                  toast.info('Запустите в терминале: npm run mobile:server', {
+                    duration: 5000,
+                    description: 'Или перезапустите приложение'
+                  })
+                }}
+                className="text-xs bg-red-600/20 hover:bg-red-600/30 px-2 py-1 rounded border border-red-500/30 transition-colors w-full sm:w-auto"
+              >
+                Показать инструкцию
+              </button>
+            </div>
+            
             {session && (
-              <div className="mt-4 p-3 bg-slate-800/50 rounded-lg">
+              <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-slate-800/50 rounded-lg">
                 <p className="text-xs text-slate-300 mb-2">
                   🔗 Или введите ссылку вручную:
                 </p>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                   <input
                     type="text"
                     value={session.url}
                     readOnly
-                    className="flex-1 px-2 py-1 bg-slate-700/50 border border-slate-600 rounded text-xs text-slate-300"
+                    className="flex-1 px-2 py-1 bg-slate-700/50 border border-slate-600 rounded text-xs text-slate-300 break-all"
                   />
                   <button
                     onClick={() => {
                       navigator.clipboard.writeText(session.url)
                       toast.success('Ссылка скопирована!', { duration: 2000 })
                     }}
-                    className="px-2 py-1 bg-blue-600/80 hover:bg-blue-500 rounded text-xs"
+                    className="px-3 py-1 bg-blue-600/80 hover:bg-blue-500 rounded text-xs whitespace-nowrap"
                   >
-                    📋
+                    📋 Копировать
                   </button>
                 </div>
               </div>

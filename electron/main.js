@@ -31241,7 +31241,7 @@ var require_package = __commonJS({
   "node_modules/dotenv/package.json"(exports2, module2) {
     module2.exports = {
       name: "dotenv",
-      version: "17.2.2",
+      version: "17.2.3",
       description: "Loads environment variables from .env file",
       main: "lib/main.js",
       types: "lib/main.d.ts",
@@ -31263,8 +31263,8 @@ var require_package = __commonJS({
         "dts-check": "tsc --project tests/types/tsconfig.json",
         lint: "standard",
         pretest: "npm run lint && npm run dts-check",
-        test: "tap run --allow-empty-coverage --disable-coverage --timeout=60000",
-        "test:coverage": "tap run --show-full-coverage --timeout=60000 --coverage-report=text --coverage-report=lcov",
+        test: "tap run tests/**/*.js --allow-empty-coverage --disable-coverage --timeout=60000",
+        "test:coverage": "tap run tests/**/*.js --show-full-coverage --timeout=60000 --coverage-report=text --coverage-report=lcov",
         prerelease: "npm test",
         release: "standard-version"
       },
@@ -31317,9 +31317,12 @@ var require_main3 = __commonJS({
       "\u{1F510} encrypt with Dotenvx: https://dotenvx.com",
       "\u{1F510} prevent committing .env to code: https://dotenvx.com/precommit",
       "\u{1F510} prevent building .env in docker: https://dotenvx.com/prebuild",
-      "\u{1F4E1} observe env with Radar: https://dotenvx.com/radar",
-      "\u{1F4E1} auto-backup env with Radar: https://dotenvx.com/radar",
-      "\u{1F4E1} version env with Radar: https://dotenvx.com/radar",
+      "\u{1F4E1} add observability to secrets: https://dotenvx.com/ops",
+      "\u{1F465} sync secrets across teammates & machines: https://dotenvx.com/ops",
+      "\u{1F5C2}\uFE0F backup and recover secrets: https://dotenvx.com/ops",
+      "\u2705 audit secrets and track compliance: https://dotenvx.com/ops",
+      "\u{1F504} add secrets lifecycle management: https://dotenvx.com/ops",
+      "\u{1F511} add access controls to secrets: https://dotenvx.com/ops",
       "\u{1F6E0}\uFE0F  run anywhere with `dotenvx run -- yourcommand`",
       "\u2699\uFE0F  specify custom .env file path with { path: '/custom/path/.env' }",
       "\u2699\uFE0F  enable debug logging with { debug: true }",
@@ -32870,22 +32873,82 @@ app2.whenReady().then(() => {
     app2.quit();
     return;
   }
-  setTimeout(() => {
+  let mobileServerStarted = false;
+  const startMobileServer = () => {
+    if (mobileServerStarted) return;
     try {
-      const serverPath = isDev ? path6.join(__dirname, "..", "server", "mobile-sync-server.js") : path6.join(process.resourcesPath, "app.asar", "server", "mobile-sync-server.js");
+      let serverPath;
+      if (isDev) {
+        serverPath = path6.join(__dirname, "..", "server", "mobile-sync-server.js");
+      } else {
+        const possiblePaths = [
+          path6.join(process.resourcesPath, "app.asar", "server", "mobile-sync-server.js"),
+          path6.join(process.resourcesPath, "server", "mobile-sync-server.js"),
+          path6.join(__dirname, "..", "server", "mobile-sync-server.js"),
+          path6.join(process.cwd(), "server", "mobile-sync-server.js")
+        ];
+        serverPath = possiblePaths.find((p) => fs3.existsSync(p)) || possiblePaths[0];
+      }
       console.log("\u{1F4F1} Attempting to start Mobile Sync Server from:", serverPath);
+      console.log("\u{1F4F1} Current working directory:", process.cwd());
+      console.log("\u{1F4F1} __dirname:", __dirname);
+      console.log("\u{1F4F1} isDev:", isDev);
       if (!fs3.existsSync(serverPath)) {
         console.error("\u274C Mobile Sync Server file not found:", serverPath);
-        return;
+        console.error("\u274C Trying alternative paths...");
+        const alternativePaths = [
+          path6.join(process.cwd(), "server", "mobile-sync-server.js"),
+          path6.join(__dirname, "server", "mobile-sync-server.js"),
+          path6.join(process.resourcesPath, "server", "mobile-sync-server.js")
+        ];
+        for (const altPath of alternativePaths) {
+          if (fs3.existsSync(altPath)) {
+            console.log("\u2705 Found server at alternative path:", altPath);
+            serverPath = altPath;
+            break;
+          }
+        }
+        if (!fs3.existsSync(serverPath)) {
+          console.error("\u274C Mobile Sync Server not found in any location");
+          console.error("\u274C Available files in server directory:");
+          const serverDir = path6.dirname(serverPath);
+          if (fs3.existsSync(serverDir)) {
+            const files = fs3.readdirSync(serverDir);
+            console.error("\u274C Files:", files);
+          }
+          return false;
+        }
       }
+      console.log("\u{1F4F1} Server file exists, requiring...");
       const { startMobileSyncServer } = require(serverPath);
-      startMobileSyncServer();
-      console.log("\u2705 Mobile Sync Server started successfully");
+      console.log("\u{1F4F1} Server module loaded, starting...");
+      startMobileSyncServer().then((serverInfo) => {
+        console.log("\u2705 Mobile Sync Server started successfully");
+        console.log("\u{1F4F1} Server info:", serverInfo);
+        mobileServerStarted = true;
+      }).catch((error) => {
+        console.error("\u274C Mobile Sync Server failed to start:", error);
+        throw error;
+      });
+      return true;
     } catch (error) {
       console.error("\u274C Failed to start Mobile Sync Server:", error);
-      console.error("Server path mode:", isDev ? "dev" : "production");
+      console.error("\u274C Error stack:", error.stack);
+      console.error("\u274C Server path mode:", isDev ? "dev" : "production");
+      return false;
     }
-  }, 1e3);
+  };
+  setTimeout(() => {
+    if (!startMobileServer()) {
+      console.log("\u{1F504} Retrying mobile server start in 3 seconds...");
+      setTimeout(() => {
+        if (!startMobileServer()) {
+          console.log("\u{1F504} Final retry for mobile server start in 5 seconds...");
+          setTimeout(startMobileServer, 5e3);
+        }
+      }, 3e3);
+    }
+  }, 2e3);
   createWindow();
   setAppMenu();
   try {

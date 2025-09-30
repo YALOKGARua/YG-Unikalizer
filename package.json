@@ -1,6 +1,6 @@
 {
   "name": "yg-unikalizer",
-  "version": "3.5.0",
+  "version": "3.5.1",
   "private": true,
   "main": "electron/main.js",
   "author": "YALOKGARIA <yalokgar@gmail.com>",
@@ -37,6 +37,7 @@
     "chat:build": "esbuild server/chat-server.ts --platform=node --format=cjs --target=node18 --bundle --outfile=server/chat-server.js",
     "mobile:server": "node server/mobile-sync-server.js",
     "mobile:build": "esbuild server/mobile-sync-server.ts --platform=node --format=cjs --target=node18 --bundle --outfile=server/mobile-sync-server.js --external:sharp --external:express --external:socket.io --external:multer --external:uuid",
+    "mobile:check": "curl -s http://localhost:3030/api/session/create || echo 'Mobile server not running'",
     "dist": "npm run build && npm run native:build && npm run rust:build && electron-builder",
     "publish": "npm run build && npm run native:build && npm run rust:build && electron-builder --publish always",
     "release:patch": "npm version patch -m \"release: %s\" && git push",
