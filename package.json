@@ -1,6 +1,6 @@
 {
   "name": "yg-unikalizer",
-  "version": "3.5.2",
+  "version": "3.5.3",
   "private": true,
   "main": "electron/main.js",
   "author": "YALOKGARIA <yalokgar@gmail.com>",
@@ -43,7 +43,7 @@
     "release:patch": "npm version patch -m \"release: %s\" && git push",
     "release:minor": "npm version minor -m \"release: %s\" && git push",
     "release:major": "npm version major -m \"release: %s\" && git push",
-    "postinstall": "electron-builder install-app-deps && node scripts/build-native.js && node scripts/build-electron.js",
+    "postinstall": "electron-builder install-app-deps && node scripts/build-native.js && node scripts/build-electron.js && npm run mobile:build",
     "native:build": "node scripts/build-native.js",
     "electron:build": "node scripts/build-electron.js",
     "native:prebuild": "cd native && prebuildify --napi --strip",
@@ -191,8 +191,7 @@
       "node_modules/sharp/**/*",
       "native/build/Release/*.node",
       "native/prebuilds/**",
-      "rust-native/*.node",
-      "server/**/*"
+      "rust-native/*.node"
     ],
     "directories": {
       "buildResources": "build"

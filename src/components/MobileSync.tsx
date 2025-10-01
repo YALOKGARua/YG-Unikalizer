@@ -52,176 +52,74 @@ export default function MobileSync({ onClose, onFilesReceived }: MobileSyncProps
 
   const createSession = async () => {
     try {
-      const serverUrl = 'http://localhost:3030'
-      
-      console.log('🔍 Checking mobile server availability...')
-      
-      const checkServer = await fetch(`${serverUrl}/api/session/create`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        timeout: 5000
-      }).catch((error) => {
-        console.log('❌ Server check failed:', error)
-        return null
-      })
-      
-      if (!checkServer || !checkServer.ok) {
-        console.log('🔄 Server not available, trying alternative ports...')
-        
-        const alternativePorts = [3031, 3032, 3033, 3034, 3035]
-        let workingServer = null
-        
-        for (const port of alternativePorts) {
-          try {
-            const testUrl = `http://localhost:${port}`
-            const testResponse = await fetch(`${testUrl}/api/session/create`, {
-              method: 'GET',
-              headers: { 'Content-Type': 'application/json' }
-            })
-            
-            if (testResponse.ok) {
-              workingServer = testUrl
-              console.log(`✅ Found working server on port ${port}`)
-              break
-            }
-          } catch (error) {
-            console.log(`❌ Port ${port} not available`)
-          }
+      const hosts = ['127.0.0.1', 'localhost']
+      const ports = [3030, 3031, 3032, 3033, 3034, 3035, 3036, 3037, 3038, 3039, 3040]
+      const candidates: string[] = []
+      for (const h of hosts) {
+        for (const p of ports) {
+          candidates.push(`http://${h}:${p}`)
         }
-        
-        if (!workingServer) {
-          throw new Error('Мобильный сервер недоступен. В готовом дистрибутиве сервер должен запускаться автоматически. Попробуйте перезапустить приложение или обратитесь к разработчику.')
-        }
-        
-        const finalServerUrl = workingServer
-        const finalResponse = await fetch(`${finalServerUrl}/api/session/create`, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' }
-        })
-        
-        if (!finalResponse.ok) {
-          throw new Error('Ошибка создания сессии на альтернативном порту')
-        }
-        
-        const data: SessionData = await finalResponse.json()
-        setSession(data)
-        
-        const getQRSize = () => {
-          if (window.innerWidth < 640) return 180
-          if (window.innerWidth < 1024) return 220
-          return 250
-        }
-        
-        const qr = await QRCode.toDataURL(data.url, {
-          width: getQRSize(),
-          margin: 2,
-          color: {
-            dark: '#000000',
-            light: '#FFFFFF'
-          },
-          type: 'image/png',
-          quality: 1.0,
-          errorCorrectionLevel: 'L'
-        })
-        
-        setQrCode(qr)
-        
-        const socket = io(finalServerUrl)
-        socketRef.current = socket
-        
-        socket.emit('desktop-connect', { sessionId: data.sessionId })
-        
-        socket.on('mobile-connected', () => {
-          setMobileConnected(true)
-          toast.success('📱 Телефон подключен!', {
-            duration: 3000,
-            style: { background: 'var(--bg-success)', color: 'var(--text-success)' }
-          })
-        })
-        
-        socket.on('mobile-disconnected', () => {
-          setMobileConnected(false)
-          toast.info('📱 Телефон отключен', {
-            duration: 2000
-          })
-        })
-        
-        socket.on('files-uploaded', ({ files }) => {
-          const paths = files.map((f: any) => f.path)
-          setFilesReceived(prev => prev + files.length)
-          onFilesReceived(paths)
-          
-          toast.success(`📸 Получено ${files.length} фото с телефона`, {
-            duration: 3000,
-            style: { background: 'var(--bg-success)', color: 'var(--text-success)' }
-          })
-        })
-        
-        return
       }
-      
-      const data: SessionData = await checkServer.json()
-      
+      const fetchWithTimeout = async (input: string, ms: number) => {
+        const controller = new AbortController()
+        const id = setTimeout(() => controller.abort(), ms)
+        try {
+          const res = await fetch(input, { method: 'GET', headers: { 'Content-Type': 'application/json' }, signal: controller.signal })
+          return res
+        } finally {
+          clearTimeout(id)
+        }
+      }
+      let workingBase: string | null = null
+      let data: SessionData | null = null
+      for (const base of candidates) {
+        try {
+          const res = await fetchWithTimeout(`${base}/api/session/create`, 3500)
+          if (res && res.ok) {
+            data = await res.json()
+            workingBase = base
+            break
+          }
+        } catch (_) {}
+      }
+      if (!workingBase || !data) {
+        throw new Error('Мобильный сервер недоступен. В готовом дистрибутиве сервер должен запускаться автоматически. Попробуйте перезапустить приложение или обратитесь к разработчику.')
+      }
       setSession(data)
-      
       const getQRSize = () => {
         if (window.innerWidth < 640) return 180
         if (window.innerWidth < 1024) return 220
         return 250
       }
-      
       const qr = await QRCode.toDataURL(data.url, {
         width: getQRSize(),
         margin: 2,
-        color: {
-          dark: '#000000',
-          light: '#FFFFFF'
-        },
+        color: { dark: '#000000', light: '#FFFFFF' },
         type: 'image/png',
-        quality: 1.0,
         errorCorrectionLevel: 'L'
       })
-      
       setQrCode(qr)
-      
-      const socket = io(serverUrl)
+      const socket = io(workingBase)
       socketRef.current = socket
-      
       socket.emit('desktop-connect', { sessionId: data.sessionId })
-      
       socket.on('mobile-connected', () => {
         setMobileConnected(true)
-        toast.success('📱 Телефон подключен!', {
-          duration: 3000,
-          style: { background: 'var(--bg-success)', color: 'var(--text-success)' }
-        })
+        toast.success('📱 Телефон подключен!', { duration: 3000, style: { background: 'var(--bg-success)', color: 'var(--text-success)' } })
       })
-      
       socket.on('mobile-disconnected', () => {
         setMobileConnected(false)
-        toast.info('📱 Телефон отключен', {
-          duration: 2000
-        })
+        toast.info('📱 Телефон отключен', { duration: 2000 })
       })
-      
       socket.on('files-uploaded', ({ files }) => {
         const paths = files.map((f: any) => f.path)
         setFilesReceived(prev => prev + files.length)
         onFilesReceived(paths)
-        
-        toast.success(`📸 Получено ${files.length} фото с телефона`, {
-          duration: 3000,
-          style: { background: 'var(--bg-success)', color: 'var(--text-success)' }
-        })
+        toast.success(`📸 Получено ${files.length} фото с телефона`, { duration: 3000, style: { background: 'var(--bg-success)', color: 'var(--text-success)' } })
       })
-      
     } catch (error) {
       console.error('Error creating session:', error)
       const message = error instanceof Error ? error.message : 'Ошибка создания сессии'
-      toast.error(`❌ ${message}`, {
-        duration: 5000,
-        description: 'Убедитесь, что приложение запущено корректно'
-      })
+      toast.error(`❌ ${message}`, { duration: 5000, description: 'Убедитесь, что приложение запущено корректно' })
     }
   }
 
