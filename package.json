@@ -1,6 +1,6 @@
 {
   "name": "yg-unikalizer",
-  "version": "3.5.1",
+  "version": "3.5.2",
   "private": true,
   "main": "electron/main.js",
   "author": "YALOKGARIA <yalokgar@gmail.com>",
@@ -191,7 +191,8 @@
       "node_modules/sharp/**/*",
       "native/build/Release/*.node",
       "native/prebuilds/**",
-      "rust-native/*.node"
+      "rust-native/*.node",
+      "server/**/*"
     ],
     "directories": {
       "buildResources": "build"

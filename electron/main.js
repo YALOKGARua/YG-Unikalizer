@@ -32874,6 +32874,39 @@ app2.whenReady().then(() => {
     return;
   }
   let mobileServerStarted = false;
+  let mobileServerProcess = null;
+  const startMobileServerAlternative = (serverPath) => {
+    try {
+      console.log("\u{1F504} Starting mobile server as separate process...");
+      const { spawn: spawn2 } = require("child_process");
+      const nodePath = process.execPath;
+      mobileServerProcess = spawn2(nodePath, [serverPath], {
+        detached: false,
+        stdio: ["ignore", "pipe", "pipe"]
+      });
+      mobileServerProcess.stdout.on("data", (data) => {
+        console.log("\u{1F4F1} Mobile Server:", data.toString().trim());
+        if (data.toString().includes("Mobile Sync Server running")) {
+          mobileServerStarted = true;
+          console.log("\u2705 Mobile Sync Server started via process");
+        }
+      });
+      mobileServerProcess.stderr.on("data", (data) => {
+        console.error("\u{1F4F1} Mobile Server Error:", data.toString().trim());
+      });
+      mobileServerProcess.on("close", (code) => {
+        console.log(`\u{1F4F1} Mobile Server process exited with code ${code}`);
+        mobileServerStarted = false;
+        mobileServerProcess = null;
+      });
+      mobileServerProcess.on("error", (error) => {
+        console.error("\u274C Failed to start mobile server process:", error);
+        mobileServerProcess = null;
+      });
+    } catch (error) {
+      console.error("\u274C Alternative startup method failed:", error);
+    }
+  };
   const startMobileServer = () => {
     if (mobileServerStarted) return;
     try {
@@ -32885,7 +32918,8 @@ app2.whenReady().then(() => {
           path6.join(process.resourcesPath, "app.asar", "server", "mobile-sync-server.js"),
           path6.join(process.resourcesPath, "server", "mobile-sync-server.js"),
           path6.join(__dirname, "..", "server", "mobile-sync-server.js"),
-          path6.join(process.cwd(), "server", "mobile-sync-server.js")
+          path6.join(process.cwd(), "server", "mobile-sync-server.js"),
+          path6.join(process.resourcesPath, "app.asar.unpacked", "server", "mobile-sync-server.js")
         ];
         serverPath = possiblePaths.find((p) => fs3.existsSync(p)) || possiblePaths[0];
       }
@@ -32919,17 +32953,24 @@ app2.whenReady().then(() => {
           return false;
         }
       }
-      console.log("\u{1F4F1} Server file exists, requiring...");
-      const { startMobileSyncServer } = require(serverPath);
-      console.log("\u{1F4F1} Server module loaded, starting...");
-      startMobileSyncServer().then((serverInfo) => {
-        console.log("\u2705 Mobile Sync Server started successfully");
-        console.log("\u{1F4F1} Server info:", serverInfo);
-        mobileServerStarted = true;
-      }).catch((error) => {
-        console.error("\u274C Mobile Sync Server failed to start:", error);
-        throw error;
-      });
+      console.log("\u{1F4F1} Server file exists, trying to start...");
+      try {
+        const { startMobileSyncServer } = require(serverPath);
+        console.log("\u{1F4F1} Server module loaded, starting...");
+        startMobileSyncServer().then((serverInfo) => {
+          console.log("\u2705 Mobile Sync Server started successfully");
+          console.log("\u{1F4F1} Server info:", serverInfo);
+          mobileServerStarted = true;
+        }).catch((error) => {
+          console.error("\u274C Mobile Sync Server failed to start:", error);
+          console.log("\u{1F504} Trying alternative startup method...");
+          startMobileServerAlternative(serverPath);
+        });
+      } catch (requireError) {
+        console.error("\u274C Failed to require server module:", requireError);
+        console.log("\u{1F504} Trying alternative startup method...");
+        startMobileServerAlternative(serverPath);
+      }
       return true;
     } catch (error) {
       console.error("\u274C Failed to start Mobile Sync Server:", error);
@@ -32955,6 +32996,13 @@ app2.whenReady().then(() => {
     applySettingsToRuntime();
   } catch (_) {
   }
+  app2.on("before-quit", () => {
+    if (mobileServerProcess) {
+      console.log("\u{1F504} Stopping mobile server process...");
+      mobileServerProcess.kill();
+      mobileServerProcess = null;
+    }
+  });
   process.on("uncaughtException", (error) => {
     console.error("Uncaught Exception:", error);
   });

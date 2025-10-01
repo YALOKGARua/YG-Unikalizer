@@ -54,10 +54,16 @@ export default function MobileSync({ onClose, onFilesReceived }: MobileSyncProps
     try {
       const serverUrl = 'http://localhost:3030'
       
+      console.log('🔍 Checking mobile server availability...')
+      
       const checkServer = await fetch(`${serverUrl}/api/session/create`, {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
-      }).catch(() => null)
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 5000
+      }).catch((error) => {
+        console.log('❌ Server check failed:', error)
+        return null
+      })
       
       if (!checkServer || !checkServer.ok) {
         console.log('🔄 Server not available, trying alternative ports...')
@@ -84,7 +90,7 @@ export default function MobileSync({ onClose, onFilesReceived }: MobileSyncProps
         }
         
         if (!workingServer) {
-          throw new Error('Мобильный сервер недоступен. Попробуйте перезапустить приложение или запустите сервер вручную командой: npm run mobile:server')
+          throw new Error('Мобильный сервер недоступен. В готовом дистрибутиве сервер должен запускаться автоматически. Попробуйте перезапустить приложение или обратитесь к разработчику.')
         }
         
         const finalServerUrl = workingServer
@@ -363,9 +369,9 @@ export default function MobileSync({ onClose, onFilesReceived }: MobileSyncProps
               </p>
               <button
                 onClick={() => {
-                  toast.info('Запустите в терминале: npm run mobile:server', {
+                  toast.info('В готовом дистрибутиве сервер должен запускаться автоматически', {
                     duration: 5000,
-                    description: 'Или перезапустите приложение'
+                    description: 'Попробуйте перезапустить приложение или обратитесь к разработчику'
                   })
                 }}
                 className="text-xs bg-red-600/20 hover:bg-red-600/30 px-2 py-1 rounded border border-red-500/30 transition-colors w-full sm:w-auto"
