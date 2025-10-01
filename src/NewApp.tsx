@@ -988,7 +988,7 @@ export default function NewApp() {
               {t('buttons.addFolder')}
             </ModernButton>
             <ModernButton onClick={() => setMobileSyncOpen(true)} variant="primary" icon={<FaQrcode className="w-4 h-4" />} tilt>
-              📱 Mobile (test)
+              📱 Mobile
             </ModernButton>
             <ModernButton onClick={clearFiles} variant="danger" icon={<FaTrash className="w-4 h-4" />}>
               {t('buttons.clear')}

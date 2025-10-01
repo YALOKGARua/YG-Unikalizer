@@ -1281,9 +1281,23 @@ app.whenReady().then(() => {
       console.log('🔄 Starting mobile server as separate process...')
       const { spawn } = require('child_process')
       const nodePath = process.execPath
-      const env = { ...process.env, ELECTRON_RUN_AS_NODE: '1' }
+      const nodeModulesCandidates = [
+        path.join(process.resourcesPath || '', 'app.asar', 'node_modules'),
+        path.join(process.resourcesPath || '', 'node_modules'),
+        path.join(__dirname, '..', 'node_modules'),
+        path.join(process.cwd(), 'node_modules')
+      ]
+      const nodePathEnv = nodeModulesCandidates.filter((p) => { try { return fs.existsSync(p) } catch { return false } }).join(path.delimiter)
+      const env = { ...process.env, ELECTRON_RUN_AS_NODE: '1', NODE_PATH: nodePathEnv }
       const cwd = path.dirname(serverPath)
-      mobileServerProcess = spawn(nodePath, [serverPath], { detached: false, stdio: ['ignore', 'pipe', 'pipe'], env, cwd, windowsHide: true })
+      let spawnServerPath = serverPath
+      try {
+        if (serverPath.includes('app.asar')) {
+          const unpacked = path.join(process.resourcesPath || '', 'app.asar.unpacked', 'server', 'mobile-sync-server.js')
+          if (fs.existsSync(unpacked)) spawnServerPath = unpacked
+        }
+      } catch {}
+      mobileServerProcess = spawn(nodePath, [spawnServerPath], { detached: false, stdio: ['ignore', 'pipe', 'pipe'], env, cwd, windowsHide: true })
       mobileServerProcess.stdout.on('data', (data: any) => {
         const line = String(data || '').trim()
         if (line) console.log('📱 Mobile Server:', line)
@@ -1319,9 +1333,11 @@ app.whenReady().then(() => {
       if (isDev) {
         serverPath = path.join(__dirname, '..', 'server', 'mobile-sync-server.js')
       } else {
+        // Prefer requiring from app.asar to leverage Electron's asar-aware require,
+        // then fall back to unpacked/other locations.
         const possiblePaths = [
-          path.join(process.resourcesPath, 'app.asar.unpacked', 'server', 'mobile-sync-server.js'),
           path.join(process.resourcesPath, 'app.asar', 'server', 'mobile-sync-server.js'),
+          path.join(process.resourcesPath, 'app.asar.unpacked', 'server', 'mobile-sync-server.js'),
           path.join(process.resourcesPath, 'server', 'mobile-sync-server.js'),
           path.join(__dirname, '..', 'server', 'mobile-sync-server.js'),
           path.join(process.cwd(), 'server', 'mobile-sync-server.js')
