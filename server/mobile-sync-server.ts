@@ -44,13 +44,18 @@ app.use(express.static(path.join(__dirname, '../public')))
 app.get('/api/session/create', (req, res) => {
   const token = uuidv4().slice(0, 8)
   const sessionId = uuidv4()
-  
   sessions.set(sessionId, { token, desktopSocket: null, mobileSocket: null })
-  
   const localIP = getLocalIP()
-  const url = `http://${localIP}:${PORT}/mobile?session=${sessionId}&token=${token}`
-  
-  res.json({ sessionId, token, url, ip: localIP, port: PORT })
+  const hostHeader = String(req.headers.host || '')
+  let resolvedPort = PORT
+  if (hostHeader.includes(':')) {
+    const parts = hostHeader.split(':')
+    const portText = parts[parts.length - 1]
+    const parsed = parseInt(portText, 10)
+    if (!Number.isNaN(parsed) && parsed > 0) resolvedPort = parsed
+  }
+  const url = `http://${localIP}:${resolvedPort}/mobile?session=${sessionId}&token=${token}`
+  res.json({ sessionId, token, url, ip: localIP, port: resolvedPort })
 })
 
 app.get('/api/session/:sessionId/validate', (req, res) => {
