@@ -184,6 +184,10 @@ contextBridge.exposeInMainWorld('api', {
     get: () => ipcRenderer.invoke('settings-get'),
     set: (data: unknown) => ipcRenderer.invoke('settings-set', data)
   },
+  mobile: {
+    start: () => ipcRenderer.invoke('mobile-server-start'),
+    status: () => ipcRenderer.invoke('mobile-server-status')
+  },
   auth: {
     isRequired: () => ipcRenderer.invoke('auth-required'),
     login: (password: string, remember: boolean) => ipcRenderer.invoke('auth-login', { password, remember }),

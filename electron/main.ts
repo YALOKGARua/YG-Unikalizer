@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, Menu, session, Notification: ElectronNotification } = require('electron')
+const { app, BrowserWindow, ipcMain, dialog, shell, Menu, session, Notification: ElectronNotification, globalShortcut } = require('electron')
 const nodeCrypto = require('crypto')
 const path = require('path')
 const fs = require('fs')
@@ -9,6 +9,7 @@ const { autoUpdater } = require('electron-updater')
 const StoreRaw = require('electron-store')
 const { exec, spawn } = require('child_process')
 const https = require('https')
+const isDev = !!process.env.VITE_DEV_SERVER_URL || !app.isPackaged
 try {
   const candidates = []
   candidates.push(path.join(__dirname, '..', '.env.local'))
@@ -735,7 +736,14 @@ function setAppMenu() {
           label: 'Toggle Developer Tools',
           accelerator: 'Ctrl+Shift+I',
           click: () => {
-            if (!devUnlocked) { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('dev-admin-request-unlock'); return }
+            const w = BrowserWindow.getFocusedWindow() || mainWindow
+            if (w && !w.isDestroyed()) w.webContents.toggleDevTools()
+          }
+        },
+        {
+          label: 'Toggle DevTools (F12)',
+          accelerator: 'F12',
+          click: () => {
             const w = BrowserWindow.getFocusedWindow() || mainWindow
             if (w && !w.isDestroyed()) w.webContents.toggleDevTools()
           }
@@ -746,7 +754,6 @@ function setAppMenu() {
           label: 'Toggle Admin Panel',
           accelerator: 'Ctrl+Shift+D',
           click: () => {
-            if (!devUnlocked) { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('dev-admin-request-unlock'); return }
             if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('dev-admin-toggle')
           }
         }
@@ -1267,42 +1274,37 @@ app.whenReady().then(() => {
 
   let mobileServerStarted = false
   let mobileServerProcess: any = null
+  let mobileServerInfo: any = null
   
   const startMobileServerAlternative = (serverPath: string) => {
     try {
       console.log('🔄 Starting mobile server as separate process...')
-      
       const { spawn } = require('child_process')
       const nodePath = process.execPath
-      
-      mobileServerProcess = spawn(nodePath, [serverPath], {
-        detached: false,
-        stdio: ['ignore', 'pipe', 'pipe']
-      })
-      
+      const env = { ...process.env, ELECTRON_RUN_AS_NODE: '1' }
+      const cwd = path.dirname(serverPath)
+      mobileServerProcess = spawn(nodePath, [serverPath], { detached: false, stdio: ['ignore', 'pipe', 'pipe'], env, cwd, windowsHide: true })
       mobileServerProcess.stdout.on('data', (data: any) => {
-        console.log('📱 Mobile Server:', data.toString().trim())
-        if (data.toString().includes('Mobile Sync Server running')) {
+        const line = String(data || '').trim()
+        if (line) console.log('📱 Mobile Server:', line)
+        if (line.includes('Mobile Sync Server running')) {
           mobileServerStarted = true
           console.log('✅ Mobile Sync Server started via process')
         }
       })
-      
       mobileServerProcess.stderr.on('data', (data: any) => {
-        console.error('📱 Mobile Server Error:', data.toString().trim())
+        const line = String(data || '').trim()
+        if (line) console.error('📱 Mobile Server Error:', line)
       })
-      
       mobileServerProcess.on('close', (code: any) => {
         console.log(`📱 Mobile Server process exited with code ${code}`)
         mobileServerStarted = false
         mobileServerProcess = null
       })
-      
       mobileServerProcess.on('error', (error: any) => {
         console.error('❌ Failed to start mobile server process:', error)
         mobileServerProcess = null
       })
-      
     } catch (error) {
       console.error('❌ Alternative startup method failed:', error)
     }
@@ -1318,11 +1320,11 @@ app.whenReady().then(() => {
         serverPath = path.join(__dirname, '..', 'server', 'mobile-sync-server.js')
       } else {
         const possiblePaths = [
+          path.join(process.resourcesPath, 'app.asar.unpacked', 'server', 'mobile-sync-server.js'),
           path.join(process.resourcesPath, 'app.asar', 'server', 'mobile-sync-server.js'),
           path.join(process.resourcesPath, 'server', 'mobile-sync-server.js'),
           path.join(__dirname, '..', 'server', 'mobile-sync-server.js'),
-          path.join(process.cwd(), 'server', 'mobile-sync-server.js'),
-          path.join(process.resourcesPath, 'app.asar.unpacked', 'server', 'mobile-sync-server.js')
+          path.join(process.cwd(), 'server', 'mobile-sync-server.js')
         ]
         
         serverPath = possiblePaths.find(p => fs.existsSync(p)) || possiblePaths[0]
@@ -1374,6 +1376,7 @@ app.whenReady().then(() => {
             console.log('✅ Mobile Sync Server started successfully')
             console.log('📱 Server info:', serverInfo)
             mobileServerStarted = true
+            mobileServerInfo = serverInfo
           })
           .catch((error: any) => {
             console.error('❌ Mobile Sync Server failed to start:', error)
@@ -1407,11 +1410,30 @@ app.whenReady().then(() => {
     }
   }, 2000)
 
+  try {
+    ipcMain.handle('mobile-server-start', async () => {
+      try {
+        const ok = startMobileServer()
+        return { ok: !!ok }
+      } catch (e) {
+        try { startMobileServerAlternative(path.join(process.resourcesPath || '', 'server', 'mobile-sync-server.js')) } catch (_) {}
+        return { ok: false, error: String((e as any)?.message || e) }
+      }
+    })
+    ipcMain.handle('mobile-server-status', async () => {
+      const info = mobileServerInfo && typeof mobileServerInfo === 'object'
+        ? { port: (mobileServerInfo as any).port, ip: (mobileServerInfo as any).ip }
+        : null
+      return { ok: !!mobileServerStarted, info }
+    })
+  } catch (_) {}
+
   createWindow()
   setAppMenu()
   try { applySettingsToRuntime() } catch (_) {}
   
   app.on('before-quit', () => {
+    try { globalShortcut.unregisterAll() } catch (_) {}
     if (mobileServerProcess) {
       console.log('🔄 Stopping mobile server process...')
       mobileServerProcess.kill()
@@ -1850,21 +1872,18 @@ app.whenReady().then(() => {
 
   ipcMain.handle('dev-toggle-admin', async () => {
     try {
-      if (!devUnlocked) { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('dev-admin-request-unlock'); return { ok: false, error: 'locked' } }
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('dev-admin-toggle')
       return { ok: true }
     } catch (_) { return { ok: false } }
   })
   ipcMain.handle('dev-show-admin', async () => {
     try {
-      if (!devUnlocked) { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('dev-admin-request-unlock'); return { ok: false, error: 'locked' } }
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('dev-admin-show')
       return { ok: true }
     } catch (_) { return { ok: false } }
   })
   ipcMain.handle('dev-hide-admin', async () => {
     try {
-      if (!devUnlocked) { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('dev-admin-request-unlock'); return { ok: false, error: 'locked' } }
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('dev-admin-hide')
       return { ok: true }
     } catch (_) { return { ok: false } }

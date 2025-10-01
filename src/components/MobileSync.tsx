@@ -52,6 +52,13 @@ export default function MobileSync({ onClose, onFilesReceived }: MobileSyncProps
 
   const createSession = async () => {
     try {
+      try { await (window as any).api?.mobile?.start?.() } catch {}
+      try {
+        const st = await (window as any).api?.mobile?.status?.()
+        if (!(st && st.ok)) {
+          setTimeout(() => { try { (window as any).api?.mobile?.start?.() } catch {} }, 500)
+        }
+      } catch {}
       const hosts = ['127.0.0.1', 'localhost']
       const ports = [3030, 3031, 3032, 3033, 3034, 3035, 3036, 3037, 3038, 3039, 3040]
       const candidates: string[] = []

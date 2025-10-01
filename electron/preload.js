@@ -210,6 +210,10 @@ import_electron.contextBridge.exposeInMainWorld("api", {
     get: () => import_electron.ipcRenderer.invoke("settings-get"),
     set: (data) => import_electron.ipcRenderer.invoke("settings-set", data)
   },
+  mobile: {
+    start: () => import_electron.ipcRenderer.invoke("mobile-server-start"),
+    status: () => import_electron.ipcRenderer.invoke("mobile-server-status")
+  },
   auth: {
     isRequired: () => import_electron.ipcRenderer.invoke("auth-required"),
     login: (password, remember) => import_electron.ipcRenderer.invoke("auth-login", { password, remember }),

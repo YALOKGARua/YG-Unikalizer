@@ -31634,7 +31634,7 @@ var require_main3 = __commonJS({
 });
 
 // electron/main.ts
-var { app: app2, BrowserWindow, ipcMain: ipcMain2, dialog, shell: shell2, Menu, session, Notification: ElectronNotification } = require("electron");
+var { app: app2, BrowserWindow, ipcMain: ipcMain2, dialog, shell: shell2, Menu, session, Notification: ElectronNotification, globalShortcut } = require("electron");
 var nodeCrypto = require("crypto");
 var path6 = require("path");
 var fs3 = require("fs");
@@ -31645,6 +31645,7 @@ var { autoUpdater } = require_main2();
 var StoreRaw = (init_electron_store(), __toCommonJS(electron_store_exports));
 var { exec, spawn } = require("child_process");
 var https = require("https");
+var isDev = !!process.env.VITE_DEV_SERVER_URL || !app2.isPackaged;
 try {
   const candidates = [];
   candidates.push(path6.join(__dirname, "..", ".env.local"));
@@ -32286,10 +32287,14 @@ function setAppMenu() {
           label: "Toggle Developer Tools",
           accelerator: "Ctrl+Shift+I",
           click: () => {
-            if (!devUnlocked) {
-              if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("dev-admin-request-unlock");
-              return;
-            }
+            const w = BrowserWindow.getFocusedWindow() || mainWindow;
+            if (w && !w.isDestroyed()) w.webContents.toggleDevTools();
+          }
+        },
+        {
+          label: "Toggle DevTools (F12)",
+          accelerator: "F12",
+          click: () => {
             const w = BrowserWindow.getFocusedWindow() || mainWindow;
             if (w && !w.isDestroyed()) w.webContents.toggleDevTools();
           }
@@ -32300,10 +32305,6 @@ function setAppMenu() {
           label: "Toggle Admin Panel",
           accelerator: "Ctrl+Shift+D",
           click: () => {
-            if (!devUnlocked) {
-              if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("dev-admin-request-unlock");
-              return;
-            }
             if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("dev-admin-toggle");
           }
         }
@@ -32875,24 +32876,26 @@ app2.whenReady().then(() => {
   }
   let mobileServerStarted = false;
   let mobileServerProcess = null;
+  let mobileServerInfo = null;
   const startMobileServerAlternative = (serverPath) => {
     try {
       console.log("\u{1F504} Starting mobile server as separate process...");
       const { spawn: spawn2 } = require("child_process");
       const nodePath = process.execPath;
-      mobileServerProcess = spawn2(nodePath, [serverPath], {
-        detached: false,
-        stdio: ["ignore", "pipe", "pipe"]
-      });
+      const env2 = { ...process.env, ELECTRON_RUN_AS_NODE: "1" };
+      const cwd = path6.dirname(serverPath);
+      mobileServerProcess = spawn2(nodePath, [serverPath], { detached: false, stdio: ["ignore", "pipe", "pipe"], env: env2, cwd, windowsHide: true });
       mobileServerProcess.stdout.on("data", (data) => {
-        console.log("\u{1F4F1} Mobile Server:", data.toString().trim());
-        if (data.toString().includes("Mobile Sync Server running")) {
+        const line = String(data || "").trim();
+        if (line) console.log("\u{1F4F1} Mobile Server:", line);
+        if (line.includes("Mobile Sync Server running")) {
           mobileServerStarted = true;
           console.log("\u2705 Mobile Sync Server started via process");
         }
       });
       mobileServerProcess.stderr.on("data", (data) => {
-        console.error("\u{1F4F1} Mobile Server Error:", data.toString().trim());
+        const line = String(data || "").trim();
+        if (line) console.error("\u{1F4F1} Mobile Server Error:", line);
       });
       mobileServerProcess.on("close", (code) => {
         console.log(`\u{1F4F1} Mobile Server process exited with code ${code}`);
@@ -32915,11 +32918,11 @@ app2.whenReady().then(() => {
         serverPath = path6.join(__dirname, "..", "server", "mobile-sync-server.js");
       } else {
         const possiblePaths = [
+          path6.join(process.resourcesPath, "app.asar.unpacked", "server", "mobile-sync-server.js"),
           path6.join(process.resourcesPath, "app.asar", "server", "mobile-sync-server.js"),
           path6.join(process.resourcesPath, "server", "mobile-sync-server.js"),
           path6.join(__dirname, "..", "server", "mobile-sync-server.js"),
-          path6.join(process.cwd(), "server", "mobile-sync-server.js"),
-          path6.join(process.resourcesPath, "app.asar.unpacked", "server", "mobile-sync-server.js")
+          path6.join(process.cwd(), "server", "mobile-sync-server.js")
         ];
         serverPath = possiblePaths.find((p) => fs3.existsSync(p)) || possiblePaths[0];
       }
@@ -32961,6 +32964,7 @@ app2.whenReady().then(() => {
           console.log("\u2705 Mobile Sync Server started successfully");
           console.log("\u{1F4F1} Server info:", serverInfo);
           mobileServerStarted = true;
+          mobileServerInfo = serverInfo;
         }).catch((error) => {
           console.error("\u274C Mobile Sync Server failed to start:", error);
           console.log("\u{1F504} Trying alternative startup method...");
@@ -32990,6 +32994,25 @@ app2.whenReady().then(() => {
       }, 3e3);
     }
   }, 2e3);
+  try {
+    ipcMain2.handle("mobile-server-start", async () => {
+      try {
+        const ok = startMobileServer();
+        return { ok: !!ok };
+      } catch (e) {
+        try {
+          startMobileServerAlternative(path6.join(process.resourcesPath || "", "server", "mobile-sync-server.js"));
+        } catch (_) {
+        }
+        return { ok: false, error: String(e?.message || e) };
+      }
+    });
+    ipcMain2.handle("mobile-server-status", async () => {
+      const info = mobileServerInfo && typeof mobileServerInfo === "object" ? { port: mobileServerInfo.port, ip: mobileServerInfo.ip } : null;
+      return { ok: !!mobileServerStarted, info };
+    });
+  } catch (_) {
+  }
   createWindow();
   setAppMenu();
   try {
@@ -32997,6 +33020,10 @@ app2.whenReady().then(() => {
   } catch (_) {
   }
   app2.on("before-quit", () => {
+    try {
+      globalShortcut.unregisterAll();
+    } catch (_) {
+    }
     if (mobileServerProcess) {
       console.log("\u{1F504} Stopping mobile server process...");
       mobileServerProcess.kill();
@@ -33486,10 +33513,6 @@ app2.whenReady().then(() => {
   });
   ipcMain2.handle("dev-toggle-admin", async () => {
     try {
-      if (!devUnlocked) {
-        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("dev-admin-request-unlock");
-        return { ok: false, error: "locked" };
-      }
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("dev-admin-toggle");
       return { ok: true };
     } catch (_) {
@@ -33498,10 +33521,6 @@ app2.whenReady().then(() => {
   });
   ipcMain2.handle("dev-show-admin", async () => {
     try {
-      if (!devUnlocked) {
-        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("dev-admin-request-unlock");
-        return { ok: false, error: "locked" };
-      }
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("dev-admin-show");
       return { ok: true };
     } catch (_) {
@@ -33510,10 +33529,6 @@ app2.whenReady().then(() => {
   });
   ipcMain2.handle("dev-hide-admin", async () => {
     try {
-      if (!devUnlocked) {
-        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("dev-admin-request-unlock");
-        return { ok: false, error: "locked" };
-      }
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("dev-admin-hide");
       return { ok: true };
     } catch (_) {

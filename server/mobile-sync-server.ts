@@ -13,7 +13,9 @@ const io = new SocketServer(httpServer, {
   cors: {
     origin: '*',
     methods: ['GET', 'POST']
-  }
+  },
+  transports: ['websocket', 'polling'],
+  allowEIO3: true
 })
 
 const PORT = 3030
@@ -35,7 +37,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ 
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 }
+  limits: { fileSize: 200 * 1024 * 1024, files: 30 }
 })
 
 app.use(express.json())

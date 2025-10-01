@@ -47,7 +47,9 @@ var io = new import_socket.Server(httpServer, {
   cors: {
     origin: "*",
     methods: ["GET", "POST"]
-  }
+  },
+  transports: ["websocket", "polling"],
+  allowEIO3: true
 });
 var PORT = 3030;
 var sessions = /* @__PURE__ */ new Map();
@@ -66,7 +68,7 @@ var storage = import_multer.default.diskStorage({
 });
 var upload = (0, import_multer.default)({
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 }
+  limits: { fileSize: 200 * 1024 * 1024, files: 30 }
 });
 app.use(import_express.default.json());
 app.use(import_express.default.static(import_path.default.join(__dirname, "../public")));
@@ -75,8 +77,16 @@ app.get("/api/session/create", (req, res) => {
   const sessionId = (0, import_uuid.v4)();
   sessions.set(sessionId, { token, desktopSocket: null, mobileSocket: null });
   const localIP = getLocalIP();
-  const url = `http://${localIP}:${PORT}/mobile?session=${sessionId}&token=${token}`;
-  res.json({ sessionId, token, url, ip: localIP, port: PORT });
+  const hostHeader = String(req.headers.host || "");
+  let resolvedPort = PORT;
+  if (hostHeader.includes(":")) {
+    const parts = hostHeader.split(":");
+    const portText = parts[parts.length - 1];
+    const parsed = parseInt(portText, 10);
+    if (!Number.isNaN(parsed) && parsed > 0) resolvedPort = parsed;
+  }
+  const url = `http://${localIP}:${resolvedPort}/mobile?session=${sessionId}&token=${token}`;
+  res.json({ sessionId, token, url, ip: localIP, port: resolvedPort });
 });
 app.get("/api/session/:sessionId/validate", (req, res) => {
   const { sessionId } = req.params;
