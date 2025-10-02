@@ -128,6 +128,7 @@ const PokerGame = () => {
     }
 
     setBalance(prev => prev - bet)
+    
     setPot(bet)
     setIsPlaying(true)
     setShowResult(false)

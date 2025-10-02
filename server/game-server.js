@@ -1,0 +1,386 @@
+"use strict";
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+
+// server/game-server.ts
+var game_server_exports = {};
+__export(game_server_exports, {
+  getServerInfo: () => getServerInfo,
+  startGameServer: () => startGameServer
+});
+module.exports = __toCommonJS(game_server_exports);
+var import_ws = require("ws");
+var import_crypto = require("crypto");
+var import_os = require("os");
+var PORT = Number(process.env.GAME_PORT || 8082);
+var HOST = process.env.GAME_HOST || "0.0.0.0";
+function getLocalIpAddress() {
+  const interfaces = (0, import_os.networkInterfaces)();
+  for (const name of Object.keys(interfaces)) {
+    const iface = interfaces[name];
+    if (!iface) continue;
+    for (const details of iface) {
+      if (details.family === "IPv4" && !details.internal) {
+        return details.address;
+      }
+    }
+  }
+  return "localhost";
+}
+var rooms = /* @__PURE__ */ new Map();
+var wss = new import_ws.WebSocketServer({ host: HOST, port: PORT });
+function send(ws, obj) {
+  try {
+    if (ws.readyState === 1) {
+      ws.send(JSON.stringify(obj));
+    }
+  } catch {
+  }
+}
+function broadcastToRoom(roomId, obj) {
+  const data = JSON.stringify(obj);
+  for (const client of wss.clients) {
+    const c = client;
+    if (c.readyState === 1 && c.roomId === roomId) {
+      try {
+        c.send(data);
+      } catch {
+      }
+    }
+  }
+}
+function generateRoomId() {
+  return Math.random().toString(36).substring(2, 8).toUpperCase();
+}
+wss.on("connection", (ws) => {
+  ws.id = (0, import_crypto.randomUUID)();
+  ws.isAlive = true;
+  console.log(`[GameServer] Client connected: ${ws.id}, total clients: ${wss.clients.size}, total rooms: ${rooms.size}`);
+  ws.on("pong", () => {
+    ws.isAlive = true;
+  });
+  ws.on("message", (data) => {
+    let msg = null;
+    try {
+      msg = JSON.parse(String(data));
+    } catch {
+      return;
+    }
+    if (!msg || typeof msg !== "object") return;
+    const type = String(msg.type || "");
+    if (type === "getRooms") {
+      const roomList = Array.from(rooms.values()).map((r) => ({
+        id: r.id,
+        name: r.name,
+        game: r.game,
+        players: r.players.map((p) => p.name),
+        maxPlayers: r.maxPlayers,
+        createdAt: r.createdAt
+      }));
+      send(ws, { type: "roomList", rooms: roomList });
+      return;
+    }
+    if (type === "createRoom") {
+      const name = String(msg.name || "").trim();
+      const game = msg.game === "blackjack" ? "blackjack" : "poker";
+      const maxPlayers = Math.max(2, Math.min(8, Number(msg.maxPlayers || 4)));
+      const playerName = String(msg.playerName || "").trim();
+      console.log(`[GameServer] Create room request: name="${name}", game=${game}, playerName="${playerName}"`);
+      if (!name || !playerName) {
+        send(ws, { type: "error", message: "\u041D\u0430\u0437\u0432\u0430\u043D\u0438\u0435 \u043A\u043E\u043C\u043D\u0430\u0442\u044B \u0438 \u0438\u043C\u044F \u0438\u0433\u0440\u043E\u043A\u0430 \u043E\u0431\u044F\u0437\u0430\u0442\u0435\u043B\u044C\u043D\u044B" });
+        return;
+      }
+      const roomId = generateRoomId();
+      const room = {
+        id: roomId,
+        name,
+        game,
+        players: [{ id: ws.id, name: playerName }],
+        maxPlayers,
+        createdAt: Date.now(),
+        host: ws.id
+      };
+      rooms.set(roomId, room);
+      ws.roomId = roomId;
+      ws.playerName = playerName;
+      console.log(`[GameServer] Room created successfully: ${roomId} (${game}), total rooms: ${rooms.size}`);
+      const roomData = {
+        id: room.id,
+        name: room.name,
+        game: room.game,
+        players: room.players.map((p) => p.name),
+        maxPlayers: room.maxPlayers,
+        createdAt: room.createdAt
+      };
+      send(ws, { type: "roomCreated", room: roomData });
+      for (const client of wss.clients) {
+        const c = client;
+        if (c.readyState === 1 && !c.roomId) {
+          send(c, { type: "roomListUpdate", rooms: Array.from(rooms.values()).map((r) => ({
+            id: r.id,
+            name: r.name,
+            game: r.game,
+            players: r.players.map((p) => p.name),
+            maxPlayers: r.maxPlayers,
+            createdAt: r.createdAt
+          })) });
+        }
+      }
+      return;
+    }
+    if (type === "joinRoom") {
+      const roomId = String(msg.roomId || "").toUpperCase().trim();
+      const playerName = String(msg.playerName || "").trim();
+      console.log(`[GameServer] Join room request: roomId="${roomId}", playerName="${playerName}"`);
+      console.log(`[GameServer] Available rooms:`, Array.from(rooms.keys()));
+      if (!roomId) {
+        send(ws, { type: "error", message: "\u041A\u043E\u0434 \u043A\u043E\u043C\u043D\u0430\u0442\u044B \u043D\u0435 \u0443\u043A\u0430\u0437\u0430\u043D" });
+        return;
+      }
+      if (!playerName) {
+        send(ws, { type: "error", message: "\u0418\u043C\u044F \u0438\u0433\u0440\u043E\u043A\u0430 \u043D\u0435 \u0443\u043A\u0430\u0437\u0430\u043D\u043E" });
+        return;
+      }
+      const room = rooms.get(roomId);
+      if (!room) {
+        console.log(`[GameServer] Room "${roomId}" not found. Available:`, Array.from(rooms.keys()));
+        send(ws, { type: "error", message: `\u041A\u043E\u043C\u043D\u0430\u0442\u0430 ${roomId} \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u0430. \u0412\u043E\u0437\u043C\u043E\u0436\u043D\u043E \u043E\u043D\u0430 \u0431\u044B\u043B\u0430 \u0443\u0434\u0430\u043B\u0435\u043D\u0430.` });
+        send(ws, { type: "roomListUpdate", rooms: Array.from(rooms.values()).map((r) => ({ ...r, players: r.players.map((p) => p.name) })) });
+        return;
+      }
+      if (room.players.length >= room.maxPlayers) {
+        send(ws, { type: "error", message: "Room is full" });
+        return;
+      }
+      if (room.players.some((p) => p.name === playerName)) {
+        send(ws, { type: "error", message: "Name already taken" });
+        return;
+      }
+      room.players.push({ id: ws.id, name: playerName });
+      ws.roomId = roomId;
+      ws.playerName = playerName;
+      const roomData = {
+        id: room.id,
+        name: room.name,
+        game: room.game,
+        players: room.players.map((p) => p.name),
+        maxPlayers: room.maxPlayers,
+        createdAt: room.createdAt
+      };
+      send(ws, { type: "roomJoined", room: roomData });
+      broadcastToRoom(roomId, {
+        type: "playerJoined",
+        player: playerName,
+        players: room.players.map((p) => p.name)
+      });
+      for (const client of wss.clients) {
+        const c = client;
+        if (c.readyState === 1 && !c.roomId) {
+          send(c, { type: "roomListUpdate", rooms: Array.from(rooms.values()).map((r) => ({ ...r, players: r.players.map((p) => p.name) })) });
+        }
+      }
+      console.log(`[GameServer] Player ${playerName} joined room ${roomId}`);
+      return;
+    }
+    if (type === "leaveRoom") {
+      if (!ws.roomId) return;
+      const room = rooms.get(ws.roomId);
+      if (room) {
+        room.players = room.players.filter((p) => p.id !== ws.id);
+        if (room.players.length === 0) {
+          rooms.delete(ws.roomId);
+          console.log(`[GameServer] Room ${ws.roomId} deleted (empty)`);
+        } else {
+          broadcastToRoom(ws.roomId, {
+            type: "playerLeft",
+            player: ws.playerName,
+            players: room.players.map((p) => p.name)
+          });
+        }
+        for (const client of wss.clients) {
+          const c = client;
+          if (c.readyState === 1 && !c.roomId) {
+            send(c, { type: "roomListUpdate", rooms: Array.from(rooms.values()).map((r) => ({ ...r, players: r.players.map((p) => p.name) })) });
+          }
+        }
+      }
+      ws.roomId = void 0;
+      ws.playerName = void 0;
+      send(ws, { type: "roomLeft" });
+      return;
+    }
+    if (type === "startGame") {
+      if (!ws.roomId) return;
+      const room = rooms.get(ws.roomId);
+      if (!room) {
+        send(ws, { type: "error", message: "\u041A\u043E\u043C\u043D\u0430\u0442\u0430 \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u0430" });
+        return;
+      }
+      if (room.host !== ws.id) {
+        send(ws, { type: "error", message: "\u0422\u043E\u043B\u044C\u043A\u043E \u0445\u043E\u0441\u0442 \u043C\u043E\u0436\u0435\u0442 \u043D\u0430\u0447\u0430\u0442\u044C \u0438\u0433\u0440\u0443" });
+        return;
+      }
+      console.log(`[GameServer] Game starting in room ${ws.roomId}, waiting for players to be ready`);
+      room.gameStarting = true;
+      room.readyPlayers = [];
+      broadcastToRoom(ws.roomId, {
+        type: "gameStarting",
+        game: room.game,
+        players: room.players.map((p) => p.name),
+        roomId: room.id,
+        readyPlayers: []
+      });
+      return;
+    }
+    if (type === "playerReady") {
+      if (!ws.roomId) return;
+      const room = rooms.get(ws.roomId);
+      if (!room || !room.gameStarting) return;
+      if (!room.readyPlayers) room.readyPlayers = [];
+      if (!room.readyPlayers.includes(ws.playerName)) {
+        room.readyPlayers.push(ws.playerName);
+        console.log(`[GameServer] Player ${ws.playerName} is ready in room ${ws.roomId} (${room.readyPlayers.length}/${room.players.length})`);
+        broadcastToRoom(ws.roomId, {
+          type: "playerReady",
+          player: ws.playerName,
+          readyPlayers: room.readyPlayers
+        });
+        if (room.readyPlayers.length === room.players.length) {
+          console.log(`[GameServer] All players ready! Starting game in room ${ws.roomId}`);
+          room.gameStarting = false;
+          room.readyPlayers = [];
+          broadcastToRoom(ws.roomId, {
+            type: "gameStarted",
+            game: room.game,
+            players: room.players.map((p) => p.name),
+            roomId: room.id
+          });
+        }
+      }
+      return;
+    }
+    if (type === "gameAction") {
+      if (!ws.roomId) return;
+      console.log(`[GameServer] Game action in room ${ws.roomId}:`, msg.action);
+      broadcastToRoom(ws.roomId, {
+        type: "gameAction",
+        player: ws.playerName,
+        action: msg.action,
+        data: msg.data
+      });
+      return;
+    }
+    if (type === "gameState") {
+      if (!ws.roomId) return;
+      broadcastToRoom(ws.roomId, {
+        type: "gameStateUpdate",
+        player: ws.playerName,
+        state: msg.state
+      });
+      return;
+    }
+    if (type === "chat") {
+      if (!ws.roomId) return;
+      const text = String(msg.text || "").trim();
+      if (!text) return;
+      broadcastToRoom(ws.roomId, {
+        type: "chat",
+        player: ws.playerName,
+        text: text.slice(0, 500)
+      });
+      return;
+    }
+  });
+  ws.on("close", () => {
+    console.log(`[GameServer] Client disconnected: ${ws.id}, remaining clients: ${wss.clients.size - 1}`);
+    if (ws.roomId) {
+      const room = rooms.get(ws.roomId);
+      if (room) {
+        room.players = room.players.filter((p) => p.id !== ws.id);
+        if (room.players.length === 0) {
+          rooms.delete(ws.roomId);
+          console.log(`[GameServer] Room ${ws.roomId} deleted (empty), remaining rooms: ${rooms.size}`);
+        } else {
+          console.log(`[GameServer] Player ${ws.playerName} left room ${ws.roomId}, remaining: ${room.players.length}`);
+          broadcastToRoom(ws.roomId, {
+            type: "playerLeft",
+            player: ws.playerName,
+            players: room.players.map((p) => p.name)
+          });
+        }
+        for (const client of wss.clients) {
+          const c = client;
+          if (c.readyState === 1 && !c.roomId) {
+            send(c, { type: "roomListUpdate", rooms: Array.from(rooms.values()).map((r) => ({ ...r, players: r.players.map((p) => p.name) })) });
+          }
+        }
+      }
+    }
+  });
+  send(ws, { type: "connected", id: ws.id });
+});
+var interval = setInterval(() => {
+  for (const ws of wss.clients) {
+    const c = ws;
+    if (c.isAlive === false) {
+      try {
+        c.terminate();
+      } catch {
+      }
+      continue;
+    }
+    c.isAlive = false;
+    try {
+      c.ping();
+    } catch {
+    }
+  }
+  const now = Date.now();
+  for (const [roomId, room] of rooms.entries()) {
+    if (now - room.createdAt > 24 * 60 * 60 * 1e3) {
+      rooms.delete(roomId);
+      console.log(`[GameServer] Room ${roomId} deleted (expired)`);
+    }
+  }
+}, 3e4);
+wss.on("close", () => {
+  clearInterval(interval);
+});
+var localIp = getLocalIpAddress();
+console.log(`[GameServer] WebSocket server started on ${HOST}:${PORT}`);
+console.log(`[GameServer] Local IP: ${localIp}`);
+console.log(`[GameServer] Connect from this device: ws://localhost:${PORT}`);
+console.log(`[GameServer] Connect from network: ws://${localIp}:${PORT}`);
+console.log(`[GameServer] Waiting for connections...`);
+function startGameServer() {
+  console.log("[GameServer] Already running");
+}
+function getServerInfo() {
+  return {
+    host: HOST,
+    port: PORT,
+    localIp,
+    localUrl: `ws://localhost:${PORT}`,
+    networkUrl: `ws://${localIp}:${PORT}`
+  };
+}
+// Annotate the CommonJS export names for ESM import in node:
+0 && (module.exports = {
+  getServerInfo,
+  startGameServer
+});

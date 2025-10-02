@@ -32879,6 +32879,8 @@ app2.whenReady().then(() => {
   let mobileServerStarted = false;
   let mobileServerProcess = null;
   let mobileServerInfo = null;
+  let gameServerStarted = false;
+  let gameServerProcess = null;
   const startMobileServerAlternative = (serverPath) => {
     try {
       console.log("\u{1F504} Starting mobile server as separate process...");
@@ -33006,6 +33008,102 @@ app2.whenReady().then(() => {
       return false;
     }
   };
+  const startGameServerAlternative = (serverPath) => {
+    try {
+      console.log("\u{1F504} Starting game server as separate process...");
+      const { spawn: spawn2 } = require("child_process");
+      const nodePath = process.execPath;
+      const nodeModulesCandidates = [
+        path6.join(process.resourcesPath || "", "app.asar", "node_modules"),
+        path6.join(process.resourcesPath || "", "node_modules"),
+        path6.join(__dirname, "..", "node_modules"),
+        path6.join(process.cwd(), "node_modules")
+      ];
+      const nodePathEnv = nodeModulesCandidates.filter((p) => {
+        try {
+          return fs3.existsSync(p);
+        } catch {
+          return false;
+        }
+      }).join(path6.delimiter);
+      const env2 = { ...process.env, ELECTRON_RUN_AS_NODE: "1", NODE_PATH: nodePathEnv };
+      const cwd = path6.dirname(serverPath);
+      let spawnServerPath = serverPath;
+      try {
+        if (serverPath.includes("app.asar")) {
+          const unpacked = path6.join(process.resourcesPath || "", "app.asar.unpacked", "server", "game-server.js");
+          if (fs3.existsSync(unpacked)) spawnServerPath = unpacked;
+        }
+      } catch {
+      }
+      gameServerProcess = spawn2(nodePath, [spawnServerPath], { detached: false, stdio: ["ignore", "pipe", "pipe"], env: env2, cwd, windowsHide: true });
+      gameServerProcess.stdout.on("data", (data) => {
+        const line = String(data || "").trim();
+        if (line) console.log("\u{1F3AE} Game Server:", line);
+        if (line.includes("WebSocket server started")) {
+          gameServerStarted = true;
+          console.log("\u2705 Game Server started via process");
+        }
+      });
+      gameServerProcess.stderr.on("data", (data) => {
+        const line = String(data || "").trim();
+        if (line) console.error("\u{1F3AE} Game Server Error:", line);
+      });
+      gameServerProcess.on("close", (code) => {
+        console.log(`\u{1F3AE} Game Server process exited with code ${code}`);
+        gameServerStarted = false;
+        gameServerProcess = null;
+      });
+      gameServerProcess.on("error", (error) => {
+        console.error("\u274C Failed to start game server process:", error);
+        gameServerProcess = null;
+      });
+    } catch (error) {
+      console.error("\u274C Game server alternative startup failed:", error);
+    }
+  };
+  const startGameServer = () => {
+    if (gameServerStarted) return;
+    try {
+      let serverPath;
+      if (isDev) {
+        serverPath = path6.join(__dirname, "..", "server", "game-server.js");
+      } else {
+        const possiblePaths = [
+          path6.join(process.resourcesPath, "app.asar", "server", "game-server.js"),
+          path6.join(process.resourcesPath, "app.asar.unpacked", "server", "game-server.js"),
+          path6.join(process.resourcesPath, "server", "game-server.js"),
+          path6.join(__dirname, "..", "server", "game-server.js"),
+          path6.join(process.cwd(), "server", "game-server.js")
+        ];
+        serverPath = possiblePaths.find((p) => fs3.existsSync(p)) || possiblePaths[0];
+      }
+      if (!fs3.existsSync(serverPath)) {
+        console.log("\u{1F3AE} Game server file not found:", serverPath);
+        return false;
+      }
+      console.log("\u{1F3AE} Game server file exists, starting...");
+      try {
+        const { startGameServer: startFn } = require(serverPath);
+        console.log("\u{1F3AE} Game server module loaded");
+        if (typeof startFn === "function") {
+          startFn();
+          gameServerStarted = true;
+          console.log("\u2705 Game Server started successfully");
+        } else {
+          console.log("\u{1F504} Trying alternative startup method...");
+          startGameServerAlternative(serverPath);
+        }
+      } catch (requireError) {
+        console.log("\u{1F504} Trying alternative startup method...");
+        startGameServerAlternative(serverPath);
+      }
+      return true;
+    } catch (error) {
+      console.error("\u274C Failed to start Game Server:", error);
+      return false;
+    }
+  };
   setTimeout(() => {
     if (!startMobileServer()) {
       console.log("\u{1F504} Retrying mobile server start in 3 seconds...");
@@ -33017,7 +33115,37 @@ app2.whenReady().then(() => {
       }, 3e3);
     }
   }, 2e3);
+  setTimeout(() => {
+    startGameServer();
+  }, 3e3);
   try {
+    ipcMain2.handle("game-server-info", async () => {
+      try {
+        const os4 = require("os");
+        const networkInterfaces = os4.networkInterfaces();
+        let localIp = "localhost";
+        for (const name of Object.keys(networkInterfaces)) {
+          const iface = networkInterfaces[name];
+          if (!iface) continue;
+          for (const details of iface) {
+            if (details.family === "IPv4" && !details.internal) {
+              localIp = details.address;
+              break;
+            }
+          }
+          if (localIp !== "localhost") break;
+        }
+        return {
+          ok: true,
+          localIp,
+          port: 8082,
+          localUrl: "ws://localhost:8082",
+          networkUrl: `ws://${localIp}:8082`
+        };
+      } catch (e) {
+        return { ok: false, error: String(e?.message || e) };
+      }
+    });
     ipcMain2.handle("mobile-server-start", async () => {
       try {
         const ok = startMobileServer();
