@@ -37,6 +37,8 @@ interface Room {
   host: string
   gameStarting?: boolean
   readyPlayers?: string[]
+  gameInProgress?: boolean
+  gameState?: any
 }
 
 const rooms = new Map<string, Room>()
@@ -164,13 +166,17 @@ wss.on('connection', (ws: ExtWebSocket) => {
       const roomId = String(msg.roomId || '').toUpperCase().trim()
       const playerName = String(msg.playerName || '').trim()
 
-      console.log(`[GameServer] Join room request: roomId="${roomId}", playerName="${playerName}"`)
+        console.log(`[GameServer] Join room request: roomId="${roomId}", playerName="${playerName}", ws.id="${ws.id}"`)
       console.log(`[GameServer] Available rooms:`, Array.from(rooms.keys()))
+      console.log(`[GameServer] Room details:`, Array.from(rooms.values()).map(r => ({ id: r.id, players: r.players.length, createdAt: r.createdAt })))
 
       if (!roomId) {
+        console.log(`[GameServer] No roomId provided`)
         send(ws, { type: 'error', message: 'Код комнаты не указан' })
         return
       }
+
+      console.log(`[GameServer] Looking for room: ${roomId}`)
 
       if (!playerName) {
         send(ws, { type: 'error', message: 'Имя игрока не указано' })
@@ -190,14 +196,20 @@ wss.on('connection', (ws: ExtWebSocket) => {
         return
       }
 
-      if (room.players.some(p => p.name === playerName)) {
-        send(ws, { type: 'error', message: 'Name already taken' })
-        return
+      const existingPlayerIndex = room.players.findIndex(p => p.name === playerName)
+
+      if (existingPlayerIndex >= 0) {
+        console.log(`[GameServer] Player ${playerName} reconnecting to room ${roomId}`)
+        room.players[existingPlayerIndex] = { id: ws.id!, name: playerName }
+      } else {
+        console.log(`[GameServer] Adding player ${playerName} to room ${roomId}`)
+        room.players.push({ id: ws.id!, name: playerName })
       }
 
-      room.players.push({ id: ws.id!, name: playerName })
       ws.roomId = roomId
       ws.playerName = playerName
+
+      console.log(`[GameServer] Player ${playerName} joined room ${roomId} successfully`)
 
       const roomData = {
         id: room.id,
@@ -205,7 +217,10 @@ wss.on('connection', (ws: ExtWebSocket) => {
         game: room.game,
         players: room.players.map(p => p.name),
         maxPlayers: room.maxPlayers,
-        createdAt: room.createdAt
+        createdAt: room.createdAt,
+        gameInProgress: room.gameInProgress || false,
+        gameStarting: room.gameStarting || false,
+        readyPlayers: room.readyPlayers || []
       }
       
       send(ws, { type: 'roomJoined', room: roomData })
@@ -311,6 +326,7 @@ wss.on('connection', (ws: ExtWebSocket) => {
           
           room.gameStarting = false
           room.readyPlayers = []
+          room.gameInProgress = true
           
           broadcastToRoom(ws.roomId, {
             type: 'gameStarted',
@@ -339,11 +355,39 @@ wss.on('connection', (ws: ExtWebSocket) => {
 
     if (type === 'gameState') {
       if (!ws.roomId) return
+      const room = rooms.get(ws.roomId)
+      if (!room) return
+      room.gameState = msg.state
       
       broadcastToRoom(ws.roomId, {
         type: 'gameStateUpdate',
         player: ws.playerName,
         state: msg.state
+      })
+      return
+    }
+
+    if (type === 'requestGameState') {
+      console.log(`[GameServer] requestGameState from ${ws.playerName} in room ${ws.roomId}`)
+      if (!ws.roomId) {
+        console.log(`[GameServer] No roomId for ${ws.playerName}`)
+        return
+      }
+      const room = rooms.get(ws.roomId)
+      if (!room) {
+        console.log(`[GameServer] Room ${ws.roomId} not found`)
+        return
+      }
+      if (!room.gameState) {
+        console.log(`[GameServer] No gameState in room ${ws.roomId}`)
+        return
+      }
+      
+      console.log(`[GameServer] Sending current game state to ${ws.playerName}`)
+      send(ws, {
+        type: 'gameStateUpdate',
+        player: 'server',
+        state: room.gameState
       })
       return
     }
@@ -362,30 +406,44 @@ wss.on('connection', (ws: ExtWebSocket) => {
   })
 
   ws.on('close', () => {
-    console.log(`[GameServer] Client disconnected: ${ws.id}, remaining clients: ${wss.clients.size - 1}`)
+    console.log(`[GameServer] Client disconnected: ${ws.id} (${ws.playerName}), remaining clients: ${wss.clients.size - 1}`)
 
     if (ws.roomId) {
       const room = rooms.get(ws.roomId)
       if (room) {
-        room.players = room.players.filter(p => p.id !== ws.id)
-
-        if (room.players.length === 0) {
-          rooms.delete(ws.roomId)
-          console.log(`[GameServer] Room ${ws.roomId} deleted (empty), remaining rooms: ${rooms.size}`)
-        } else {
-          console.log(`[GameServer] Player ${ws.playerName} left room ${ws.roomId}, remaining: ${room.players.length}`)
-          broadcastToRoom(ws.roomId, {
-            type: 'playerLeft',
-            player: ws.playerName,
-            players: room.players.map(p => p.name)
-          })
-        }
-
-        for (const client of wss.clients) {
+        // Check if this player has another active connection in the same room
+        const hasOtherConnection = Array.from(wss.clients).some(client => {
           const c = client as ExtWebSocket
-          if (c.readyState === 1 && !c.roomId) {
-            send(c, { type: 'roomListUpdate', rooms: Array.from(rooms.values()).map(r => ({ ...r, players: r.players.map(p => p.name) })) })
+          return c !== ws && c.roomId === ws.roomId && c.playerName === ws.playerName && c.readyState === 1
+        })
+
+        if (!hasOtherConnection) {
+          // Only remove player if they don't have another active connection
+          const wasHost = room.host === ws.id
+          room.players = room.players.filter(p => p.id !== ws.id)
+
+          console.log(`[GameServer] Player ${ws.playerName} left room ${ws.roomId}. Was host: ${wasHost}, remaining players: ${room.players.length}`)
+
+          if (room.players.length === 0) {
+            rooms.delete(ws.roomId)
+            console.log(`[GameServer] Room ${ws.roomId} deleted (empty), remaining rooms: ${rooms.size}`)
+          } else {
+            console.log(`[GameServer] Room ${ws.roomId} still has ${room.players.length} players`)
+            broadcastToRoom(ws.roomId, {
+              type: 'playerLeft',
+              player: ws.playerName,
+              players: room.players.map(p => p.name)
+            })
           }
+
+          for (const client of wss.clients) {
+            const c = client as ExtWebSocket
+            if (c.readyState === 1 && !c.roomId) {
+              send(c, { type: 'roomListUpdate', rooms: Array.from(rooms.values()).map(r => ({ ...r, players: r.players.map(p => p.name) })) })
+            }
+          }
+        } else {
+          console.log(`[GameServer] Player ${ws.playerName} has another active connection, not removing from room ${ws.roomId}`)
         }
       }
     }

@@ -31,7 +31,12 @@ const OnlineLobby = () => {
   const [joinRoomId, setJoinRoomId] = useState('')
   const [serverUrl, setServerUrl] = useState(() => {
     try {
-      return localStorage.getItem('gameServerUrl') || 'ws://localhost:8082'
+      const saved = localStorage.getItem('gameServerUrl')
+      if (saved && saved.includes('10.11.10.217')) {
+        localStorage.removeItem('gameServerUrl')
+        return 'ws://localhost:8082'
+      }
+      return saved || 'ws://localhost:8082'
     } catch {
       return 'ws://localhost:8082'
     }
@@ -176,35 +181,38 @@ const OnlineLobby = () => {
             if (msg.type === 'gameStarted') {
               console.log('[GameClient] Game started:', msg)
               toast.success(`Игра начинается: ${msg.game === 'poker' ? 'Poker' : 'Blackjack'}`)
-              
+
               setTimeout(() => {
                 const path = `/fun/online/${msg.game}?roomId=${msg.roomId}`
                 window.location.hash = path
-              }, 500)
+              }, 1000)
             }
           } catch (err) {
             console.error('Error parsing message:', err)
           }
         }
 
-        ws.onerror = () => {
+        ws.onerror = (error) => {
+          console.error('[GameClient] WebSocket error:', error)
           setConnected(false)
         }
 
-        ws.onclose = () => {
-          console.log('[GameClient] Disconnected from server')
+        ws.onclose = (event) => {
+          console.log('[GameClient] Disconnected from server', event.code, event.reason)
           setConnected(false)
-          
+
           if (refreshIntervalRef.current) {
             clearInterval(refreshIntervalRef.current)
             refreshIntervalRef.current = null
           }
-          
+
           if (reconnectAttemptsRef.current < maxReconnectAttempts) {
             reconnectAttemptsRef.current++
             const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current - 1), 10000)
             console.log(`[GameClient] Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts})`)
-            reconnectTimeoutRef.current = window.setTimeout(connectToServer, delay)
+            reconnectTimeoutRef.current = window.setTimeout(() => {
+              connectToServer()
+            }, delay)
           } else {
             console.log('[GameClient] Max reconnect attempts reached')
             toast.error('Не удалось подключиться к серверу. Проверьте что сервер запущен.')

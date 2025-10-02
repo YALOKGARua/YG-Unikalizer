@@ -41,18 +41,37 @@ const OnlineBlackjackGame = () => {
     const name = localStorage.getItem('onlinePlayerName') || 'Player'
     setMyName(name)
 
-    const serverUrl = localStorage.getItem('gameServerUrl') || 'ws://localhost:8082'
-    const ws = new WebSocket(serverUrl)
-    wsRef.current = ws
+    const connectTimer = setTimeout(() => {
+      const serverUrl = localStorage.getItem('gameServerUrl') || 'ws://localhost:8082'
+      const ws = new WebSocket(serverUrl)
+      wsRef.current = ws
 
     ws.onopen = () => {
       console.log('[OnlineBlackjack] Connected')
       setConnected(true)
+      
+      if (roomId) {
+        ws.send(JSON.stringify({
+          type: 'joinRoom',
+          roomId: roomId,
+          playerName: name
+        }))
+      }
     }
 
     ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data)
+        
+        if (msg.type === 'roomJoined') {
+          console.log('[OnlineBlackjack] Rejoined room:', msg.room)
+          if (msg.room && msg.room.gameInProgress) {
+            console.log('[OnlineBlackjack] Game already in progress, requesting state')
+            ws.send(JSON.stringify({
+              type: 'requestGameState'
+            }))
+          }
+        }
         
         if (msg.type === 'gameStarted') {
           console.log('[OnlineBlackjack] Game started, players:', msg.players)
@@ -74,8 +93,11 @@ const OnlineBlackjackGame = () => {
           
           setGameState(initialState)
           
-          if (msg.players[0] === name) {
+          if (msg.players[0] === myName) {
+            console.log('[OnlineBlackjack] I am the host, broadcasting initial state')
             broadcastState(initialState)
+          } else {
+            console.log('[OnlineBlackjack] I am a client, waiting for host state')
           }
         }
         
@@ -94,8 +116,16 @@ const OnlineBlackjackGame = () => {
       toast.error('Соединение потеряно')
     }
 
+      return () => {
+        ws.close()
+      }
+    }, 500) // Задержка 500ms
+
     return () => {
-      ws.close()
+      clearTimeout(connectTimer)
+      if (wsRef.current) {
+        wsRef.current.close()
+      }
     }
   }, [roomId])
 
@@ -137,10 +167,15 @@ const OnlineBlackjackGame = () => {
   }
 
   const broadcastState = (state: GameState) => {
-    wsRef.current?.send(JSON.stringify({
-      type: 'gameState',
-      state
-    }))
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      console.log('[OnlineBlackjack] Broadcasting state:', state.phase, 'players:', state.players.length)
+      wsRef.current.send(JSON.stringify({
+        type: 'gameState',
+        state
+      }))
+    } else {
+      console.error('[OnlineBlackjack] Cannot broadcast - WebSocket not open')
+    }
   }
 
 

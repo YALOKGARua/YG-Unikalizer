@@ -146,12 +146,15 @@ wss.on("connection", (ws) => {
     if (type === "joinRoom") {
       const roomId = String(msg.roomId || "").toUpperCase().trim();
       const playerName = String(msg.playerName || "").trim();
-      console.log(`[GameServer] Join room request: roomId="${roomId}", playerName="${playerName}"`);
+      console.log(`[GameServer] Join room request: roomId="${roomId}", playerName="${playerName}", ws.id="${ws.id}"`);
       console.log(`[GameServer] Available rooms:`, Array.from(rooms.keys()));
+      console.log(`[GameServer] Room details:`, Array.from(rooms.values()).map((r) => ({ id: r.id, players: r.players.length, createdAt: r.createdAt })));
       if (!roomId) {
+        console.log(`[GameServer] No roomId provided`);
         send(ws, { type: "error", message: "\u041A\u043E\u0434 \u043A\u043E\u043C\u043D\u0430\u0442\u044B \u043D\u0435 \u0443\u043A\u0430\u0437\u0430\u043D" });
         return;
       }
+      console.log(`[GameServer] Looking for room: ${roomId}`);
       if (!playerName) {
         send(ws, { type: "error", message: "\u0418\u043C\u044F \u0438\u0433\u0440\u043E\u043A\u0430 \u043D\u0435 \u0443\u043A\u0430\u0437\u0430\u043D\u043E" });
         return;
@@ -167,20 +170,27 @@ wss.on("connection", (ws) => {
         send(ws, { type: "error", message: "Room is full" });
         return;
       }
-      if (room.players.some((p) => p.name === playerName)) {
-        send(ws, { type: "error", message: "Name already taken" });
-        return;
+      const existingPlayerIndex = room.players.findIndex((p) => p.name === playerName);
+      if (existingPlayerIndex >= 0) {
+        console.log(`[GameServer] Player ${playerName} reconnecting to room ${roomId}`);
+        room.players[existingPlayerIndex] = { id: ws.id, name: playerName };
+      } else {
+        console.log(`[GameServer] Adding player ${playerName} to room ${roomId}`);
+        room.players.push({ id: ws.id, name: playerName });
       }
-      room.players.push({ id: ws.id, name: playerName });
       ws.roomId = roomId;
       ws.playerName = playerName;
+      console.log(`[GameServer] Player ${playerName} joined room ${roomId} successfully`);
       const roomData = {
         id: room.id,
         name: room.name,
         game: room.game,
         players: room.players.map((p) => p.name),
         maxPlayers: room.maxPlayers,
-        createdAt: room.createdAt
+        createdAt: room.createdAt,
+        gameInProgress: room.gameInProgress || false,
+        gameStarting: room.gameStarting || false,
+        readyPlayers: room.readyPlayers || []
       };
       send(ws, { type: "roomJoined", room: roomData });
       broadcastToRoom(roomId, {
@@ -264,6 +274,7 @@ wss.on("connection", (ws) => {
           console.log(`[GameServer] All players ready! Starting game in room ${ws.roomId}`);
           room.gameStarting = false;
           room.readyPlayers = [];
+          room.gameInProgress = true;
           broadcastToRoom(ws.roomId, {
             type: "gameStarted",
             game: room.game,
@@ -287,10 +298,36 @@ wss.on("connection", (ws) => {
     }
     if (type === "gameState") {
       if (!ws.roomId) return;
+      const room = rooms.get(ws.roomId);
+      if (!room) return;
+      room.gameState = msg.state;
       broadcastToRoom(ws.roomId, {
         type: "gameStateUpdate",
         player: ws.playerName,
         state: msg.state
+      });
+      return;
+    }
+    if (type === "requestGameState") {
+      console.log(`[GameServer] requestGameState from ${ws.playerName} in room ${ws.roomId}`);
+      if (!ws.roomId) {
+        console.log(`[GameServer] No roomId for ${ws.playerName}`);
+        return;
+      }
+      const room = rooms.get(ws.roomId);
+      if (!room) {
+        console.log(`[GameServer] Room ${ws.roomId} not found`);
+        return;
+      }
+      if (!room.gameState) {
+        console.log(`[GameServer] No gameState in room ${ws.roomId}`);
+        return;
+      }
+      console.log(`[GameServer] Sending current game state to ${ws.playerName}`);
+      send(ws, {
+        type: "gameStateUpdate",
+        player: "server",
+        state: room.gameState
       });
       return;
     }
@@ -307,27 +344,37 @@ wss.on("connection", (ws) => {
     }
   });
   ws.on("close", () => {
-    console.log(`[GameServer] Client disconnected: ${ws.id}, remaining clients: ${wss.clients.size - 1}`);
+    console.log(`[GameServer] Client disconnected: ${ws.id} (${ws.playerName}), remaining clients: ${wss.clients.size - 1}`);
     if (ws.roomId) {
       const room = rooms.get(ws.roomId);
       if (room) {
-        room.players = room.players.filter((p) => p.id !== ws.id);
-        if (room.players.length === 0) {
-          rooms.delete(ws.roomId);
-          console.log(`[GameServer] Room ${ws.roomId} deleted (empty), remaining rooms: ${rooms.size}`);
-        } else {
-          console.log(`[GameServer] Player ${ws.playerName} left room ${ws.roomId}, remaining: ${room.players.length}`);
-          broadcastToRoom(ws.roomId, {
-            type: "playerLeft",
-            player: ws.playerName,
-            players: room.players.map((p) => p.name)
-          });
-        }
-        for (const client of wss.clients) {
+        const hasOtherConnection = Array.from(wss.clients).some((client) => {
           const c = client;
-          if (c.readyState === 1 && !c.roomId) {
-            send(c, { type: "roomListUpdate", rooms: Array.from(rooms.values()).map((r) => ({ ...r, players: r.players.map((p) => p.name) })) });
+          return c !== ws && c.roomId === ws.roomId && c.playerName === ws.playerName && c.readyState === 1;
+        });
+        if (!hasOtherConnection) {
+          const wasHost = room.host === ws.id;
+          room.players = room.players.filter((p) => p.id !== ws.id);
+          console.log(`[GameServer] Player ${ws.playerName} left room ${ws.roomId}. Was host: ${wasHost}, remaining players: ${room.players.length}`);
+          if (room.players.length === 0) {
+            rooms.delete(ws.roomId);
+            console.log(`[GameServer] Room ${ws.roomId} deleted (empty), remaining rooms: ${rooms.size}`);
+          } else {
+            console.log(`[GameServer] Room ${ws.roomId} still has ${room.players.length} players`);
+            broadcastToRoom(ws.roomId, {
+              type: "playerLeft",
+              player: ws.playerName,
+              players: room.players.map((p) => p.name)
+            });
           }
+          for (const client of wss.clients) {
+            const c = client;
+            if (c.readyState === 1 && !c.roomId) {
+              send(c, { type: "roomListUpdate", rooms: Array.from(rooms.values()).map((r) => ({ ...r, players: r.players.map((p) => p.name) })) });
+            }
+          }
+        } else {
+          console.log(`[GameServer] Player ${ws.playerName} has another active connection, not removing from room ${ws.roomId}`);
         }
       }
     }

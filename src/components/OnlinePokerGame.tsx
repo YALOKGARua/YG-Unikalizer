@@ -29,31 +29,101 @@ const OnlinePokerGame = () => {
   const [searchParams] = useSearchParams()
   const roomId = searchParams.get('roomId')
   
+  console.log('[OnlinePoker] Component loaded with roomId:', roomId)
+  console.log('[OnlinePoker] URL search params:', searchParams.toString())
+  console.log('[OnlinePoker] Current URL:', window.location.href)
+  
   const [connected, setConnected] = useState(false)
   const [myName, setMyName] = useState('')
   const [gameState, setGameState] = useState<GameState | null>(null)
+  const [isConnecting, setIsConnecting] = useState(false)
   const wsRef = useRef<WebSocket | null>(null)
+  const connectionAttemptRef = useRef<number>(0)
+  const reconnectTimeoutRef = useRef<number | null>(null)
+  const maxReconnectAttempts = 3
+  const hasInitializedRef = useRef<boolean>(false)
 
   useEffect(() => {
+    // Prevent multiple initializations of the same component
+    if (hasInitializedRef.current) {
+      console.log('[OnlinePoker] Component already initialized, skipping...')
+      return
+    }
+    hasInitializedRef.current = true
+
     const name = localStorage.getItem('onlinePlayerName') || 'Player'
     setMyName(name)
 
-    const serverUrl = localStorage.getItem('gameServerUrl') || 'ws://localhost:8082'
+    if (!roomId) {
+      console.error('[OnlinePoker] No roomId found!')
+      return
+    }
+
+    if (isConnecting) {
+      console.log('[OnlinePoker] Already connecting, skipping...')
+      return
+    }
+
+    const attemptNumber = ++connectionAttemptRef.current
+    console.log(`[OnlinePoker] Starting connection attempt ${attemptNumber}`)
+
+    const savedUrl = localStorage.getItem('gameServerUrl')
+    const serverUrl = (savedUrl && !savedUrl.includes('10.11.10.217')) ? savedUrl : 'ws://localhost:8082'
+
+    setIsConnecting(true)
     const ws = new WebSocket(serverUrl)
     wsRef.current = ws
 
     ws.onopen = () => {
-      console.log('[OnlinePoker] Connected')
+      console.log(`[OnlinePoker] Connected (attempt ${attemptNumber})`)
       setConnected(true)
+      setIsConnecting(false)
+
+      console.log('[OnlinePoker] Joining room:', roomId, 'as', name)
+      ws.send(JSON.stringify({
+        type: 'joinRoom',
+        roomId: roomId,
+        playerName: name
+      }))
     }
 
     ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data)
-        
+        console.log('[OnlinePoker] Received message:', msg.type, msg)
+
+        if (msg.type === 'connected') {
+          console.log('[OnlinePoker] Connected to server')
+        }
+
+        if (msg.type === 'roomJoined') {
+          console.log('[OnlinePoker] Successfully joined room:', msg.room)
+          if (msg.room && msg.room.gameInProgress) {
+            console.log('[OnlinePoker] Game already in progress, requesting state')
+            ws.send(JSON.stringify({
+              type: 'requestGameState'
+            }))
+
+            // Set a timeout to request state again if we don't get it
+            setTimeout(() => {
+              if (!gameState && ws.readyState === WebSocket.OPEN) {
+                console.log('[OnlinePoker] No game state received, requesting again')
+                ws.send(JSON.stringify({
+                  type: 'requestGameState'
+                }))
+              }
+            }, 2000)
+          }
+        }
+
+        if (msg.type === 'error') {
+          console.error('[OnlinePoker] Server error:', msg.message)
+          toast.error(msg.message)
+        }
+
         if (msg.type === 'gameStarted') {
           console.log('[OnlinePoker] Game started, players:', msg.players)
-          
+
           const initialState: GameState = {
             phase: 'betting',
             players: msg.players.map((playerName: string) => ({
@@ -67,14 +137,17 @@ const OnlinePokerGame = () => {
             currentPlayerIndex: 0,
             deck: createDeck()
           }
-          
+
           setGameState(initialState)
-          
-          if (msg.players[0] === name) {
+
+          if (msg.players[0] === myName) {
+            console.log('[OnlinePoker] I am the host, broadcasting initial state')
             broadcastState(initialState)
+          } else {
+            console.log('[OnlinePoker] I am a client, waiting for host state')
           }
         }
-        
+
         if (msg.type === 'gameStateUpdate') {
           console.log('[OnlinePoker] State update from', msg.player)
           setGameState(msg.state)
@@ -88,14 +161,53 @@ const OnlinePokerGame = () => {
       }
     }
 
-    ws.onclose = () => {
-      console.log('[OnlinePoker] Disconnected')
+    ws.onclose = (event) => {
+      console.log(`[OnlinePoker] Disconnected (attempt ${attemptNumber})`, event.code, event.reason)
       setConnected(false)
-      toast.error('Соединение потеряно')
+      setIsConnecting(false)
+
+      // Don't retry on normal closure (1000) or if we're already at max attempts
+      if (event.code !== 1000 && attemptNumber < maxReconnectAttempts) {
+        const delay = Math.min(1000 * Math.pow(2, attemptNumber - 1), 5000)
+        console.log(`[OnlinePoker] Reconnecting in ${delay}ms (attempt ${attemptNumber + 1}/${maxReconnectAttempts})`)
+        reconnectTimeoutRef.current = window.setTimeout(() => {
+          if (roomId) {
+            // This will trigger the useEffect again
+            setConnected(false)
+            setIsConnecting(false)
+          }
+        }, delay)
+      } else if (event.code !== 1000) {
+        toast.error('Соединение с игрой потеряно')
+      }
+    }
+
+    ws.onerror = (error) => {
+      console.error(`[OnlinePoker] WebSocket error (attempt ${attemptNumber}):`, error)
+      setIsConnecting(false)
+
+      if (attemptNumber < maxReconnectAttempts) {
+        const delay = Math.min(1000 * Math.pow(2, attemptNumber - 1), 5000)
+        console.log(`[OnlinePoker] Retrying connection in ${delay}ms (attempt ${attemptNumber + 1}/${maxReconnectAttempts})`)
+        reconnectTimeoutRef.current = window.setTimeout(() => {
+          if (roomId) {
+            // This will trigger the useEffect again
+            setConnected(false)
+            setIsConnecting(false)
+          }
+        }, delay)
+      } else {
+        toast.error('Не удалось подключиться к игре. Проверьте подключение к серверу.')
+      }
     }
 
     return () => {
-      ws.close()
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current)
+      }
+      if (wsRef.current) {
+        wsRef.current.close()
+      }
     }
   }, [roomId])
 
@@ -115,10 +227,15 @@ const OnlinePokerGame = () => {
   }
 
   const broadcastState = (state: GameState) => {
-    wsRef.current?.send(JSON.stringify({
-      type: 'gameState',
-      state
-    }))
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      console.log('[OnlinePoker] Broadcasting state:', state.phase, 'players:', state.players.length)
+      wsRef.current.send(JSON.stringify({
+        type: 'gameState',
+        state
+      }))
+    } else {
+      console.error('[OnlinePoker] Cannot broadcast - WebSocket not open')
+    }
   }
 
   const placeBet = (amount: number) => {
@@ -264,7 +381,10 @@ const OnlinePokerGame = () => {
   if (!connected) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-white text-xl">Подключение...</div>
+        <div className="text-center">
+          <div className="text-white text-xl mb-4">Подключение к игре...</div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto"></div>
+        </div>
       </div>
     )
   }
