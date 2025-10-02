@@ -184,6 +184,9 @@ contextBridge.exposeInMainWorld('api', {
     get: () => ipcRenderer.invoke('settings-get'),
     set: (data: unknown) => ipcRenderer.invoke('settings-set', data)
   },
+  system: {
+    info: () => ipcRenderer.invoke('system-info')
+  },
   mobile: {
     start: () => ipcRenderer.invoke('mobile-server-start'),
     status: () => ipcRenderer.invoke('mobile-server-status')

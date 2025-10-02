@@ -9,7 +9,7 @@ type AppState = {
   outputDir: string
   progress: Progress
   busy: boolean
-  setFiles: (files: string[]) => void
+  setFiles: (files: string[] | ((prev: string[]) => string[])) => void
   addFiles: (files: string[]) => void
   removeAt: (index: number) => void
   clearFiles: () => void
@@ -27,7 +27,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   outputDir: '',
   progress: { current: 0, total: 0, lastFile: '' },
   busy: false,
-  setFiles: (files) => set({ files }),
+  setFiles: (files) => set(state => ({ files: typeof files === 'function' ? (files as (prev: string[]) => string[])(state.files) : files })),
   addFiles: (incoming) => set(state => ({ files: Array.from(new Set([...(state.files||[]), ...incoming])) })),
   removeAt: (index) => set(state => ({ files: state.files.filter((_, i) => i !== index), selected: new Set(Array.from(state.selected).filter(i => i !== index)) })),
   clearFiles: () => set({ files: [], results: [], selected: new Set(), progress: { current: 0, total: 0, lastFile: '' } }),

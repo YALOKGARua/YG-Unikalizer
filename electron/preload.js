@@ -210,6 +210,9 @@ import_electron.contextBridge.exposeInMainWorld("api", {
     get: () => import_electron.ipcRenderer.invoke("settings-get"),
     set: (data) => import_electron.ipcRenderer.invoke("settings-set", data)
   },
+  system: {
+    info: () => import_electron.ipcRenderer.invoke("system-info")
+  },
   mobile: {
     start: () => import_electron.ipcRenderer.invoke("mobile-server-start"),
     status: () => import_electron.ipcRenderer.invoke("mobile-server-status")

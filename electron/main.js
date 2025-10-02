@@ -34023,6 +34023,215 @@ app2.whenReady().then(() => {
       return { ok: false, admin: false };
     }
   });
+  ipcMain2.handle("system-info", async () => {
+    try {
+      const appVer = app2.getVersion();
+      const electronVer = process.versions.electron;
+      const chromeVer = process.versions.chrome;
+      const nodeVer = process.versions.node;
+      const v8Ver = process.versions.v8;
+      let admin = false;
+      try {
+        const out = spawn("powershell", ["-NoProfile", "-Command", "(New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)"], { windowsHide: true });
+        let data = "";
+        out.stdout && out.stdout.on("data", (c) => {
+          data += c.toString();
+        });
+        await new Promise((resolve) => {
+          out.on("exit", () => resolve());
+        });
+        admin = /True/i.test(data);
+      } catch (_) {
+      }
+      const mem = process.getSystemMemoryInfo ? process.getSystemMemoryInfo() : null;
+      const totalBytes = os3.totalmem();
+      const freeBytes = os3.freemem();
+      const cpus = os3.cpus() || [];
+      const cpu = { model: cpus[0] ? String(cpus[0].model || "") : "", speedMHz: cpus[0] ? Number(cpus[0].speed || 0) : 0, logicalCores: cpus.length };
+      let gpuName = "";
+      let gpuVendor = "";
+      let gpuDriverVersion = "";
+      try {
+        const nat = loadNative();
+        if (nat && typeof nat.gpuAdapterName === "function") gpuName = String(nat.gpuAdapterName() || "");
+      } catch (_) {
+      }
+      try {
+        const clean = (s) => {
+          try {
+            let v = String(s || "");
+            v = v.replace(/^ANGLE \(([^)]+)\).*$/, "$1");
+            v = v.replace(/\bDirect3D.*$/i, "");
+            v = v.replace(/Microsoft Basic Render Driver/ig, "");
+            v = v.replace(/\s+/g, " ").trim();
+            return v;
+          } catch {
+            return String(s || "");
+          }
+        };
+        if (app2.getGPUInfo) {
+          const info = await app2.getGPUInfo("complete");
+          const list = info && Array.isArray(info.gpuDevice) ? info.gpuDevice : [];
+          const filtered = list.filter((d) => d && !/Microsoft Basic Render Driver/i.test(String(d.deviceString || "")) && !/SwiftShader/i.test(String(d.deviceString || "")));
+          const pick = filtered.length ? filtered.find((d) => d.active) || filtered[0] : list.find((d) => d && d.active) || list[0];
+          if (pick) {
+            const rawNm = pick.deviceString || pick.renderer || "";
+            const nm = clean(rawNm);
+            const vidRaw = String(pick.vendorId || "").toLowerCase();
+            const vendorFromId = vidRaw.includes("10de") ? "NVIDIA" : vidRaw.includes("1002") ? "AMD" : vidRaw.includes("8086") ? "Intel" : "";
+            const generic = !gpuName || /unknown/i.test(gpuName) || /Microsoft Basic Render Driver/i.test(gpuName) || /^(intel|amd|nvidia)\s*$/i.test(String(gpuName || "")) || String(gpuName || "").length < 6;
+            if (generic && nm) gpuName = String(nm || "");
+            if (!gpuVendor) gpuVendor = String(pick.driverVendor || vendorFromId || pick.vendor || "");
+            if (!gpuDriverVersion) gpuDriverVersion = String(pick.driverVersion || pick.driver || "");
+          }
+          const aux = info && info.auxAttributes ? info.auxAttributes : null;
+          if (aux) {
+            const auxNm = clean(aux.glRenderer || aux.renderer || "");
+            if ((!gpuName || /unknown/i.test(gpuName)) && auxNm) gpuName = auxNm;
+            if (!gpuVendor && (aux.glVendor || aux.vendor)) gpuVendor = String(aux.glVendor || aux.vendor);
+          }
+        }
+      } catch (_) {
+      }
+      try {
+        if ((!gpuName || /unknown/i.test(gpuName)) && process.platform === "win32") {
+          const ps = spawn("powershell", ["-NoProfile", "-Command", "Get-WmiObject Win32_VideoController | Select-Object -First 1 Name, DriverVersion, AdapterCompatibility | ConvertTo-Json -Compress"], { windowsHide: true });
+          let data = "";
+          ps.stdout && ps.stdout.on("data", (c) => {
+            data += c.toString();
+          });
+          await new Promise((resolve) => {
+            ps.on("exit", () => resolve(null));
+          });
+          try {
+            const obj = JSON.parse(data || "{}");
+            if (obj) {
+              if ((!gpuName || /unknown/i.test(gpuName)) && obj.Name) gpuName = String(obj.Name);
+              if (!gpuVendor && obj.AdapterCompatibility) gpuVendor = String(obj.AdapterCompatibility);
+              if (!gpuDriverVersion && obj.DriverVersion) gpuDriverVersion = String(obj.DriverVersion);
+            }
+          } catch (_) {
+          }
+          if (!gpuName || /unknown/i.test(gpuName)) {
+            const ps2 = spawn("powershell", ["-NoProfile", "-Command", "Get-CimInstance Win32_VideoController | Select-Object Name, DriverVersion, AdapterCompatibility | ConvertTo-Json -Compress"], { windowsHide: true });
+            let data2 = "";
+            ps2.stdout && ps2.stdout.on("data", (c) => {
+              data2 += c.toString();
+            });
+            await new Promise((resolve) => {
+              ps2.on("exit", () => resolve(null));
+            });
+            try {
+              const parsed = JSON.parse(data2 || "{}");
+              const arr = Array.isArray(parsed) ? parsed : [parsed];
+              const firstGood = arr.find((it) => it && it.Name && !/Microsoft Basic Render Driver/i.test(String(it.Name))) || arr[0];
+              if (firstGood) {
+                if ((!gpuName || /unknown/i.test(gpuName)) && firstGood.Name) gpuName = String(firstGood.Name);
+                if (!gpuVendor && firstGood.AdapterCompatibility) gpuVendor = String(firstGood.AdapterCompatibility);
+                if (!gpuDriverVersion && firstGood.DriverVersion) gpuDriverVersion = String(firstGood.DriverVersion);
+              }
+            } catch (_) {
+            }
+          }
+          if (!gpuName || /unknown/i.test(gpuName)) {
+            try {
+              const outPath = path6.join(app2.getPath("temp"), `dxdiag-${Date.now()}.txt`);
+              const dx = spawn("dxdiag", ["/whql:off", "/t", outPath], { windowsHide: true });
+              await new Promise((resolve) => {
+                dx.on("exit", () => resolve(null));
+              });
+              try {
+                const txt = fs3.readFileSync(outPath, "utf-8");
+                const mName = txt.match(/(?:Card name|Имя видеопроцессора|Имя видеокарты|Имя адаптера):\s*(.+)/i);
+                const mVendor = txt.match(/\bVendor ID:\s*(.+)/i);
+                const mDriver = txt.match(/(?:Driver Version|Версия драйвера):\s*(.+)/i);
+                if ((!gpuName || /unknown/i.test(gpuName)) && mName && mName[1]) gpuName = mName[1].trim();
+                if (!gpuDriverVersion && mDriver && mDriver[1]) gpuDriverVersion = mDriver[1].trim();
+                if (!gpuVendor) {
+                  const nv = /nvidia/i.test(String(txt)) ? "NVIDIA" : /amd|ati/i.test(String(txt)) ? "AMD" : /intel/i.test(String(txt)) ? "Intel" : mVendor && mVendor[1] ? mVendor[1].trim() : "";
+                  gpuVendor = nv;
+                }
+              } catch (_) {
+              }
+              try {
+                fs3.unlinkSync(outPath);
+              } catch (_) {
+              }
+            } catch (_) {
+            }
+          }
+          if (!gpuName || /unknown/i.test(gpuName)) {
+            try {
+              const reg = spawn("reg", ["query", "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}", "/s", "/v", "DriverDesc"], { windowsHide: true });
+              let out = "";
+              reg.stdout && reg.stdout.on("data", (c) => {
+                out += c.toString();
+              });
+              await new Promise((resolve) => {
+                reg.on("exit", () => resolve(null));
+              });
+              const lines = String(out || "").split(/\r?\n/);
+              const found = lines.map((l) => {
+                const m = l.match(/DriverDesc\s+REG_SZ\s+(.+)/i);
+                return m && m[1] ? m[1].trim() : "";
+              }).filter(Boolean);
+              const best = found.find((n) => !/Microsoft Basic Render Driver/i.test(n)) || found[0];
+              if (best && (!gpuName || /unknown/i.test(gpuName))) gpuName = best;
+            } catch (_) {
+            }
+          }
+          if (!gpuVendor) {
+            try {
+              const reg = spawn("reg", ["query", "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}", "/s", "/v", "ProviderName"], { windowsHide: true });
+              let out = "";
+              reg.stdout && reg.stdout.on("data", (c) => {
+                out += c.toString();
+              });
+              await new Promise((resolve) => {
+                reg.on("exit", () => resolve(null));
+              });
+              const m = String(out || "").match(/ProviderName\s+REG_SZ\s+(.+)/i);
+              if (m && m[1]) gpuVendor = m[1].trim();
+            } catch (_) {
+            }
+          }
+        }
+      } catch (_) {
+      }
+      const normalizeGpuName = (name, vendor) => {
+        try {
+          let s = String(name || "").trim();
+          s = s.replace(/^ANGLE\s*\(([^)]+)\)/i, "$1");
+          s = s.replace(/Microsoft Basic Render Driver/ig, "");
+          s = s.replace(/\bDirect3D.*$/i, "");
+          s = s.replace(/\bD3D\d+.*$/i, "");
+          if (/^Intel,\s*Intel/i.test(s)) s = s.replace(/^Intel,\s*/i, "");
+          const parts = s.split(/,\s*/).map((p) => p.trim()).filter(Boolean);
+          const intel = parts.find((p) => /(UHD|HD|Iris|Xe)\s+Graphics/i.test(p));
+          const nvidia = parts.find((p) => /(GeForce|RTX|GTX|Quadro|MX)\b/i.test(p));
+          const amd = parts.find((p) => /(Radeon|RX|Vega)\b/i.test(p));
+          const pick = intel || nvidia || amd || (parts.length > 1 ? parts[parts.length - 1] : parts[0] || "");
+          s = String(pick || s).replace(/\s+/g, " ").trim();
+          if (!s && vendor) s = vendor;
+          return s;
+        } catch {
+          return String(name || "");
+        }
+      };
+      gpuName = normalizeGpuName(gpuName, gpuVendor);
+      return {
+        ok: true,
+        os: { platform: os3.platform(), type: os3.type(), release: os3.release(), arch: os3.arch(), version: os3.version ? os3.version() : "" },
+        app: { version: appVer, electron: electronVer, chrome: chromeVer, node: nodeVer, v8: v8Ver },
+        cpu,
+        memory: { totalBytes, freeBytes, system: mem },
+        gpu: { name: gpuName, vendor: gpuVendor, driverVersion: gpuDriverVersion },
+        admin
+      };
+    } catch (_) {
+      return { ok: false };
+    }
+  });
   ipcMain2.handle("file-rename", async (_e, payload) => {
     try {
       const oldPath = payload && payload.path ? String(payload.path) : "";

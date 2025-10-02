@@ -14,6 +14,17 @@ declare global {
         status: () => Promise<{ ok: boolean; loggedIn?: boolean }>
         login: () => Promise<{ ok: boolean; loggedIn?: boolean; error?: string }>
       }
+      system: {
+        info: () => Promise<{
+          ok: boolean
+          os?: { platform: string; type: string; release: string; arch: string; version?: string }
+          app?: { version: string; electron: string; chrome: string; node: string; v8: string }
+          cpu?: { model: string; speedMHz: number; logicalCores: number }
+          memory?: { totalBytes: number; freeBytes: number; system?: any }
+          gpu?: { name: string; vendor?: string; driverVersion?: string }
+          admin?: boolean
+        }>
+      }
     }
   }
 }
