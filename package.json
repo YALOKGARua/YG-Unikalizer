@@ -1,6 +1,6 @@
 {
   "name": "yg-unikalizer",
-  "version": "3.5.7",
+  "version": "3.6.0",
   "private": true,
   "main": "electron/main.js",
   "author": "YALOKGARIA <yalokgar@gmail.com>",

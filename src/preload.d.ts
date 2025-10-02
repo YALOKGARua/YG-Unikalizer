@@ -10,6 +10,10 @@ declare global {
       invoke: (channel: string, ...args: any[]) => Promise<any>
       on: (channel: string, callback: (...args: any[]) => void) => void
       rust: RustAPI
+      ig: {
+        status: () => Promise<{ ok: boolean; loggedIn?: boolean }>
+        login: () => Promise<{ ok: boolean; loggedIn?: boolean; error?: string }>
+      }
     }
   }
 }

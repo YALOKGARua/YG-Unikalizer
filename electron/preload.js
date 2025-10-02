@@ -219,6 +219,10 @@ import_electron.contextBridge.exposeInMainWorld("api", {
     login: (password, remember) => import_electron.ipcRenderer.invoke("auth-login", { password, remember }),
     logout: () => import_electron.ipcRenderer.invoke("auth-logout")
   },
+  ig: {
+    status: () => import_electron.ipcRenderer.invoke("ig-status"),
+    login: () => import_electron.ipcRenderer.invoke("ig-login")
+  },
   dev: {
     onToggleAdminPanel: (cb) => {
       const listener = () => cb();

@@ -193,6 +193,10 @@ contextBridge.exposeInMainWorld('api', {
     login: (password: string, remember: boolean) => ipcRenderer.invoke('auth-login', { password, remember }),
     logout: () => ipcRenderer.invoke('auth-logout'),
   },
+  ig: {
+    status: () => ipcRenderer.invoke('ig-status'),
+    login: () => ipcRenderer.invoke('ig-login')
+  },
   dev: {
     onToggleAdminPanel: (cb: () => void) => { const listener = () => cb(); ipcRenderer.on('dev-admin-toggle', listener as any); return () => ipcRenderer.removeListener('dev-admin-toggle', listener as any) },
     onShowAdminPanel: (cb: () => void) => { const listener = () => cb(); ipcRenderer.on('dev-admin-show', listener as any); return () => ipcRenderer.removeListener('dev-admin-show', listener as any) },

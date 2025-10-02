@@ -19073,7 +19073,7 @@ var require_schemes = __commonJS({
       urnComponent.nss = (uuidComponent.uuid || "").toLowerCase();
       return urnComponent;
     }
-    var http = (
+    var http2 = (
       /** @type {SchemeHandler} */
       {
         scheme: "http",
@@ -19086,7 +19086,7 @@ var require_schemes = __commonJS({
       /** @type {SchemeHandler} */
       {
         scheme: "https",
-        domainHost: http.domainHost,
+        domainHost: http2.domainHost,
         parse: httpParse,
         serialize: httpSerialize
       }
@@ -19130,7 +19130,7 @@ var require_schemes = __commonJS({
     var SCHEMES = (
       /** @type {Record<SchemeName, SchemeHandler>} */
       {
-        http,
+        http: http2,
         https: https2,
         ws,
         wss,
@@ -31634,7 +31634,7 @@ var require_main3 = __commonJS({
 });
 
 // electron/main.ts
-var { app: app2, BrowserWindow, ipcMain: ipcMain2, dialog, shell: shell2, Menu, session, Notification: ElectronNotification, globalShortcut } = require("electron");
+var { app: app2, BrowserWindow, ipcMain: ipcMain2, dialog, shell: shell2, Menu, session, Notification: ElectronNotification, globalShortcut, protocol } = require("electron");
 var nodeCrypto = require("crypto");
 var path6 = require("path");
 var fs3 = require("fs");
@@ -31645,6 +31645,8 @@ var { autoUpdater } = require_main2();
 var StoreRaw = (init_electron_store(), __toCommonJS(electron_store_exports));
 var { exec, spawn } = require("child_process");
 var https = require("https");
+var http = require("http");
+var { Readable } = require("stream");
 var isDev = !!process.env.VITE_DEV_SERVER_URL || !app2.isPackaged;
 try {
   const candidates = [];
@@ -32794,7 +32796,7 @@ async function processOne(inputPath, index, total, options, progressContext) {
     } catch (_) {
     }
   } else if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send("process-progress", { index, total, file: srcBase, status: "ok", outPath });
+    mainWindow.webContents.send("process-progress", { index, total, file: srcBase, filePath: inputPath, status: "ok", outPath });
   }
   emitStep("file_done", { totalMs: Date.now() - startedAtFile });
 }
@@ -32826,7 +32828,7 @@ async function processBatch(inputFiles, options) {
     emitProgress: (idx, tot, fileName, outPath) => {
       if (mainWindow && !mainWindow.isDestroyed()) {
         const prog = calcProgress();
-        mainWindow.webContents.send("process-progress", { index: idx - 1, total: tot, file: fileName, status: "ok", speedBps: prog.speedBps, etaMs: prog.etaMs, percent: prog.percent, outPath });
+        mainWindow.webContents.send("process-progress", { index: idx - 1, total: tot, file: fileName, filePath: inputFiles[idx - 1], status: "ok", speedBps: prog.speedBps, etaMs: prog.etaMs, percent: prog.percent, outPath });
       }
     }
   };
@@ -33034,6 +33036,63 @@ app2.whenReady().then(() => {
     });
   } catch (_) {
   }
+  try {
+    ipcMain2.handle("ig-status", async () => {
+      try {
+        const ses = session.defaultSession;
+        const list = await ses.cookies.get({ domain: ".instagram.com" });
+        const loggedIn = Array.isArray(list) && list.some((c) => c && c.name === "sessionid" && c.value);
+        return { ok: true, loggedIn };
+      } catch (e) {
+        return { ok: false, error: String(e?.message || e) };
+      }
+    });
+    ipcMain2.handle("ig-login", async () => {
+      const win = new BrowserWindow({
+        width: 980,
+        height: 760,
+        show: true,
+        webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true }
+      });
+      try {
+        const ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
+        try {
+          win.webContents.setUserAgent(ua);
+        } catch {
+        }
+        await win.loadURL("https://www.instagram.com/accounts/login/", { userAgent: ua });
+        const deadline = Date.now() + 2 * 60 * 1e3;
+        while (Date.now() < deadline) {
+          try {
+            const list = await session.defaultSession.cookies.get({ domain: ".instagram.com" });
+            const ok = Array.isArray(list) && list.some((c) => c && c.name === "sessionid" && c.value);
+            if (ok) {
+              try {
+                win.close();
+              } catch {
+              }
+              ;
+              return { ok: true, loggedIn: true };
+            }
+          } catch {
+          }
+          await new Promise((r) => setTimeout(r, 1e3));
+        }
+        try {
+          win.close();
+        } catch {
+        }
+        return { ok: false, error: "Timeout" };
+      } catch (e) {
+        try {
+          win.close();
+        } catch {
+        }
+        return { ok: false, error: String(e?.message || e) };
+      }
+    });
+  } catch (_) {
+  }
   createWindow();
   setAppMenu();
   try {
@@ -33065,8 +33124,8 @@ app2.whenReady().then(() => {
     if (ses && ses.webRequest) {
       ses.webRequest.onHeadersReceived((details, callback) => {
         const responseHeaders = Object.assign({}, details.responseHeaders);
-        responseHeaders["Cross-Origin-Opener-Policy"] = ["same-origin"];
-        responseHeaders["Cross-Origin-Embedder-Policy"] = ["require-corp"];
+        responseHeaders["Cross-Origin-Opener-Policy"] = ["same-origin-allow-popups"];
+        responseHeaders["Cross-Origin-Embedder-Policy"] = ["unsafe-none"];
         responseHeaders["Cross-Origin-Resource-Policy"] = ["cross-origin"];
         callback({ responseHeaders });
       });

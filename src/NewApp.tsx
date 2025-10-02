@@ -9,6 +9,7 @@ import ImageGrid from './components/ImageGrid'
 import AnimatedBackground from './components/AnimatedBackground'
 import TemplateManager from './components/TemplateManager'
 import MobileSync from './components/MobileSync'
+import LazyModal from './components/LazyModal'
 import { useSpring, animated, useSpringValue, useTrail, config } from '@react-spring/web'
 import { useAppStore } from '../private/src/subscription/store'
 import { toast } from 'sonner'
@@ -403,6 +404,7 @@ const LOCATION_PRESETS = [
   { id: 'london', label: 'Лондон, Великобритания', lat: 51.5074, lon: -0.1278, alt: 35, city: 'London', state: 'England', country: 'United Kingdom' }
 ]
 
+
 export default function NewApp() {
   const { t } = useTranslation()
   const [active, setActive] = useState<'files'|'ready'>('files')
@@ -566,11 +568,24 @@ export default function NewApp() {
 
   useEffect(() => {
     const off = window.api.onProgress(d => {
-      setProgress({ current: d.index + 1, total: d.total, lastFile: d.file, etaMs: Number(d.etaMs||0), speedBps: Number(d.speedBps||0), percent: Number(d.percent)||0 })
+      setProgress({ current: d.index + 1, total: d.total, lastFile: d.filePath || d.file, etaMs: Number(d.etaMs||0), speedBps: Number(d.speedBps||0), percent: Number(d.percent)||0 })
       if (d && d.status === 'ok' && d.outPath) {
-        const srcPath = Array.isArray(files) && typeof d.index==='number' && files[d.index] ? files[d.index] : d.file
+        const srcPath = String(d.filePath || d.file || '')
         setResults(prev => [...prev, { src: srcPath, out: d.outPath }])
         setStatsData(prev => [...prev, { name: `Файл ${d.index + 1}`, value: d.index + 1 }])
+        setFiles(prev => {
+          const norm = (p: string) => String(p || '').replace(/\\/g, '/').toLowerCase()
+          const target = norm(srcPath)
+          const filtered = prev.filter(p => norm(p) !== target)
+          if (filtered.length !== prev.length) return filtered
+          const i = (typeof d.index === 'number' && d.index >= 0 && d.index < prev.length) ? d.index : -1
+          if (i >= 0) {
+            const next = prev.slice()
+            next.splice(i, 1)
+            return next
+          }
+          return prev
+        })
       }
     })
     const done = window.api.onComplete(() => { 
@@ -957,6 +972,7 @@ export default function NewApp() {
       style: { background: '#ef4444', color: '#fff' }
     })
   }
+
 
   return (
     <Suspense fallback={
@@ -1959,6 +1975,7 @@ export default function NewApp() {
           }}
         />
       )}
+
     </Suspense>
   )
 }
