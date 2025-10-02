@@ -5,6 +5,7 @@ import CountUp from 'react-countup'
 import Tilt from 'react-parallax-tilt'
 import { FaCoins, FaStar, FaTrophy, FaGem, FaCrown, FaFire, FaBolt, FaDice } from 'react-icons/fa'
 import Lottie from 'lottie-react'
+import { toast } from 'sonner'
 
 const SYMBOLS = [
   { id: 'cherry', emoji: '🍒', value: 2, color: 'text-red-500' },
@@ -33,24 +34,78 @@ interface SpinResult {
 }
 
 const SlotsGame = () => {
-  const [balance, setBalance] = useState(10000)
+  const [balance, setBalance] = useState(() => {
+    try {
+      const saved = localStorage.getItem('slotsGame_balance')
+      return saved ? Number(saved) : 10000
+    } catch {
+      return 10000
+    }
+  })
   const [bet, setBet] = useState(100)
   const [isSpinning, setIsSpinning] = useState(false)
   type SymbolItem = { id: string; emoji: string; value: number; color: string }
   const [reels, setReels] = useState<SymbolItem[][]>([])
   const [winningLines, setWinningLines] = useState<number[]>([])
   const [lastWin, setLastWin] = useState(0)
-  const [totalSpins, setTotalSpins] = useState(0)
-  const [totalWins, setTotalWins] = useState(0)
-  const [biggestWin, setBiggestWin] = useState(0)
+  const [totalSpins, setTotalSpins] = useState(() => {
+    try {
+      const saved = localStorage.getItem('slotsGame_stats')
+      return saved ? JSON.parse(saved).totalSpins : 0
+    } catch {
+      return 0
+    }
+  })
+  const [totalWins, setTotalWins] = useState(() => {
+    try {
+      const saved = localStorage.getItem('slotsGame_stats')
+      return saved ? JSON.parse(saved).totalWins : 0
+    } catch {
+      return 0
+    }
+  })
+  const [biggestWin, setBiggestWin] = useState(() => {
+    try {
+      const saved = localStorage.getItem('slotsGame_stats')
+      return saved ? JSON.parse(saved).biggestWin : 0
+    } catch {
+      return 0
+    }
+  })
   const [showWinAnimation, setShowWinAnimation] = useState(false)
   const [currentMultiplier, setCurrentMultiplier] = useState(1)
   const [autoPlay, setAutoPlay] = useState(false)
   const [turboMode, setTurboMode] = useState(false)
   const [jackpot, setJackpot] = useState(50000)
+  const [showResetConfirm, setShowResetConfirm] = useState(false)
   
   const audioRef = useRef<HTMLAudioElement>(null)
   const autoPlayIntervalRef = useRef<any>(null)
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('slotsGame_balance', String(balance))
+    } catch {}
+  }, [balance])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('slotsGame_stats', JSON.stringify({ totalSpins, totalWins, biggestWin }))
+    } catch {}
+  }, [totalSpins, totalWins, biggestWin])
+
+  const resetProgress = () => {
+    setBalance(10000)
+    setTotalSpins(0)
+    setTotalWins(0)
+    setBiggestWin(0)
+    try {
+      localStorage.removeItem('slotsGame_balance')
+      localStorage.removeItem('slotsGame_stats')
+    } catch {}
+    toast.success('Прогресс сброшен!')
+    setShowResetConfirm(false)
+  }
 
   useEffect(() => {
     initializeReels()
@@ -373,7 +428,10 @@ const SlotsGame = () => {
               <div className="bg-gradient-to-br from-yellow-600/30 to-orange-600/30 backdrop-blur-sm rounded-2xl p-6 border border-yellow-400/30">
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-white/80 font-semibold">Баланс</span>
-                  <FaCoins className="text-yellow-400 text-2xl" />
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setShowResetConfirm(true)} className="text-xs text-red-400 hover:text-red-300">Сброс</button>
+                    <FaCoins className="text-yellow-400 text-2xl" />
+                  </div>
                 </div>
                 <div className="text-4xl font-bold text-white">
                   <CountUp end={balance} prefix="$" />
@@ -468,6 +526,28 @@ const SlotsGame = () => {
           </motion.div>
         </div>
       </div>
+
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/80" onClick={() => setShowResetConfirm(false)} />
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="relative bg-slate-900 rounded-xl border border-white/20 p-6 max-w-md mx-4"
+          >
+            <h3 className="text-xl font-bold text-white mb-2">Подтверждение сброса</h3>
+            <p className="text-white/70 mb-6">Вы уверены, что хотите сбросить весь прогресс в слотах? Баланс и статистика будут обнулены.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowResetConfirm(false)} className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition">
+                Отмена
+              </button>
+              <button onClick={resetProgress} className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition">
+                Сбросить
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   )
 }

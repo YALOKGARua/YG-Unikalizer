@@ -19,7 +19,14 @@ interface GameHistory {
 }
 
 const CrashGame = () => {
-  const [balance, setBalance] = useState(10000)
+  const [balance, setBalance] = useState(() => {
+    try {
+      const saved = localStorage.getItem('crashGame_balance')
+      return saved ? Number(saved) : 10000
+    } catch {
+      return 10000
+    }
+  })
   const [bet, setBet] = useState(100)
   const [autoCashout, setAutoCashout] = useState(2.0)
   const [currentMultiplier, setCurrentMultiplier] = useState(1.0)
@@ -30,11 +37,43 @@ const CrashGame = () => {
   const [chartData, setChartData] = useState<any[]>([])
   const [history, setHistory] = useState<GameHistory[]>([])
   const [showWinAnimation, setShowWinAnimation] = useState(false)
-  const [stats, setStats] = useState({ totalBets: 0, totalWins: 0, biggestWin: 0 })
+  const [stats, setStats] = useState(() => {
+    try {
+      const saved = localStorage.getItem('crashGame_stats')
+      return saved ? JSON.parse(saved) : { totalBets: 0, totalWins: 0, biggestWin: 0 }
+    } catch {
+      return { totalBets: 0, totalWins: 0, biggestWin: 0 }
+    }
+  })
   
   const intervalRef = useRef<any>(null)
   const crashPointRef = useRef(1.0)
   const rocketRef = useRef<HTMLDivElement>(null)
+  const [showResetConfirm, setShowResetConfirm] = useState(false)
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('crashGame_balance', String(balance))
+    } catch {}
+  }, [balance])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('crashGame_stats', JSON.stringify(stats))
+    } catch {}
+  }, [stats])
+
+  const resetProgress = () => {
+    setBalance(10000)
+    setStats({ totalBets: 0, totalWins: 0, biggestWin: 0 })
+    setHistory([])
+    try {
+      localStorage.removeItem('crashGame_balance')
+      localStorage.removeItem('crashGame_stats')
+    } catch {}
+    toast.success('Прогресс сброшен!')
+    setShowResetConfirm(false)
+  }
 
   const generateCrashPoint = () => {
     const random = Math.random()
@@ -312,7 +351,10 @@ const CrashGame = () => {
               <div className="bg-gradient-to-br from-purple-600/20 to-blue-600/20 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-white/60">Баланс</span>
-                  <FaCoins className="text-yellow-400 text-xl" />
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setShowResetConfirm(true)} className="text-xs text-red-400 hover:text-red-300">Сброс</button>
+                    <FaCoins className="text-yellow-400 text-xl" />
+                  </div>
                 </div>
                 <div className="text-3xl font-bold text-white">
                   <CountUp end={balance} prefix="$" />
@@ -430,6 +472,28 @@ const CrashGame = () => {
           100% { transform: translateY(100px) rotate(180deg); opacity: 0; }
         }
       `}</style>
+
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/80" onClick={() => setShowResetConfirm(false)} />
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="relative bg-slate-900 rounded-xl border border-white/20 p-6 max-w-md mx-4"
+          >
+            <h3 className="text-xl font-bold text-white mb-2">Подтверждение сброса</h3>
+            <p className="text-white/70 mb-6">Вы уверены, что хотите сбросить весь прогресс в Crash? Баланс, статистика и история будут обнулены.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowResetConfirm(false)} className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition">
+                Отмена
+              </button>
+              <button onClick={resetProgress} className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition">
+                Сбросить
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   )
 }
