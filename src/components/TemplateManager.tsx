@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { Icon } from './Icons'
 import { FaTimes, FaSave, FaTrash, FaCheck, FaFileImport, FaFileExport } from 'react-icons/fa'
 import { toast } from 'sonner'
@@ -84,6 +84,8 @@ export default function TemplateManager({
     description: '',
     icon: '🎯'
   })
+  const [query, setQuery] = useState('')
+  const [sortBy, setSortBy] = useState<'new' | 'old' | 'az' | 'za'>('new')
 
   if (!isOpen) return null
 
@@ -156,10 +158,37 @@ export default function TemplateManager({
     input.click()
   }
 
+  const filteredTemplates = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    let list = templates
+    if (q) {
+      list = list.filter(t =>
+        t.name.toLowerCase().includes(q) ||
+        (t.description ? t.description.toLowerCase().includes(q) : false)
+      )
+    }
+    switch (sortBy) {
+      case 'az':
+        list = [...list].sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+        break
+      case 'za':
+        list = [...list].sort((a, b) => b.name.localeCompare(a.name, 'ru'))
+        break
+      case 'old':
+        list = [...list].sort((a, b) => Number(a.id) - Number(b.id))
+        break
+      case 'new':
+      default:
+        list = [...list].sort((a, b) => Number(b.id) - Number(a.id))
+        break
+    }
+    return list
+  }, [templates, query, sortBy])
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden border border-pink-500/30" onClick={(e) => e.stopPropagation()}>
-        <div className="bg-gradient-to-r from-pink-600 to-purple-600 p-6 flex items-center justify-between">
+      <div className="rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden border border-pink-500/30 bg-white dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-800 text-slate-900 dark:text-slate-100" onClick={(e) => e.stopPropagation()}>
+        <div className="p-6 flex items-center justify-between bg-gradient-to-r from-pink-600 to-purple-600 text-white">
           <div>
             <h2 className="text-2xl font-bold text-white flex items-center gap-3">
               <Icon name="tabler:bookmarks" className="w-7 h-7" />
@@ -176,6 +205,32 @@ export default function TemplateManager({
         </div>
 
         <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+          <div className="flex flex-col md:flex-row md:items-center gap-3 mb-4">
+            <div className="flex-1 flex gap-3">
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Поиск по названию или описанию..."
+                  className="w-full px-4 py-3 pr-10 rounded-xl border border-purple-500/30 bg-white text-slate-900 placeholder-slate-400 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30 dark:bg-slate-800/50 dark:text-white dark:placeholder-slate-500"
+                />
+                <Icon name="tabler:search" className="w-5 h-5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
+              </div>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="px-4 py-3 rounded-xl border border-purple-500/30 bg-white text-slate-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30 dark:bg-slate-800/50 dark:text-white"
+                title="Сортировка"
+              >
+                <option value="new">Сначала новые</option>
+                <option value="old">Сначала старые</option>
+                <option value="az">По названию A→Z</option>
+                <option value="za">По названию Z→A</option>
+              </select>
+            </div>
+          </div>
+
           <div className="flex gap-3 mb-6">
             <button
               onClick={handleCreateNew}
@@ -203,15 +258,15 @@ export default function TemplateManager({
           </div>
 
           {isCreating && (
-            <div className="bg-gradient-to-br from-purple-900/30 to-pink-900/30 rounded-xl p-6 mb-6 border border-purple-500/30">
-              <h3 className="text-lg font-semibold text-purple-300 mb-4 flex items-center gap-2">
+            <div className="rounded-xl p-6 mb-6 border border-purple-500/30 bg-purple-50 dark:bg-gradient-to-br dark:from-purple-900/30 dark:to-pink-900/30">
+              <h3 className="text-lg font-semibold text-purple-700 dark:text-purple-300 mb-4 flex items-center gap-2">
                 <FaSave className="w-5 h-5" />
                 Сохранить текущие настройки как шаблон
               </h3>
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-purple-200 mb-2">
+                  <label className="block text-sm font-medium text-purple-700 dark:text-purple-200 mb-2">
                     Название шаблона *
                   </label>
                   <input
@@ -219,12 +274,12 @@ export default function TemplateManager({
                     value={newTemplate.name || ''}
                     onChange={(e) => setNewTemplate({ ...newTemplate, name: e.target.value })}
                     placeholder="Например: Моя профессиональная съемка"
-                    className="w-full px-4 py-3 bg-slate-800/50 border border-purple-500/30 rounded-lg text-white placeholder-slate-500 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                    className="w-full px-4 py-3 rounded-lg focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 border border-purple-500/30 bg-white text-slate-900 placeholder-slate-400 dark:bg-slate-800/50 dark:text-white dark:placeholder-slate-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-purple-200 mb-2">
+                  <label className="block text-sm font-medium text-purple-700 dark:text-purple-200 mb-2">
                     Описание
                   </label>
                   <textarea
@@ -232,12 +287,12 @@ export default function TemplateManager({
                     onChange={(e) => setNewTemplate({ ...newTemplate, description: e.target.value })}
                     placeholder="Краткое описание шаблона..."
                     rows={2}
-                    className="w-full px-4 py-3 bg-slate-800/50 border border-purple-500/30 rounded-lg text-white placeholder-slate-500 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 resize-none"
+                    className="w-full px-4 py-3 rounded-lg focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 resize-none border border-purple-500/30 bg-white text-slate-900 placeholder-slate-400 dark:bg-slate-800/50 dark:text-white dark:placeholder-slate-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-purple-200 mb-2">
+                  <label className="block text-sm font-medium text-purple-700 dark:text-purple-200 mb-2">
                     Иконка
                   </label>
                   <div className="grid grid-cols-12 gap-2">
@@ -248,7 +303,7 @@ export default function TemplateManager({
                         className={`p-3 rounded-lg text-2xl transition-all ${
                           newTemplate.icon === icon
                             ? 'bg-purple-600 ring-2 ring-purple-400 scale-110'
-                            : 'bg-slate-800/50 hover:bg-slate-700/50'
+                            : 'bg-purple-100 hover:bg-purple-200 dark:bg-slate-800/50 dark:hover:bg-slate-700/50'
                         }`}
                       >
                         {icon}
@@ -267,7 +322,7 @@ export default function TemplateManager({
                   </button>
                   <button
                     onClick={() => setIsCreating(false)}
-                    className="px-6 py-3 bg-slate-700 text-white rounded-lg font-medium hover:bg-slate-600 transition-all"
+                    className="px-6 py-3 rounded-lg font-medium transition-all bg-slate-200 text-slate-900 hover:bg-slate-300 dark:bg-slate-700 dark:text-white dark:hover:bg-slate-600"
                   >
                     Отмена
                   </button>
@@ -276,25 +331,27 @@ export default function TemplateManager({
             </div>
           )}
 
-          {templates.length === 0 ? (
+          {filteredTemplates.length === 0 ? (
             <div className="text-center py-16">
               <div className="text-6xl mb-4">📋</div>
-              <h3 className="text-xl font-semibold text-slate-300 mb-2">Пока нет сохраненных шаблонов</h3>
+              <h3 className="text-xl font-semibold text-slate-700 dark:text-slate-300 mb-2">Пока нет сохраненных шаблонов</h3>
               <p className="text-slate-500">Создайте свой первый шаблон или импортируйте готовый</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {templates.map((template) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filteredTemplates.map((template) => (
                 <div
                   key={template.id}
-                  className="bg-gradient-to-br from-slate-800/50 to-slate-700/50 rounded-xl p-4 border border-slate-600/30 hover:border-purple-500/50 transition-all group"
+                  className="rounded-2xl p-5 transition-all group border hover:border-purple-500/50 hover:shadow-xl bg-slate-100/80 border-slate-300/60 dark:bg-gradient-to-br dark:from-slate-800/50 dark:to-slate-700/50 dark:border-slate-600/30"
                 >
                   <div className="flex items-start gap-4">
                     <div className="text-4xl flex-shrink-0">{template.icon}</div>
                     <div className="flex-1 min-w-0">
-                      <h4 className="text-lg font-semibold text-white mb-1">{template.name}</h4>
+                      <h4 className="text-lg font-semibold text-slate-900 dark:text-white mb-1 truncate">
+                        {template.name}
+                      </h4>
                       {template.description && (
-                        <p className="text-sm text-slate-400 mb-2">{template.description}</p>
+                        <p className="text-sm text-slate-600 dark:text-slate-400 mb-2 line-clamp-2">{template.description}</p>
                       )}
                       <div className="flex flex-wrap gap-2 text-xs">
                         {template.camera?.make && (
@@ -331,7 +388,7 @@ export default function TemplateManager({
                           </button>
                           <button
                             onClick={() => setDeletingId(null)}
-                            className="px-3 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg transition-colors text-sm font-medium"
+                            className="px-3 py-2 rounded-lg transition-colors text-sm font-medium bg-slate-200 text-slate-900 hover:bg-slate-300 dark:bg-slate-600 dark:text-white dark:hover:bg-slate-700"
                           >
                             Отмена
                           </button>

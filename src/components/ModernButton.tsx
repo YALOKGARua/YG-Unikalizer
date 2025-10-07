@@ -30,7 +30,7 @@ const ModernButton = forwardRef<HTMLButtonElement, ModernButtonProps>(({
   tilt = false
 }, ref) => {
   const sizeClasses = {
-    sm: 'px-3 py-1.5 text-sm',
+    sm: 'px-3 py-1.5 text-xs',
     md: 'px-4 py-2.5 text-base',
     lg: 'px-6 py-3 text-lg'
   }
@@ -51,8 +51,8 @@ const ModernButton = forwardRef<HTMLButtonElement, ModernButtonProps>(({
       disabled={disabled || loading}
       onClick={onClick}
       className={`
-        relative overflow-hidden font-medium rounded-lg
-        transition-all duration-300 transform
+        relative overflow-hidden font-medium rounded-xl
+        transition-all duration-200 transform focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40
         shadow-lg hover:shadow-xl
         ${sizeClasses[size]}
         ${variantClasses[variant]}
@@ -60,6 +60,7 @@ const ModernButton = forwardRef<HTMLButtonElement, ModernButtonProps>(({
         ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105 active:scale-95'}
         ${className}
       `}
+      aria-busy={loading ? true : undefined}
       whileHover={!disabled ? { y: -2 } : {}}
       whileTap={!disabled ? { scale: 0.98 } : {}}
     >
@@ -75,10 +76,10 @@ const ModernButton = forwardRef<HTMLButtonElement, ModernButtonProps>(({
       )}
 
       <motion.div
-        className="absolute inset-0 bg-white/20"
-        initial={{ x: '-100%', skewX: '-12deg' }}
-        whileHover={{ x: '100%' }}
-        transition={{ duration: 0.5 }}
+        className="pointer-events-none absolute inset-0 bg-white/10"
+        initial={{ x: '-120%', skewX: '-16deg' }}
+        whileHover={{ x: '120%' }}
+        transition={{ duration: 0.35 }}
       />
     </motion.button>
   )

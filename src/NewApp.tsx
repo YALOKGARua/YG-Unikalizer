@@ -996,38 +996,49 @@ export default function NewApp() {
       
       <div className="h-full relative">
         <div className="px-4 py-3 border-b border-white/10 bg-black/10 dark:bg-black/20 backdrop-blur overflow-x-auto with-gutter">
-          <div className="flex items-center gap-3 flex-wrap">
-            <ModernButton onClick={selectImages} variant="primary" icon={<FaImage className="w-4 h-4" />} tilt>
+          <div className="flex items-center gap-2 md:gap-3 flex-wrap">
+            <div className="inline-flex items-center gap-2 bg-white/5 rounded-xl p-1">
+            <ModernButton onClick={selectImages} size="sm" variant="primary" icon={<FaImage className="w-4 h-4" />} tilt>
               {t('buttons.addFiles')}
             </ModernButton>
-            <ModernButton onClick={selectFolder} variant="success" icon={<FaFolderOpen className="w-4 h-4" />} tilt>
+            <ModernButton onClick={selectFolder} size="sm" variant="success" icon={<FaFolderOpen className="w-4 h-4" />} tilt>
               {t('buttons.addFolder')}
             </ModernButton>
-            <ModernButton onClick={() => setMobileSyncOpen(true)} variant="primary" icon={<FaQrcode className="w-4 h-4" />} tilt>
+            <ModernButton onClick={() => setMobileSyncOpen(true)} size="sm" variant="primary" icon={<FaQrcode className="w-4 h-4" />} tilt>
               📱 Mobile
             </ModernButton>
-            <ModernButton onClick={clearFiles} variant="danger" icon={<FaTrash className="w-4 h-4" />}>
-              {t('buttons.clear')}
-            </ModernButton>
-            <ModernButton onClick={selectOutput} variant="warning" icon={<FaFolder className="w-4 h-4" />}>
+            </div>
+            <div className="inline-flex items-center gap-2 bg-white/5 rounded-xl p-1">
+            <ModernButton onClick={selectOutput} size="sm" variant="warning" icon={<FaFolder className="w-4 h-4" />}>
               {t('common.pickFolder')}
             </ModernButton>
+            <ModernButton onClick={clearFiles} size="sm" variant="danger" icon={<FaTrash className="w-4 h-4" />}>
+              {t('buttons.clear')}
+            </ModernButton>
+            </div>
             {!!outputDir && (
               <div className="text-xs opacity-80 truncate max-w-[320px] px-3 py-2 rounded-lg border border-white/10 bg-white/60 text-slate-900 dark:bg-slate-800/60 dark:text-slate-100">📁 {outputDir.split(/[/\\]/).pop()}</div>
             )}
+            <div className="inline-flex items-center gap-2 bg-white/5 rounded-xl p-1">
             {!busy && (
               <FeatureGateCompact feature="batch_processing" showUpgrade={files.length > 3}>
-                <ModernButton onClick={start} variant="primary" icon={<FaPlay className="w-4 h-4" />} disabled={!canStart} loading={busy}>
+                <ModernButton onClick={start} size="sm" variant="primary" icon={<FaPlay className="w-4 h-4" />} disabled={!canStart} loading={busy}>
                   {t('buttons.start')}
                   {files.length > 3 && <PremiumBadgeCompact feature="batch_processing" />}
                 </ModernButton>
               </FeatureGateCompact>
             )}
             {busy && (
-              <ModernButton onClick={cancel} variant="secondary" icon={<FaStop className="w-4 h-4" />}>
+              <ModernButton onClick={cancel} size="sm" variant="secondary" icon={<FaStop className="w-4 h-4" />}>
                 {t('buttons.cancel')}
               </ModernButton>
             )}
+            </div>
+
+            <div className="ml-auto inline-flex items-center gap-2 text-[11px] opacity-80">
+              <span className="px-2 py-1 rounded-md border border-white/10 bg-white/5">Файлов: {files.length}</span>
+              <span className="px-2 py-1 rounded-md border border-white/10 bg-white/5">Выбрано: {selected.size}</span>
+            </div>
           </div>
         </div>
 
@@ -1072,9 +1083,20 @@ export default function NewApp() {
               </label>
               <label className="flex flex-col gap-2">
                 <span className="opacity-70 font-medium">Качество</span>
-                <input 
-                  type="number" min={1} max={proAdvanced?100:85} value={quality} onChange={e=>{ const v = Number(e.target.value)||0; if (!proAdvanced && v>85) { try { window.dispatchEvent(new CustomEvent('open-subscription')) } catch {}; setQuality(85) } else { setQuality(v) } }} className="bg-white/60 text-slate-900 dark:text-slate-100 dark:bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-white/20 transition-colors" 
-                />
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={1}
+                    max={proAdvanced?100:85}
+                    step={1}
+                    value={quality}
+                    onChange={e=>{ const v = Number(e.target.value)||0; if (!proAdvanced && v>85) { try { window.dispatchEvent(new CustomEvent('open-subscription')) } catch {}; setQuality(85) } else { setQuality(v) } }}
+                    className="flex-1 accent-amber-500"
+                  />
+                  <input 
+                    type="number" min={1} max={proAdvanced?100:85} value={quality} onChange={e=>{ const v = Number(e.target.value)||0; if (!proAdvanced && v>85) { try { window.dispatchEvent(new CustomEvent('open-subscription')) } catch {}; setQuality(85) } else { setQuality(v) } }} className="w-20 h-9 bg-white/60 text-slate-900 dark:text-slate-100 dark:bg-slate-800/50 border border-white/10 rounded-lg px-3 hover:border-white/20 transition-colors" 
+                  />
+                </div>
               </label>
               <FeatureGateSide feature="advanced_drift">
                 <label className="flex flex-col gap-2">
@@ -1082,9 +1104,20 @@ export default function NewApp() {
                     Цвет. дрифт %
                     <PremiumBadgeSide feature="advanced_drift" />
                   </span>
-                  <input 
-                    type="number" min={0} max={10} value={colorDrift} onChange={e=>setColorDrift(Number(e.target.value)||0)} className="bg-white/60 text-slate-900 dark:text-slate-100 dark:bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-white/20 transition-colors" 
-                  />
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range"
+                      min={0}
+                      max={10}
+                      step={1}
+                      value={colorDrift}
+                      onChange={e=>setColorDrift(Number(e.target.value)||0)}
+                      className="flex-1 accent-purple-500"
+                    />
+                    <input 
+                      type="number" min={0} max={10} value={colorDrift} onChange={e=>setColorDrift(Number(e.target.value)||0)} className="w-20 h-9 bg-white/60 text-slate-900 dark:text-slate-100 dark:bg-slate-800/50 border border-white/10 rounded-lg px-3 hover:border-white/20 transition-colors" 
+                    />
+                  </div>
                 </label>
               </FeatureGateSide>
               <FeatureGateSide feature="advanced_drift">
@@ -1093,9 +1126,20 @@ export default function NewApp() {
                     Размер дрифт %
                     <PremiumBadgeSide feature="advanced_drift" />
                   </span>
-                  <input 
-                    type="number" min={0} max={10} value={resizeDrift} onChange={e=>setResizeDrift(Number(e.target.value)||0)} className="bg-white/60 text-slate-900 dark:text-slate-100 dark:bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-white/20 transition-colors" 
-                  />
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range"
+                      min={0}
+                      max={10}
+                      step={1}
+                      value={resizeDrift}
+                      onChange={e=>setResizeDrift(Number(e.target.value)||0)}
+                      className="flex-1 accent-purple-500"
+                    />
+                    <input 
+                      type="number" min={0} max={10} value={resizeDrift} onChange={e=>setResizeDrift(Number(e.target.value)||0)} className="w-20 h-9 bg-white/60 text-slate-900 dark:text-slate-100 dark:bg-slate-800/50 border border-white/10 rounded-lg px-3 hover:border-white/20 transition-colors" 
+                    />
+                  </div>
                 </label>
               </FeatureGateSide>
               <label className="flex flex-col gap-2">
@@ -1126,19 +1170,30 @@ export default function NewApp() {
                     className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500" 
                   />
                   <div className="flex-1">
-                    <span className="text-sm text-white group-hover:text-blue-300 transition-colors">Удалить GPS данные</span>
+                    <span className="text-sm text-white group-hover:text-blue-300 transition-colors inline-flex items-center gap-2">
+                      <Icon name="tabler:gps" className="w-4 h-4 text-blue-400" />
+                      Удалить GPS данные
+                      {removeGps && <span className="ml-1 px-2 py-0.5 text-[10px] rounded-full bg-emerald-600/30 text-emerald-300 border border-emerald-500/30">Активно</span>}
+                    </span>
                     <p className="text-[10px] text-slate-500 mt-0.5">Удаляет координаты и геолокацию</p>
                   </div>
                 </label>
-                <label className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-slate-800/40 to-slate-700/40 hover:from-slate-800/60 hover:to-slate-700/60 transition-all cursor-pointer group border border-white/5">
+                <label className={`flex items-center gap-3 p-3 rounded-lg transition-all cursor-pointer group border ${
+                    removeAll ? 'bg-slate-800/30 opacity-50 cursor-not-allowed border-slate-700/30' : 'bg-gradient-to-r from-slate-800/40 to-slate-700/40 hover:from-slate-800/60 hover:to-slate-700/60 border-white/5'
+                  }`}>
                   <input 
                     type="checkbox" 
                     checked={uniqueId} 
-                    onChange={e=>setUniqueId(e.target.checked)} 
-                    className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500" 
+                    onChange={e=>setUniqueId(e.target.checked)}
+                    disabled={removeAll}
+                    className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 disabled:opacity-50" 
                   />
                   <div className="flex-1">
-                    <span className="text-sm text-white group-hover:text-blue-300 transition-colors">Уникальный ID</span>
+                    <span className="text-sm text-white group-hover:text-blue-300 transition-colors inline-flex items-center gap-2">
+                      <Icon name="tabler:key" className="w-4 h-4 text-blue-400" />
+                      Уникальный ID
+                      {uniqueId && !removeAll && <span className="ml-1 px-2 py-0.5 text-[10px] rounded-full bg-emerald-600/30 text-emerald-300 border border-emerald-500/30">Активно</span>}
+                    </span>
                     <p className="text-[10px] text-slate-500 mt-0.5">Генерирует уникальный идентификатор</p>
                   </div>
                 </label>
@@ -1169,15 +1224,22 @@ export default function NewApp() {
                     </p>
                   </div>
                 </label>
-                <label className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-slate-800/40 to-slate-700/40 hover:from-slate-800/60 hover:to-slate-700/60 transition-all cursor-pointer group border border-white/5">
+                <label className={`flex items-center gap-3 p-3 rounded-lg transition-all cursor-pointer group border ${
+                    removeAll ? 'bg-slate-800/30 opacity-50 cursor-not-allowed border-slate-700/30' : 'bg-gradient-to-r from-slate-800/40 to-slate-700/40 hover:from-slate-800/60 hover:to-slate-700/60 border-white/5'
+                  }`}>
                   <input 
                     type="checkbox" 
                     checked={softwareTag} 
-                    onChange={e=>setSoftwareTag(e.target.checked)} 
-                    className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500" 
+                    onChange={e=>setSoftwareTag(e.target.checked)}
+                    disabled={removeAll}
+                    className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 disabled:opacity-50" 
                   />
                   <div className="flex-1">
-                    <span className="text-sm text-white group-hover:text-blue-300 transition-colors">Добавить тег Software</span>
+                    <span className="text-sm text-white group-hover:text-blue-300 transition-colors inline-flex items-center gap-2">
+                      <Icon name="tabler:tags" className="w-4 h-4 text-blue-400" />
+                      Добавить тег Software
+                      {softwareTag && !removeAll && <span className="ml-1 px-2 py-0.5 text-[10px] rounded-full bg-emerald-600/30 text-emerald-300 border border-emerald-500/30">Активно</span>}
+                    </span>
                     <p className="text-[10px] text-slate-500 mt-0.5">Добавляет информацию о программе</p>
                   </div>
                 </label>
@@ -1328,9 +1390,14 @@ export default function NewApp() {
 
             {fakeTab === 'general' && (
               <div className="bg-gradient-to-br from-purple-900/20 to-indigo-900/20 backdrop-blur-sm rounded-xl p-4 border border-purple-500/20">
-                <h4 className="text-sm font-semibold text-purple-300 mb-3 flex items-center gap-2">
-                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
-                  Настройки генерации
+                <h4 className="text-sm font-semibold text-purple-300 mb-3 flex items-center justify-between gap-2">
+                  <span className="inline-flex items-center gap-2">
+                    <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
+                    Настройки генерации
+                  </span>
+                  <span className="text-[11px] opacity-80">
+                    {`${fakeAuto ? 'Авто' : 'Ручной'} • ${fakePerFile ? 'Уникально' : 'Одинаково'}${onlineAuto ? ' • Online' : ''}`}
+                  </span>
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <label className="flex items-center gap-3 p-3 rounded-lg bg-purple-800/10 hover:bg-purple-800/20 transition-all cursor-pointer group border border-purple-500/10">
@@ -1341,7 +1408,11 @@ export default function NewApp() {
                       className="w-4 h-4 text-purple-600 bg-gray-700 border-gray-600 rounded focus:ring-purple-500"
                     />
                     <div className="flex-1">
-                      <span className="text-sm text-purple-200">Авто-генерация</span>
+                      <span className="text-sm text-purple-200 inline-flex items-center gap-2">
+                        <Icon name="tabler:sparkles" className="w-4 h-4" />
+                        Авто-генерация
+                        {fakeAuto && <span className="ml-1 px-2 py-0.5 text-[10px] rounded-full bg-emerald-600/30 text-emerald-300 border border-emerald-500/30">Активно</span>}
+                      </span>
                       <p className="text-[10px] text-slate-500 mt-0.5">Автоматический подбор параметров</p>
                     </div>
                   </label>
@@ -1353,7 +1424,11 @@ export default function NewApp() {
                       className="w-4 h-4 text-purple-600 bg-gray-700 border-gray-600 rounded focus:ring-purple-500"
                     />
                     <div className="flex-1">
-                      <span className="text-sm text-purple-200">Уникально на файл</span>
+                      <span className="text-sm text-purple-200 inline-flex items-center gap-2">
+                        <Icon name="tabler:fingerprint" className="w-4 h-4" />
+                        Уникально на файл
+                        {fakePerFile && <span className="ml-1 px-2 py-0.5 text-[10px] rounded-full bg-emerald-600/30 text-emerald-300 border border-emerald-500/30">Активно</span>}
+                      </span>
                       <p className="text-[10px] text-slate-500 mt-0.5">Разные параметры для каждого</p>
                     </div>
                   </label>
@@ -1366,7 +1441,11 @@ export default function NewApp() {
                         className="w-4 h-4 text-purple-600 bg-gray-700 border-gray-600 rounded focus:ring-purple-500"
                       />
                       <div className="flex-1">
-                        <span className="text-sm text-purple-200">Online дефолты</span>
+                        <span className="text-sm text-purple-200 inline-flex items-center gap-2">
+                          <Icon name="tabler:cloud" className="w-4 h-4" />
+                          Online дефолты
+                          {onlineAuto && <span className="ml-1 px-2 py-0.5 text-[10px] rounded-full bg-emerald-600/30 text-emerald-300 border border-emerald-500/30">Активно</span>}
+                        </span>
                         <p className="text-[10px] text-slate-500 mt-0.5">Использовать онлайн базу</p>
                       </div>
                     </label>
@@ -1611,21 +1690,26 @@ export default function NewApp() {
 
             {fakeTab === 'location' && (
               <div className="bg-gradient-to-br from-green-900/20 to-teal-900/20 backdrop-blur-sm rounded-xl p-4 border border-green-500/20">
-                <h4 className="text-sm font-semibold text-green-300 mb-4 flex items-center gap-2">
-                  <Icon name="tabler:map-pin" className="w-5 h-5" />
-                  Геолокация
+                <h4 className="text-sm font-semibold text-green-300 mb-4 flex items-center justify-between gap-2">
+                  <span className="inline-flex items-center gap-2">
+                    <Icon name="tabler:map-pin" className="w-5 h-5" />
+                    Геолокация
+                  </span>
+                  <span className="text-[11px] text-green-300/80">
+                    {(fakeGps ? 'GPS' : 'GPS выкл') + (locationPreset && locationPreset!=='none' ? ' • Пресет' : '')}
+                  </span>
                 </h4>
                 <div className="space-y-4">
                   <div className="flex flex-wrap items-center gap-4">
                     <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-800/10 hover:bg-green-800/20 transition-all cursor-pointer border border-green-500/10">
                       <input type="checkbox" checked={fakeGps} onChange={e=>setFakeGps(e.target.checked)} className="w-4 h-4 text-green-600 bg-gray-700 border-gray-600 rounded focus:ring-green-500" />
                       <Icon name="tabler:gps" className="w-4 h-4 text-green-400" />
-                      <span className="text-sm text-green-200">Включить GPS</span>
+                      <span className="text-sm text-green-200 inline-flex items-center gap-2">Включить GPS {fakeGps && <span className="ml-1 px-2 py-0.5 text-[10px] rounded-full bg-emerald-600/30 text-emerald-300 border border-emerald-500/30">Активно</span>}</span>
                     </label>
                     <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-800/10 hover:bg-green-800/20 transition-all cursor-pointer border border-green-500/10">
                       <input type="checkbox" checked={!!locationPreset && locationPreset!=='none'} onChange={e=>{ if (!e.target.checked) setLocationPreset('none') }} className="w-4 h-4 text-green-600 bg-gray-700 border-gray-600 rounded focus:ring-green-500" />
                       <Icon name="tabler:location" className="w-4 h-4 text-green-400" />
-                      <span className="text-sm text-green-200">Использовать пресет</span>
+                      <span className="text-sm text-green-200 inline-flex items-center gap-2">Использовать пресет {locationPreset && locationPreset!=='none' && <span className="ml-1 px-2 py-0.5 text-[10px] rounded-full bg-emerald-600/30 text-emerald-300 border border-emerald-500/30">Активно</span>}</span>
                     </label>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -1691,9 +1775,14 @@ export default function NewApp() {
 
             {fakeTab === 'metadata' && (
               <div className="bg-gradient-to-br from-orange-900/20 to-red-900/20 backdrop-blur-sm rounded-xl p-4 border border-orange-500/20">
-                <h4 className="text-sm font-semibold text-orange-300 mb-4 flex items-center gap-2">
-                  <Icon name="tabler:file-info" className="w-5 h-5" />
-                  Метаданные
+                <h4 className="text-sm font-semibold text-orange-300 mb-4 flex items-center justify-between gap-2">
+                  <span className="inline-flex items-center gap-2">
+                    <Icon name="tabler:file-info" className="w-5 h-5" />
+                    Метаданные
+                  </span>
+                  <span className="text-[11px] text-orange-300/80 truncate max-w-[50vw]">
+                    {`${author ? 'Автор' : ''}${description ? (author ? ' • ' : '') + 'Описание' : ''}${keywords ? ((author||description) ? ' • ' : '') + 'Ключевые слова' : ''}${copyright ? ((author||description||keywords) ? ' • ' : '') + '©' : ''}${creatorTool ? ((author||description||keywords||copyright) ? ' • ' : '') + 'Софт' : ''}` || '—'}
+                  </span>
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                   <label className="flex flex-col gap-2 p-3 rounded-lg bg-orange-800/10 hover:bg-orange-800/20 transition-all border border-orange-500/10">
@@ -1738,7 +1827,7 @@ export default function NewApp() {
         )}
 
         {progress && progress.total > 0 && (
-          <div className="px-2 md:px-4 py-3 md:py-4 border-b border-white/10 bg-black/10 dark:bg-black/20 backdrop-blur">
+          <div className="px-2 md:px-4 py-3 md:py-4 border-b border-white/10 bg-black/10 dark:bg-black/20 backdrop-blur sticky top-[88px] z-30">
             <EnhancedStats
               totalFiles={progress.total}
               processedFiles={results.length}
@@ -1900,7 +1989,19 @@ export default function NewApp() {
                     ))}
                   </div>
                 )}
-                {!results.length && <div className="opacity-60 text-xs">{t('ready.empty')}</div>}
+                {!results.length && (
+                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-3">
+                    {Array.from({ length: 8 }).map((_, idx) => (
+                      <div key={idx} className="rounded-md overflow-hidden border border-white/5 bg-white/60 dark:bg-slate-900/50 animate-pulse">
+                        <div className="h-36 bg-slate-300/60 dark:bg-slate-800" />
+                        <div className="p-2">
+                          <div className="h-3 w-4/5 bg-slate-300/60 dark:bg-slate-800 rounded mb-1" />
+                          <div className="h-3 w-2/5 bg-slate-300/60 dark:bg-slate-800 rounded" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </animated.div>
             )}
           </section>
