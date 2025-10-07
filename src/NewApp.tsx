@@ -980,7 +980,7 @@ export default function NewApp() {
         <LoadingSpinner size="lg" text="Загрузка приложения..." />
       </div>
     }>
-      <div className="h-full text-slate-100 relative">
+      <div className="h-full text-white relative dark:text-slate-100">
         {perf.backgroundAnimations && <AnimatedBackground />}
         
         {perf.confettiEnabled && showConfetti && (
@@ -995,7 +995,7 @@ export default function NewApp() {
         <div className="toaster-container" />
       
       <div className="h-full relative">
-        <div className="px-4 py-3 border-b border-white/10 bg-black/20 backdrop-blur overflow-x-auto with-gutter">
+        <div className="px-4 py-3 border-b border-white/10 bg-black/10 dark:bg-black/20 backdrop-blur overflow-x-auto with-gutter">
           <div className="flex items-center gap-3 flex-wrap">
             <ModernButton onClick={selectImages} variant="primary" icon={<FaImage className="w-4 h-4" />} tilt>
               {t('buttons.addFiles')}
@@ -1013,7 +1013,7 @@ export default function NewApp() {
               {t('common.pickFolder')}
             </ModernButton>
             {!!outputDir && (
-              <div className="text-xs opacity-80 truncate max-w-[320px] px-3 py-2 bg-slate-800/60 rounded-lg border border-white/10">📁 {outputDir.split(/[/\\]/).pop()}</div>
+              <div className="text-xs opacity-80 truncate max-w-[320px] px-3 py-2 rounded-lg border border-white/10 bg-white/60 text-slate-900 dark:bg-slate-800/60 dark:text-slate-100">📁 {outputDir.split(/[/\\]/).pop()}</div>
             )}
             {!busy && (
               <FeatureGateCompact feature="batch_processing" showUpgrade={files.length > 3}>
@@ -1073,7 +1073,7 @@ export default function NewApp() {
               <label className="flex flex-col gap-2">
                 <span className="opacity-70 font-medium">Качество</span>
                 <input 
-                  type="number" min={1} max={proAdvanced?100:85} value={quality} onChange={e=>{ const v = Number(e.target.value)||0; if (!proAdvanced && v>85) { try { window.dispatchEvent(new CustomEvent('open-subscription')) } catch {}; setQuality(85) } else { setQuality(v) } }} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-white/20 transition-colors" 
+                  type="number" min={1} max={proAdvanced?100:85} value={quality} onChange={e=>{ const v = Number(e.target.value)||0; if (!proAdvanced && v>85) { try { window.dispatchEvent(new CustomEvent('open-subscription')) } catch {}; setQuality(85) } else { setQuality(v) } }} className="bg-white/60 text-slate-900 dark:text-slate-100 dark:bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-white/20 transition-colors" 
                 />
               </label>
               <FeatureGateSide feature="advanced_drift">
@@ -1083,7 +1083,7 @@ export default function NewApp() {
                     <PremiumBadgeSide feature="advanced_drift" />
                   </span>
                   <input 
-                    type="number" min={0} max={10} value={colorDrift} onChange={e=>setColorDrift(Number(e.target.value)||0)} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-white/20 transition-colors" 
+                    type="number" min={0} max={10} value={colorDrift} onChange={e=>setColorDrift(Number(e.target.value)||0)} className="bg-white/60 text-slate-900 dark:text-slate-100 dark:bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-white/20 transition-colors" 
                   />
                 </label>
               </FeatureGateSide>
@@ -1094,14 +1094,14 @@ export default function NewApp() {
                     <PremiumBadgeSide feature="advanced_drift" />
                   </span>
                   <input 
-                    type="number" min={0} max={10} value={resizeDrift} onChange={e=>setResizeDrift(Number(e.target.value)||0)} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-white/20 transition-colors" 
+                    type="number" min={0} max={10} value={resizeDrift} onChange={e=>setResizeDrift(Number(e.target.value)||0)} className="bg-white/60 text-slate-900 dark:text-slate-100 dark:bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-white/20 transition-colors" 
                   />
                 </label>
               </FeatureGateSide>
               <label className="flex flex-col gap-2">
                 <span className="opacity-70 font-medium">Макс. ширина</span>
                 <input 
-                  type="number" min={0} value={resizeMaxW} onChange={e=>setResizeMaxW(Number(e.target.value)||0)} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-white/20 transition-colors" 
+                  type="number" min={0} value={resizeMaxW} onChange={e=>setResizeMaxW(Number(e.target.value)||0)} className="bg-white/60 text-slate-900 dark:text-slate-100 dark:bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-white/20 transition-colors" 
                 />
               </label>
             </div>
@@ -1199,7 +1199,7 @@ export default function NewApp() {
                 {dateStrategy === 'offset' && (
                   <label className="flex flex-col gap-2">
                     <span className="opacity-70 font-medium">Смещение, мин</span>
-                    <input type="number" value={dateOffsetMinutes} onChange={e=>setDateOffsetMinutes(Number(e.target.value)||0)} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-white/20 transition-colors" />
+                    <input type="number" value={dateOffsetMinutes} onChange={e=>setDateOffsetMinutes(Number(e.target.value)||0)} className="bg-white/60 text-slate-900 dark:text-slate-100 dark:bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-white/20 transition-colors" />
                   </label>
                 )}
                 <div className="border-t border-white/10 my-3"></div>
@@ -1446,7 +1446,7 @@ export default function NewApp() {
                       <input 
                         value={fakeSoftware} 
                         onChange={e=>setFakeSoftware(e.target.value)} 
-                        className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-indigo-400/30 transition-colors text-sm"
+                        className="bg-white/60 text-slate-900 dark:text-slate-100 dark:bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-indigo-400/30 transition-colors text-sm"
                         placeholder="Photoshop..."
                       />
                     </label>
@@ -1455,7 +1455,7 @@ export default function NewApp() {
                       <input 
                         value={fakeSerial} 
                         onChange={e=>setFakeSerial(e.target.value)} 
-                        className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-indigo-400/30 transition-colors text-sm"
+                        className="bg-white/60 text-slate-900 dark:text-slate-100 dark:bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-indigo-400/30 transition-colors text-sm"
                         placeholder="123456..."
                       />
                     </label>
@@ -1590,7 +1590,7 @@ export default function NewApp() {
                       <input 
                         value={fakeTitle} 
                         onChange={e=>setFakeTitle(e.target.value)} 
-                        className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-blue-400/30 transition-colors text-sm"
+                        className="bg-white/60 text-slate-900 dark:text-slate-100 dark:bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-blue-400/30 transition-colors text-sm"
                         placeholder="Название изображения..."
                       />
                     </label>
@@ -1599,7 +1599,7 @@ export default function NewApp() {
                       <input 
                         value={fakeLabel} 
                         onChange={e=>setFakeLabel(e.target.value)} 
-                        className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-blue-400/30 transition-colors text-sm"
+                        className="bg-white/60 text-slate-900 dark:text-slate-100 dark:bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-blue-400/30 transition-colors text-sm"
                         placeholder="Категория..."
                       />
                     </label>
@@ -1647,42 +1647,42 @@ export default function NewApp() {
                         <Icon name="tabler:map-north" className="w-4 h-4" />
                         Широта
                       </span>
-                      <input value={fakeLat} onChange={e=>setFakeLat(e.target.value)} placeholder="50.45" className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-green-400/30 transition-colors text-sm" />
+                      <input value={fakeLat} onChange={e=>setFakeLat(e.target.value)} placeholder="50.45" className="bg-white/60 text-slate-900 dark:text-slate-100 dark:bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-green-400/30 transition-colors text-sm" />
                     </label>
                     <label className="flex flex-col gap-2 p-3 rounded-lg bg-green-800/10 hover:bg-green-800/20 transition-all border border-green-500/10">
                       <span className="text-xs font-medium text-green-300 flex items-center gap-2">
                         <Icon name="tabler:map-east" className="w-4 h-4" />
                         Долгота
                       </span>
-                      <input value={fakeLon} onChange={e=>setFakeLon(e.target.value)} placeholder="30.52" className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-green-400/30 transition-colors text-sm" />
+                      <input value={fakeLon} onChange={e=>setFakeLon(e.target.value)} placeholder="30.52" className="bg-white/60 text-slate-900 dark:text-slate-100 dark:bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-green-400/30 transition-colors text-sm" />
                     </label>
                     <label className="flex flex-col gap-2 p-3 rounded-lg bg-green-800/10 hover:bg-green-800/20 transition-all border border-green-500/10">
                       <span className="text-xs font-medium text-green-300 flex items-center gap-2">
                         <Icon name="tabler:mountain" className="w-4 h-4" />
                         Высота (м)
                       </span>
-                      <input value={fakeAltitude} onChange={e=>setFakeAltitude(e.target.value)} placeholder="100" className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-green-400/30 transition-colors text-sm" />
+                      <input value={fakeAltitude} onChange={e=>setFakeAltitude(e.target.value)} placeholder="100" className="bg-white/60 text-slate-900 dark:text-slate-100 dark:bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-green-400/30 transition-colors text-sm" />
                     </label>
                     <label className="flex flex-col gap-2 p-3 rounded-lg bg-green-800/10 hover:bg-green-800/20 transition-all border border-green-500/10">
                       <span className="text-xs font-medium text-green-300 flex items-center gap-2">
                         <Icon name="tabler:building" className="w-4 h-4" />
                         {t('fake.city', { defaultValue: 'Город' })}
                       </span>
-                      <input value={fakeCity} onChange={e=>setFakeCity(e.target.value)} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-green-400/30 transition-colors text-sm" />
+                      <input value={fakeCity} onChange={e=>setFakeCity(e.target.value)} className="bg-white/60 text-slate-900 dark:text-slate-100 dark:bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-green-400/30 transition-colors text-sm" />
                     </label>
                     <label className="flex flex-col gap-2 p-3 rounded-lg bg-green-800/10 hover:bg-green-800/20 transition-all border border-green-500/10">
                       <span className="text-xs font-medium text-green-300 flex items-center gap-2">
                         <Icon name="tabler:map" className="w-4 h-4" />
                         {t('fake.state', { defaultValue: 'Регион' })}
                       </span>
-                      <input value={fakeState} onChange={e=>setFakeState(e.target.value)} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-green-400/30 transition-colors text-sm" />
+                      <input value={fakeState} onChange={e=>setFakeState(e.target.value)} className="bg-white/60 text-slate-900 dark:text-slate-100 dark:bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-green-400/30 transition-colors text-sm" />
                     </label>
                     <label className="flex flex-col gap-2 p-3 rounded-lg bg-green-800/10 hover:bg-green-800/20 transition-all border border-green-500/10">
                       <span className="text-xs font-medium text-green-300 flex items-center gap-2">
                         <Icon name="tabler:world" className="w-4 h-4" />
                         {t('fake.country', { defaultValue: 'Страна' })}
                       </span>
-                      <input value={fakeCountry} onChange={e=>setFakeCountry(e.target.value)} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-green-400/30 transition-colors text-sm" />
+                      <input value={fakeCountry} onChange={e=>setFakeCountry(e.target.value)} className="bg-white/60 text-slate-900 dark:text-slate-100 dark:bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-green-400/30 transition-colors text-sm" />
                     </label>
                   </div>
                 </div>
@@ -1701,35 +1701,35 @@ export default function NewApp() {
                       <Icon name="tabler:user" className="w-4 h-4" />
                       {t('meta.author', { defaultValue: 'Автор' })}
                     </span>
-                    <input value={author} onChange={e=>setAuthor(e.target.value)} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-orange-400/30 transition-colors text-sm" placeholder="Введите имя автора" />
+                    <input value={author} onChange={e=>setAuthor(e.target.value)} className="bg-white/60 text-slate-900 dark:text-slate-100 dark:bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-orange-400/30 transition-colors text-sm" placeholder="Введите имя автора" />
                   </label>
                   <label className="flex flex-col gap-2 p-3 rounded-lg bg-orange-800/10 hover:bg-orange-800/20 transition-all border border-orange-500/10 md:col-span-2">
                     <span className="text-xs font-medium text-orange-300 flex items-center gap-2">
                       <Icon name="tabler:file-text" className="w-4 h-4" />
                       {t('meta.description', { defaultValue: 'Описание' })}
                     </span>
-                    <input value={description} onChange={e=>setDescription(e.target.value)} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-orange-400/30 transition-colors text-sm" placeholder="Описание изображения" />
+                    <input value={description} onChange={e=>setDescription(e.target.value)} className="bg-white/60 text-slate-900 dark:text-slate-100 dark:bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-orange-400/30 transition-colors text-sm" placeholder="Описание изображения" />
                   </label>
                   <label className="flex flex-col gap-2 p-3 rounded-lg bg-orange-800/10 hover:bg-orange-800/20 transition-all border border-orange-500/10">
                     <span className="text-xs font-medium text-orange-300 flex items-center gap-2">
                       <Icon name="tabler:tags" className="w-4 h-4" />
                       {t('meta.keywords', { defaultValue: 'Ключевые слова' })}
                     </span>
-                    <input value={keywords} onChange={e=>setKeywords(e.target.value)} placeholder="слово1, слово2, слово3" className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-orange-400/30 transition-colors text-sm" />
+                    <input value={keywords} onChange={e=>setKeywords(e.target.value)} placeholder="слово1, слово2, слово3" className="bg-white/60 text-slate-900 dark:text-slate-100 dark:bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-orange-400/30 transition-colors text-sm" />
                   </label>
                   <label className="flex flex-col gap-2 p-3 rounded-lg bg-orange-800/10 hover:bg-orange-800/20 transition-all border border-orange-500/10">
                     <span className="text-xs font-medium text-orange-300 flex items-center gap-2">
                       <Icon name="tabler:copyright" className="w-4 h-4" />
                       Копирайт
                     </span>
-                    <input value={copyright} onChange={e=>setCopyright(e.target.value)} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-orange-400/30 transition-colors text-sm" placeholder="© 2024 Ваша компания" />
+                    <input value={copyright} onChange={e=>setCopyright(e.target.value)} className="bg-white/60 text-slate-900 dark:text-slate-100 dark:bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-orange-400/30 transition-colors text-sm" placeholder="© 2024 Ваша компания" />
                   </label>
                   <label className="flex flex-col gap-2 p-3 rounded-lg bg-orange-800/10 hover:bg-orange-800/20 transition-all border border-orange-500/10">
                     <span className="text-xs font-medium text-orange-300 flex items-center gap-2">
                       <Icon name="tabler:tool" className="w-4 h-4" />
                       Программа создания
                     </span>
-                    <input value={creatorTool} onChange={e=>setCreatorTool(e.target.value)} className="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-orange-400/30 transition-colors text-sm" placeholder="Photoshop, GIMP..." />
+                    <input value={creatorTool} onChange={e=>setCreatorTool(e.target.value)} className="bg-white/60 text-slate-900 dark:text-slate-100 dark:bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 hover:border-orange-400/30 transition-colors text-sm" placeholder="Photoshop, GIMP..." />
                   </label>
                 </div>
               </div>
@@ -1738,7 +1738,7 @@ export default function NewApp() {
         )}
 
         {progress && progress.total > 0 && (
-          <div className="px-2 md:px-4 py-3 md:py-4 border-b border-white/10 bg-black/20 backdrop-blur">
+          <div className="px-2 md:px-4 py-3 md:py-4 border-b border-white/10 bg-black/10 dark:bg-black/20 backdrop-blur">
             <EnhancedStats
               totalFiles={progress.total}
               processedFiles={results.length}
@@ -1867,8 +1867,8 @@ export default function NewApp() {
                 {!!results.length && (
                   <div ref={resultsGridRef} className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-3 @container">
                     {results.map((r, i) => (
-                      <div key={r.out+i} className="group bg-slate-900/60 rounded-md overflow-hidden border border-white/5 relative cursor-pointer">
-                        <div className="h-36 bg-slate-900 flex items-center justify-center overflow-hidden relative">
+                      <div key={r.out+i} className="group rounded-md overflow-hidden border border-white/5 relative cursor-pointer bg-white/70 dark:bg-slate-900/60">
+                        <div className="h-36 flex items-center justify-center overflow-hidden relative bg-slate-200 dark:bg-slate-900">
                           <img loading="lazy" decoding="async" alt="result" className="max-h-36 transition-transform group-hover:scale-[1.1]" src={toFileUrl(r.out)} />
                           <div className="absolute inset-0 z-10 opacity-0 group-hover:opacity-100 transition-all duration-300 bg-black/60 flex items-center justify-center gap-2 pointer-events-none">
                             <button className="chip pointer-events-auto bg-blue-600/90 hover:bg-blue-500" onClick={(e)=>{ e.stopPropagation(); setPreviewSrc(toFileUrl(r.out)); setPreviewOpen(true) }}>
@@ -1909,7 +1909,7 @@ export default function NewApp() {
         {previewOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center">
             <div className="absolute inset-0 bg-black/80" onClick={()=>setPreviewOpen(false)} />
-            <div className="relative max-w-[90vw] max-h-[90vh] rounded-xl overflow-hidden border border-white/10 bg-slate-900">
+            <div className="relative max-w-[90vw] max-h-[90vh] rounded-xl overflow-hidden border border-white/10 bg-white dark:bg-slate-900">
               <img alt="preview" src={previewSrc} className="max-w-[90vw] max-h-[90vh]" />
               <button onClick={()=>setPreviewOpen(false)} className="btn btn-ghost absolute top-2 right-2 text-xs">
                 Close
@@ -1921,7 +1921,7 @@ export default function NewApp() {
         {metaOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center">
             <div className="absolute inset-0 bg-black/80" onClick={()=>setMetaOpen(false)} />
-            <div className="relative w-[860px] max-w-[95vw] max-h-[90vh] rounded-xl overflow-hidden border border-white/10 bg-slate-900 p-4">
+            <div className="relative w-[860px] max-w-[95vw] max-h-[90vh] rounded-xl overflow-hidden border border-white/10 bg-white dark:bg-slate-900 p-4">
               <div className="flex items-center justify-between mb-2">
                 <div className="text-sm font-semibold flex items-center gap-2">
                   <FaInfoCircle className="w-4 h-4 text-purple-400" />
@@ -1934,14 +1934,14 @@ export default function NewApp() {
               <div className="grid grid-cols-2 gap-4 text-xs overflow-auto max-h-[75vh]">
                 <div>
                   <div className="font-semibold mb-1 text-red-400">Before</div>
-                  <pre className="bg-slate-950/60 border border-white/10 rounded p-2 whitespace-pre-wrap break-words">{JSON.stringify({
+                  <pre className="border border-white/10 rounded p-2 whitespace-pre-wrap break-words bg-slate-100/80 text-slate-900 dark:bg-slate-950/60 dark:text-slate-100">{JSON.stringify({
                     ...(metaPayload?.meta?.before||{}),
                     sizeBytes: metaPayload?.beforeStats?.stats?.sizeBytes || 0
                   }, null, 2)}</pre>
                 </div>
                 <div>
                   <div className="font-semibold mb-1 text-green-400">After</div>
-                  <pre className="bg-slate-950/60 border border-white/10 rounded p-2 whitespace-pre-wrap break-words">{JSON.stringify({
+                  <pre className="border border-white/10 rounded p-2 whitespace-pre-wrap break-words bg-slate-100/80 text-slate-900 dark:bg-slate-950/60 dark:text-slate-100">{JSON.stringify({
                     ...(metaPayload?.meta?.after||{}),
                     sizeBytes: metaPayload?.afterStats?.stats?.sizeBytes || 0
                   }, null, 2)}</pre>

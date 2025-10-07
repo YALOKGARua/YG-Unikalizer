@@ -9,12 +9,12 @@ function DraggableTile({ index, path, isSel, style, toFileUrl, onToggle, onMove 
   const [, drop] = useDrop(() => ({ accept: TYPE, drop: (item: any) => { if (item.index !== index) onMove(item.index, index) } }))
   return (
     <div ref={(node) => drag(drop(node)) as any} style={style} className={`p-1 ${isDragging?'opacity-50':''}`}>
-      <div className={`group tile bg-slate-900/60 rounded-md overflow-hidden border ${isSel?'border-brand-600 ring-1 ring-brand-600/40':'border-white/5'} relative`} onClick={(e)=>{
+      <div className={`group tile rounded-md overflow-hidden border ${isSel?'border-brand-600 ring-1 ring-brand-600/40':'border-white/5'} relative bg-white/70 dark:bg-slate-900/60`} onClick={(e)=>{
         const multi = (e as any).metaKey || (e as any).ctrlKey
         const rangeFrom = undefined
         onToggle(index, multi, rangeFrom as any)
       }}>
-        <div className="h-36 bg-slate-900 flex items-center justify-center overflow-hidden">
+        <div className="h-36 flex items-center justify-center overflow-hidden bg-slate-200 dark:bg-slate-900">
           <img loading="lazy" decoding="async" alt="file" className="max-h-36 transition-transform group-hover:scale-[1.02]" src={toFileUrl(path)} />
         </div>
         <div className="text-[10px] p-2 truncate opacity-80 flex items-center gap-2" title={path}>

@@ -8,18 +8,32 @@ import { Toaster } from 'sonner'
 
 const container = document.getElementById('root') as HTMLElement
 const root = createRoot(container)
+function ThemedToaster() {
+  const [theme, setTheme] = React.useState<'dark'|'light'>(() => document.documentElement.classList.contains('dark') ? 'dark' : 'light')
+  React.useEffect(() => {
+    const update = () => setTheme(document.documentElement.classList.contains('dark') ? 'dark' : 'light')
+    const mo = new MutationObserver(update)
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+    update()
+    return () => { mo.disconnect() }
+  }, [])
+  return (
+    <Toaster 
+      position="top-right" 
+      richColors 
+      theme={theme}
+      closeButton
+      expand={true}
+      visibleToasts={5}
+    />
+  )
+}
+
 root.render(
   <React.StrictMode>
     <HashRouter>
       <RootApp />
-      <Toaster 
-        position="top-right" 
-        richColors 
-        theme="dark"
-        closeButton
-        expand={true}
-        visibleToasts={5}
-      />
+      <ThemedToaster />
     </HashRouter>
   </React.StrictMode>
 )
