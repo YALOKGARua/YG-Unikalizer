@@ -630,7 +630,7 @@ export default function NewApp() {
     if (resultsGridRef.current) autoAnimate(resultsGridRef.current)
   }, [])
 
-  const canStart = useMemo(() => files.length > 0 && outputDir && !busy, [files, outputDir, busy])
+  const canStart = useMemo(() => files.length > 0 && outputDir && !busy, [files.length, outputDir, busy])
 
   const selectImages = async () => {
     const paths = await window.api.selectImages()

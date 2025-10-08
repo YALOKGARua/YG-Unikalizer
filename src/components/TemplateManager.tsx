@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from './Icons'
 import { FaTimes, FaSave, FaTrash, FaCheck, FaFileImport, FaFileExport } from 'react-icons/fa'
 import { toast } from 'sonner'
@@ -77,6 +77,8 @@ export default function TemplateManager({
   onApply,
   currentSettings
 }: TemplateManagerProps) {
+  if (!isOpen) return null
+
   const [isCreating, setIsCreating] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [newTemplate, setNewTemplate] = useState<Partial<CustomTemplate>>({
@@ -86,8 +88,25 @@ export default function TemplateManager({
   })
   const [query, setQuery] = useState('')
   const [sortBy, setSortBy] = useState<'new' | 'old' | 'az' | 'za'>('new')
+  const nameInputRef = useRef<HTMLInputElement | null>(null)
 
-  if (!isOpen) return null
+  useEffect(() => {
+    if (!isOpen) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+      const isSaveHotkey = (e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 's')
+      if (isSaveHotkey) {
+        e.preventDefault()
+        if (isCreating && (newTemplate.name || '').trim()) handleSaveTemplate()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [isOpen, isCreating, newTemplate.name])
+
+  useEffect(() => {
+    if (isCreating) nameInputRef.current?.focus()
+  }, [isCreating])
 
   const handleCreateNew = () => {
     setIsCreating(true)
@@ -187,14 +206,14 @@ export default function TemplateManager({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden border border-pink-500/30 bg-white dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-800 text-slate-900 dark:text-slate-100" onClick={(e) => e.stopPropagation()}>
-        <div className="p-6 flex items-center justify-between bg-gradient-to-r from-pink-600 to-purple-600 text-white">
+      <div className="rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden border border-indigo-500/30 bg-white dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-800 text-slate-900 dark:text-slate-100" onClick={(e) => e.stopPropagation()}>
+        <div className="p-6 flex items-center justify-between bg-gradient-to-r from-indigo-600 to-sky-600 text-white">
           <div>
             <h2 className="text-2xl font-bold text-white flex items-center gap-3">
               <Icon name="tabler:bookmarks" className="w-7 h-7" />
               Мои шаблоны метаданных
             </h2>
-            <p className="text-pink-100 text-sm mt-1">Сохраняйте и применяйте настройки одним кликом</p>
+            <p className="text-indigo-100 text-sm mt-1">Сохраняйте и применяйте настройки одним кликом</p>
           </div>
           <button
             onClick={onClose}
@@ -213,14 +232,23 @@ export default function TemplateManager({
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Поиск по названию или описанию..."
-                  className="w-full px-4 py-3 pr-10 rounded-xl border border-purple-500/30 bg-white text-slate-900 placeholder-slate-400 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30 dark:bg-slate-800/50 dark:text-white dark:placeholder-slate-500"
+                  className="w-full px-4 py-3 pr-10 rounded-xl border border-indigo-500/30 bg-white text-slate-900 placeholder-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 dark:bg-slate-900/70 dark:text-white dark:placeholder-slate-300"
                 />
+                {query && (
+                  <button
+                    onClick={() => setQuery('')}
+                    className="absolute right-9 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                    title="Очистить"
+                  >
+                    <FaTimes className="w-4 h-4" />
+                  </button>
+                )}
                 <Icon name="tabler:search" className="w-5 h-5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
               </div>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
-                className="px-4 py-3 rounded-xl border border-purple-500/30 bg-white text-slate-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30 dark:bg-slate-800/50 dark:text-white"
+                className="px-4 py-3 rounded-xl border border-indigo-500/30 bg-white text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 dark:bg-slate-900/70 dark:text-white"
                 title="Сортировка"
               >
                 <option value="new">Сначала новые</option>
@@ -234,7 +262,7 @@ export default function TemplateManager({
           <div className="flex gap-3 mb-6">
             <button
               onClick={handleCreateNew}
-              className="flex-1 px-6 py-4 bg-gradient-to-r from-pink-600 to-purple-600 text-white rounded-xl font-medium hover:from-pink-700 hover:to-purple-700 transition-all shadow-lg flex items-center justify-center gap-2"
+              className="flex-1 px-6 py-4 bg-gradient-to-r from-indigo-600 to-sky-600 text-white rounded-xl font-medium hover:from-indigo-700 hover:to-sky-700 transition-all shadow-lg flex items-center justify-center gap-2"
             >
               <Icon name="tabler:plus" className="w-5 h-5" />
               Создать новый шаблон
@@ -258,28 +286,32 @@ export default function TemplateManager({
           </div>
 
           {isCreating && (
-            <div className="rounded-xl p-6 mb-6 border border-purple-500/30 bg-purple-50 dark:bg-gradient-to-br dark:from-purple-900/30 dark:to-pink-900/30">
-              <h3 className="text-lg font-semibold text-purple-700 dark:text-purple-300 mb-4 flex items-center gap-2">
+            <div className="rounded-xl p-6 mb-6 border border-indigo-500/30 bg-indigo-50 dark:bg-slate-900/80">
+              <h3 className="text-lg font-semibold text-indigo-700 dark:text-indigo-300 mb-4 flex items-center gap-2">
                 <FaSave className="w-5 h-5" />
                 Сохранить текущие настройки как шаблон
               </h3>
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-purple-700 dark:text-purple-200 mb-2">
+                  <label className="block text-sm font-medium text-indigo-700 dark:text-indigo-200 mb-2">
                     Название шаблона *
                   </label>
                   <input
                     type="text"
                     value={newTemplate.name || ''}
                     onChange={(e) => setNewTemplate({ ...newTemplate, name: e.target.value })}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && (newTemplate.name || '').trim()) handleSaveTemplate()
+                    }}
+                    ref={nameInputRef}
                     placeholder="Например: Моя профессиональная съемка"
-                    className="w-full px-4 py-3 rounded-lg focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 border border-purple-500/30 bg-white text-slate-900 placeholder-slate-400 dark:bg-slate-800/50 dark:text-white dark:placeholder-slate-500"
+                    className="w-full px-4 py-3 rounded-lg focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 border border-indigo-500/30 bg-white text-slate-900 placeholder-slate-400 dark:bg-slate-900/70 dark:text-white dark:placeholder-slate-300"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-purple-700 dark:text-purple-200 mb-2">
+                  <label className="block text-sm font-medium text-indigo-700 dark:text-indigo-200 mb-2">
                     Описание
                   </label>
                   <textarea
@@ -287,12 +319,12 @@ export default function TemplateManager({
                     onChange={(e) => setNewTemplate({ ...newTemplate, description: e.target.value })}
                     placeholder="Краткое описание шаблона..."
                     rows={2}
-                    className="w-full px-4 py-3 rounded-lg focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 resize-none border border-purple-500/30 bg-white text-slate-900 placeholder-slate-400 dark:bg-slate-800/50 dark:text-white dark:placeholder-slate-500"
+                    className="w-full px-4 py-3 rounded-lg focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 resize-none border border-indigo-500/30 bg-white text-slate-900 placeholder-slate-400 dark:bg-slate-900/70 dark:text-white dark:placeholder-slate-300"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-purple-700 dark:text-purple-200 mb-2">
+                  <label className="block text-sm font-medium text-indigo-700 dark:text-indigo-200 mb-2">
                     Иконка
                   </label>
                   <div className="grid grid-cols-12 gap-2">
@@ -302,8 +334,8 @@ export default function TemplateManager({
                         onClick={() => setNewTemplate({ ...newTemplate, icon })}
                         className={`p-3 rounded-lg text-2xl transition-all ${
                           newTemplate.icon === icon
-                            ? 'bg-purple-600 ring-2 ring-purple-400 scale-110'
-                            : 'bg-purple-100 hover:bg-purple-200 dark:bg-slate-800/50 dark:hover:bg-slate-700/50'
+                            ? 'bg-indigo-600 ring-2 ring-indigo-400 scale-110'
+                            : 'bg-indigo-100 hover:bg-indigo-200 dark:bg-sky-900/40 dark:hover:bg-sky-900/60'
                         }`}
                       >
                         {icon}
@@ -315,7 +347,8 @@ export default function TemplateManager({
                 <div className="flex gap-3 pt-4">
                   <button
                     onClick={handleSaveTemplate}
-                    className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-all shadow-lg flex items-center justify-center gap-2"
+                    disabled={!((newTemplate.name || '').trim())}
+                    className={`flex-1 px-6 py-3 rounded-lg font-medium transition-all shadow-lg flex items-center justify-center gap-2 text-white ${((newTemplate.name || '').trim()) ? 'bg-green-600 hover:bg-green-700' : 'bg-green-600 opacity-50 cursor-not-allowed'}`}
                   >
                     <FaSave className="w-4 h-4" />
                     Сохранить шаблон
@@ -342,7 +375,7 @@ export default function TemplateManager({
               {filteredTemplates.map((template) => (
                 <div
                   key={template.id}
-                  className="rounded-2xl p-5 transition-all group border hover:border-purple-500/50 hover:shadow-xl bg-slate-100/80 border-slate-300/60 dark:bg-gradient-to-br dark:from-slate-800/50 dark:to-slate-700/50 dark:border-slate-600/30"
+                  className="rounded-2xl p-5 transition-all group border hover:border-indigo-500/50 hover:shadow-xl bg-slate-100/80 border-slate-300/60 dark:bg-gradient-to-br dark:from-slate-800/50 dark:to-slate-700/50 dark:border-slate-600/30"
                 >
                   <div className="flex items-start gap-4">
                     <div className="text-4xl flex-shrink-0">{template.icon}</div>
@@ -397,7 +430,7 @@ export default function TemplateManager({
                         <>
                           <button
                             onClick={() => onApply(template)}
-                            className="p-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+                            className="p-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
                             title="Применить"
                           >
                             <FaCheck className="w-4 h-4" />
