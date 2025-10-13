@@ -107,9 +107,11 @@ async function decodeRgba(filePath) {
 }
 import_electron.contextBridge.exposeInMainWorld("api", {
   selectImages: () => import_electron.ipcRenderer.invoke("select-images"),
+  selectVideos: () => import_electron.ipcRenderer.invoke("select-videos"),
   selectImageDir: () => import_electron.ipcRenderer.invoke("select-image-dir"),
   selectOutputDir: () => import_electron.ipcRenderer.invoke("select-output-dir"),
   processImages: (payload) => import_electron.ipcRenderer.invoke("process-images", payload),
+  processVideos: (payload) => import_electron.ipcRenderer.invoke("process-videos", payload),
   selectTextFile: () => import_electron.ipcRenderer.invoke("select-text-file"),
   readTextFileByPath: (p) => import_electron.ipcRenderer.invoke("read-text-file-by-path", p),
   saveJson: (payload) => import_electron.ipcRenderer.invoke("save-json", payload),
@@ -133,6 +135,16 @@ import_electron.contextBridge.exposeInMainWorld("api", {
     const listener = () => cb();
     import_electron.ipcRenderer.on("process-complete", listener);
     return () => import_electron.ipcRenderer.removeListener("process-complete", listener);
+  },
+  onVideoProgress: (cb) => {
+    const listener = (_, data) => cb(data);
+    import_electron.ipcRenderer.on("video-process-progress", listener);
+    return () => import_electron.ipcRenderer.removeListener("video-process-progress", listener);
+  },
+  onVideoComplete: (cb) => {
+    const listener = () => cb();
+    import_electron.ipcRenderer.on("video-process-complete", listener);
+    return () => import_electron.ipcRenderer.removeListener("video-process-complete", listener);
   },
   onOsOpenFiles: (cb) => {
     const listener = (_, files) => cb(files);

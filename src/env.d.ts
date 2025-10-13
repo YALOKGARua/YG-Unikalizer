@@ -1,9 +1,14 @@
 interface Window {
   api: {
     selectImages: () => Promise<string[]>
+    selectVideos?: () => Promise<string[]>
+    selectVideoDir?: () => Promise<string[]>
+    expandVideoPaths?: (paths: string[]) => Promise<string[]>
     selectImageDir: () => Promise<string[]>
     selectOutputDir: () => Promise<string>
     processImages: (payload: unknown) => Promise<{ ok: boolean }>
+    processVideos?: (payload: { inputFiles: string[]; outputDir: string; mode?: 'remux'|'reencode'; crf?: number; preset?: string; audio?: 'copy'|'aac'; stripMeta?: boolean; addComment?: boolean; faststart?: boolean; container?: 'mp4'|'mkv'; suffix?: string }) => Promise<{ ok: boolean }>
+    ensureFfmpeg?: () => Promise<{ ok: boolean; path?: string; error?: string }>
     selectTextFile: () => Promise<{ ok: boolean; path?: string; content?: string }>
     readTextFileByPath: (p: string) => Promise<{ ok: boolean; path?: string; content?: string; error?: string }>
     saveJson: (payload: unknown) => Promise<{ ok: boolean; path?: string; error?: string }>
@@ -20,6 +25,8 @@ interface Window {
     metaBeforeAfter: (src: string, out: string) => Promise<{ ok: boolean; before?: any; after?: any; error?: string }>
     onProgress: (cb: (data: any) => void) => () => void
     onComplete: (cb: () => void) => () => void
+    onVideoProgress?: (cb: (data: any) => void) => () => void
+    onVideoComplete?: (cb: () => void) => () => void
     onOsOpenFiles: (cb: (files: string[]) => void) => () => void
     onStep?: (cb: (s: unknown) => void) => () => void
     checkForUpdates: () => Promise<{ ok: boolean; info?: any; error?: string }>

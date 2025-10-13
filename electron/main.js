@@ -31634,7 +31634,7 @@ var require_main3 = __commonJS({
 });
 
 // electron/main.ts
-var { app: app2, BrowserWindow, ipcMain: ipcMain2, dialog, shell: shell2, Menu, session, Notification: ElectronNotification, globalShortcut, protocol } = require("electron");
+var { app: app2, BrowserWindow, ipcMain: ipcMain2, dialog, shell: shell2, Menu, session, Notification: ElectronNotification, globalShortcut, protocol, crashReporter } = require("electron");
 var nodeCrypto = require("crypto");
 var path6 = require("path");
 var fs3 = require("fs");
@@ -31648,6 +31648,14 @@ var https = require("https");
 var http = require("http");
 var { Readable } = require("stream");
 var isDev = !!process.env.VITE_DEV_SERVER_URL || !app2.isPackaged;
+try {
+  crashReporter.start({ submitURL: "", uploadToServer: false, compress: true, companyName: "YALOKGAR", productName: "YG Unikalizer" });
+} catch {
+}
+try {
+  if (String(process.env.YG_DISABLE_GPU || "") === "1") app2.disableHardwareAcceleration();
+} catch {
+}
 try {
   const candidates = [];
   candidates.push(path6.join(__dirname, "..", ".env.local"));
@@ -32227,14 +32235,50 @@ function createWindow() {
       mainWindow.show();
     }
   });
+  let unresponsiveTimer = null;
   mainWindow.webContents.on("crashed", () => {
     console.error("Renderer process crashed");
+    setTimeout(() => {
+      try {
+        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.reload();
+      } catch {
+      }
+    }, 500);
+  });
+  mainWindow.webContents.on("render-process-gone", (_event, details) => {
+    try {
+      console.error("Renderer process gone:", details && details.reason);
+    } catch {
+    }
+    setTimeout(() => {
+      try {
+        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.reload();
+      } catch {
+      }
+    }, 500);
   });
   mainWindow.webContents.on("unresponsive", () => {
     console.warn("Renderer process unresponsive");
+    if (!unresponsiveTimer) {
+      unresponsiveTimer = setTimeout(() => {
+        try {
+          if (mainWindow && !mainWindow.isDestroyed()) mainWindow.reload();
+        } catch {
+        }
+        unresponsiveTimer = null;
+      }, 1e4);
+    }
   });
   mainWindow.webContents.on("responsive", () => {
     console.log("Renderer process responsive again");
+    if (unresponsiveTimer) {
+      try {
+        clearTimeout(unresponsiveTimer);
+      } catch {
+      }
+      ;
+      unresponsiveTimer = null;
+    }
   });
   const url = resolveHtmlPath();
   if (url.startsWith("http")) {
@@ -32261,6 +32305,14 @@ function createWindow() {
     }
   });
   mainWindow.on("closed", () => {
+    if (unresponsiveTimer) {
+      try {
+        clearTimeout(unresponsiveTimer);
+      } catch {
+      }
+      ;
+      unresponsiveTimer = null;
+    }
     mainWindow = null;
   });
 }
@@ -32871,6 +32923,14 @@ async function processBatch(inputFiles, options) {
   }
 }
 app2.whenReady().then(() => {
+  try {
+    import("electron-unhandled").then((m) => {
+      const fn = m && (m.default || m);
+      if (typeof fn === "function") fn({ showDialog: false });
+    }).catch(() => {
+    });
+  } catch {
+  }
   app2.setAppUserModelId("com.yalokgaria.yg-unikalizer");
   if (!app2.requestSingleInstanceLock()) {
     app2.quit();
@@ -33382,6 +33442,11 @@ app2.whenReady().then(() => {
     if (res.canceled) return [];
     return res.filePaths;
   });
+  ipcMain2.handle("select-videos", async () => {
+    const res = await dialog.showOpenDialog(mainWindow, { properties: ["openFile", "multiSelections"], filters: [{ name: "Videos", extensions: ["mp4", "mov", "mkv", "avi", "webm"] }] });
+    if (res.canceled) return [];
+    return res.filePaths;
+  });
   ipcMain2.handle("win-minimize", async () => {
     try {
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.minimize();
@@ -33533,6 +33598,68 @@ app2.whenReady().then(() => {
     const adjusted = { ...payload, maxConcurrency: Number(payload.maxConcurrency || perf.maxConcurrency || 2), pauseOnBlur: !!perf.pauseOnBlur };
     processBatch(adjusted.inputFiles, adjusted);
     return { ok: true };
+  });
+  ipcMain2.handle("process-videos", async (_e, payload) => {
+    try {
+      const inputFiles = payload && Array.isArray(payload.inputFiles) ? payload.inputFiles : [];
+      const outputDir = payload && payload.outputDir ? String(payload.outputDir) : "";
+      if (!inputFiles.length || !outputDir) return { ok: false };
+      try {
+        await fs3.promises.mkdir(outputDir, { recursive: true });
+      } catch {
+      }
+      const hasFfmpeg = await new Promise((resolve) => {
+        try {
+          const p = spawn("ffmpeg", ["-version"], { stdio: "ignore" });
+          p.on("error", () => resolve(false));
+          p.on("close", (code) => resolve(code === 0));
+        } catch {
+          resolve(false);
+        }
+      });
+      cancelRequested = false;
+      const total = inputFiles.length;
+      for (let i = 0; i < inputFiles.length; i += 1) {
+        if (cancelRequested) break;
+        const src = String(inputFiles[i]);
+        const base = path6.basename(src);
+        const name = base.replace(/\.[^.]+$/, "");
+        const ext = path6.extname(base) || ".mp4";
+        const out = path6.join(outputDir, `${name}-unik${ext}`);
+        if (hasFfmpeg) {
+          await new Promise((resolve) => {
+            try {
+              const tag = `YG-${randomUUID ? randomUUID() : Date.now().toString(36)}`;
+              const args = ["-y", "-i", src, "-map", "0", "-c", "copy", "-movflags", "use_metadata_tags", "-metadata", `comment=${tag}`, out];
+              const p = spawn("ffmpeg", args, { windowsHide: true });
+              p.on("close", () => resolve());
+              p.on("error", () => resolve());
+            } catch {
+              resolve();
+            }
+          });
+        } else {
+          try {
+            await fs3.promises.copyFile(src, out);
+            const pad = Buffer.alloc(64);
+            for (let j = 0; j < pad.length; j += 1) pad[j] = Math.floor(Math.random() * 256);
+            await fs3.promises.appendFile(out, pad);
+          } catch {
+          }
+        }
+        try {
+          if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("video-process-progress", { current: i + 1, total, lastFile: base });
+        } catch {
+        }
+      }
+      try {
+        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("video-process-complete", { canceled: cancelRequested });
+      } catch {
+      }
+      return { ok: true };
+    } catch {
+      return { ok: false };
+    }
   });
   ipcMain2.handle("ui-state-save", async (_e, payload) => {
     try {

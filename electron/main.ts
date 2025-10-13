@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, Menu, session, Notification: ElectronNotification, globalShortcut, protocol } = require('electron')
+const { app, BrowserWindow, ipcMain, dialog, shell, Menu, session, Notification: ElectronNotification, globalShortcut, protocol, crashReporter } = require('electron')
 const nodeCrypto = require('crypto')
 const path = require('path')
 const fs = require('fs')
@@ -12,6 +12,8 @@ const https = require('https')
 const http = require('http')
 const { Readable } = require('stream')
 const isDev = !!process.env.VITE_DEV_SERVER_URL || !app.isPackaged
+try { crashReporter.start({ submitURL: '', uploadToServer: false, compress: true, companyName: 'YALOKGAR', productName: 'YG Unikalizer' }) } catch {}
+try { if (String(process.env.YG_DISABLE_GPU || '') === '1') app.disableHardwareAcceleration() } catch {}
 try {
   const candidates = []
   candidates.push(path.join(__dirname, '..', '.env.local'))
@@ -672,16 +674,35 @@ function createWindow() {
     }
   })
 
+  let unresponsiveTimer: any = null
+
   mainWindow.webContents.on('crashed', () => {
     console.error('Renderer process crashed')
+    setTimeout(() => {
+      try { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.reload() } catch {}
+    }, 500)
+  })
+
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    try { console.error('Renderer process gone:', details && details.reason) } catch {}
+    setTimeout(() => {
+      try { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.reload() } catch {}
+    }, 500)
   })
 
   mainWindow.webContents.on('unresponsive', () => {
     console.warn('Renderer process unresponsive')
+    if (!unresponsiveTimer) {
+      unresponsiveTimer = setTimeout(() => {
+        try { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.reload() } catch {}
+        unresponsiveTimer = null
+      }, 10000)
+    }
   })
 
   mainWindow.webContents.on('responsive', () => {
     console.log('Renderer process responsive again')
+    if (unresponsiveTimer) { try { clearTimeout(unresponsiveTimer) } catch {}; unresponsiveTimer = null }
   })
 
   const url = resolveHtmlPath()
@@ -712,6 +733,7 @@ function createWindow() {
   })
 
   mainWindow.on('closed', () => {
+    if (unresponsiveTimer) { try { clearTimeout(unresponsiveTimer) } catch {}; unresponsiveTimer = null }
     mainWindow = null
   })
 }
@@ -857,6 +879,59 @@ function downloadFile(url, target, onProgress) {
       }).on('error', err => { try { file.close() } catch (_) {}; fs.unlink(target, () => {}); reject(err) })
     } catch (e) { reject(e) }
   })
+}
+
+async function ensureFfmpegAvailable() {
+  try {
+    const exeName = process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg'
+    const userDir = app.getPath('userData')
+    const baseDir = path.join(userDir, 'ffmpeg')
+    const localBin = path.join(baseDir, 'bin')
+    const localExe = path.join(localBin, exeName)
+    try { if (fs.existsSync(localExe)) { if (!process.env.PATH?.includes(localBin)) process.env.PATH = `${localBin}${path.delimiter}${process.env.PATH || ''}`; return localExe } } catch {}
+    const existsInPath = await new Promise<boolean>((resolve) => {
+      try {
+        const p = spawn(exeName, ['-version'], { stdio: 'ignore' })
+        p.on('error', () => resolve(false))
+        p.on('close', (code) => resolve(code === 0))
+      } catch { resolve(false) }
+    })
+    if (existsInPath) return exeName
+    const arch = process.arch === 'ia32' ? 'win32' : 'win64'
+    const url = `https://github.com/yt-dlp/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-${arch}-gpl.zip`
+    try { await fs.promises.mkdir(baseDir, { recursive: true }) } catch {}
+    const zipTarget = path.join(baseDir, 'ffmpeg.zip')
+    await downloadFile(url, zipTarget, () => {})
+    await new Promise<void>((resolve) => {
+      try {
+        const ps = spawn('powershell', ['-NoProfile', '-Command', `Try { Expand-Archive -Path '${zipTarget.replace(/'/g, "''")}' -DestinationPath '${baseDir.replace(/'/g, "''")}' -Force } Catch {}`], { windowsHide: true })
+        ps.on('close', () => resolve())
+        ps.on('error', () => resolve())
+      } catch { resolve() }
+    })
+    const findExe = (dir) => {
+      try {
+        const items = fs.readdirSync(dir, { withFileTypes: true })
+        for (const it of items) {
+          const p = path.join(dir, it.name)
+          if (it.isDirectory()) {
+            const nested = findExe(p)
+            if (nested) return nested
+          } else if (it.isFile() && it.name.toLowerCase() === exeName.toLowerCase()) {
+            return p
+          }
+        }
+      } catch {}
+      return ''
+    }
+    const resolved = findExe(baseDir)
+    if (resolved) {
+      const binDir = path.dirname(resolved)
+      if (!process.env.PATH?.includes(binDir)) process.env.PATH = `${binDir}${path.delimiter}${process.env.PATH || ''}`
+      return resolved
+    }
+    return ''
+  } catch { return '' }
 }
 
 function toDateString(d) {
@@ -1267,6 +1342,12 @@ async function processBatch(inputFiles, options) {
 }
 
 app.whenReady().then(() => {
+  try {
+    import('electron-unhandled').then((m: any) => {
+      const fn = (m && (m.default || m))
+      if (typeof fn === 'function') fn({ showDialog: false })
+    }).catch(() => {})
+  } catch {}
   app.setAppUserModelId('com.yalokgaria.yg-unikalizer')
   
   if (!app.requestSingleInstanceLock()) {
@@ -1758,6 +1839,86 @@ app.whenReady().then(() => {
     return res.filePaths
   })
 
+  ipcMain.handle('select-videos', async () => {
+    const res = await dialog.showOpenDialog(mainWindow, { properties: ['openFile', 'multiSelections'], filters: [{ name: 'Videos', extensions: ['mp4', 'mov', 'mkv', 'avi', 'webm'] }] })
+    if (res.canceled) return []
+    return res.filePaths
+  })
+
+  ipcMain.handle('select-video-dir', async () => {
+    const res = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory', 'createDirectory'] })
+    if (res.canceled) return []
+    const dir = res.filePaths[0]
+    try {
+      const allowed = new Set(['.mp4', '.mov', '.mkv', '.avi', '.webm'])
+      async function walk(d) {
+        const out = []
+        const items = await fs.promises.readdir(d, { withFileTypes: true })
+        for (const it of items) {
+          const p = path.join(d, it.name)
+          if (it.isDirectory()) {
+            const nested = await walk(p)
+            out.push(...nested)
+          } else {
+            const ext = path.extname(it.name).toLowerCase()
+            if (allowed.has(ext)) out.push(p)
+          }
+        }
+        return out
+      }
+      return await walk(dir)
+    } catch (_) {
+      return []
+    }
+  })
+
+  ipcMain.handle('expand-video-paths', async (_e, inputs) => {
+    try {
+      if (!Array.isArray(inputs) || !inputs.length) return []
+      const allowed = new Set(['.mp4', '.mov', '.mkv', '.avi', '.webm'])
+      const out = []
+      const stats = await Promise.all(inputs.map(p => fs.promises.stat(p).then(s => ({ p, s })).catch(() => null)))
+      for (const it of stats) {
+        if (!it) continue
+        if (it.s.isDirectory()) {
+          const res = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] }).catch(() => null)
+          try {
+            const list = await fs.promises.readdir(it.p, { withFileTypes: true })
+            for (const d of list) {
+              const pp = path.join(it.p, d.name)
+              if (d.isDirectory()) {
+                const nested = await fs.promises.readdir(pp).catch(() => [])
+                for (const nm of nested) {
+                  const ppp = path.join(pp, nm)
+                  const ex = path.extname(ppp).toLowerCase()
+                  if (allowed.has(ex)) out.push(ppp)
+                }
+              } else {
+                const ex = path.extname(pp).toLowerCase()
+                if (allowed.has(ex)) out.push(pp)
+              }
+            }
+          } catch {}
+        } else {
+          const ex = path.extname(it.p).toLowerCase()
+          if (allowed.has(ex)) out.push(it.p)
+        }
+      }
+      return out
+    } catch (_) {
+      return []
+    }
+  })
+
+  ipcMain.handle('ensure-ffmpeg', async () => {
+    try {
+      const p = await ensureFfmpegAvailable()
+      return { ok: !!p, path: p || '' }
+    } catch (e) {
+      return { ok: false, error: String((e as any)?.message || e) }
+    }
+  })
+
   ipcMain.handle('win-minimize', async () => { try { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.minimize(); return { ok: true } } catch (e) { return { ok: false, error: String((e as any)?.message || e) } } })
   ipcMain.handle('win-maximize', async () => { try { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.maximize(); return { ok: true } } catch (e) { return { ok: false, error: String((e as any)?.message || e) } } })
   ipcMain.handle('win-toggle-maximize', async () => { try { if (mainWindow && !mainWindow.isDestroyed()) { if (mainWindow.isMaximized()) mainWindow.unmaximize(); else mainWindow.maximize() }; return { ok: true } } catch (e) { return { ok: false, error: String((e as any)?.message || e) } } })
@@ -1878,6 +2039,69 @@ app.whenReady().then(() => {
     const adjusted = { ...payload, maxConcurrency: Number(payload.maxConcurrency || perf.maxConcurrency || 2), pauseOnBlur: !!perf.pauseOnBlur }
     processBatch(adjusted.inputFiles, adjusted)
     return { ok: true }
+  })
+
+  ipcMain.handle('process-videos', async (_e, payload) => {
+    try {
+      const inputFiles = payload && Array.isArray(payload.inputFiles) ? payload.inputFiles : []
+      const outputDir = payload && payload.outputDir ? String(payload.outputDir) : ''
+      const mode = (payload && payload.mode) === 'reencode' ? 'reencode' : 'remux'
+      const crf = Math.max(14, Math.min(32, Number((payload && payload.crf) || 23)))
+      const preset = String((payload && payload.preset) || 'veryfast')
+      const audio = (payload && payload.audio) === 'aac' ? 'aac' : 'copy'
+      const stripMeta = !!(payload && payload.stripMeta)
+      const container = (payload && payload.container) === 'mkv' ? 'mkv' : 'mp4'
+      const faststart = !!(payload && payload.faststart)
+      const addComment = !!(payload && payload.addComment)
+      const suffix = String((payload && payload.suffix) || 'unik')
+      if (!inputFiles.length || !outputDir) return { ok: false }
+      try { await fs.promises.mkdir(outputDir, { recursive: true }) } catch {}
+      const ffmpegExec = await ensureFfmpegAvailable()
+      const hasFfmpeg = !!ffmpegExec
+      cancelRequested = false
+      const total = inputFiles.length
+      for (let i = 0; i < inputFiles.length; i += 1) {
+        if (cancelRequested) break
+        const src = String(inputFiles[i])
+        const base = path.basename(src)
+        const name = base.replace(/\.[^.]+$/, '')
+        const out = path.join(outputDir, `${name}-${suffix}.${container}`)
+        if (hasFfmpeg) {
+          await new Promise<void>((resolve) => {
+            try {
+              const tag = `YG-${randomUUID ? randomUUID() : Date.now().toString(36)}`
+              const args: string[] = ['-y', '-i', src, '-map', '0']
+              if (mode === 'remux') {
+                args.push('-c', 'copy')
+              } else {
+                args.push('-c:v', 'libx264', '-preset', preset, '-crf', String(crf))
+                if (audio === 'copy') args.push('-c:a', 'copy'); else args.push('-c:a', 'aac', '-b:a', '192k')
+              }
+              if (stripMeta) args.push('-map_metadata', '-1'); else if (addComment) args.push('-movflags', 'use_metadata_tags', '-metadata', `comment=${tag}`)
+              if (container === 'mp4' && faststart) args.push('-movflags', '+faststart')
+              args.push(out)
+              const p = spawn(ffmpegExec, args, { windowsHide: true })
+              p.on('close', () => resolve())
+              p.on('error', () => resolve())
+            } catch {
+              resolve()
+            }
+          })
+        } else {
+          try {
+            await fs.promises.copyFile(src, out)
+            const pad = Buffer.alloc(64)
+            for (let j = 0; j < pad.length; j += 1) pad[j] = Math.floor(Math.random() * 256)
+            await fs.promises.appendFile(out, pad)
+          } catch {}
+        }
+        try { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('video-process-progress', { current: i + 1, total, lastFile: base }) } catch {}
+      }
+      try { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('video-process-complete', { canceled: cancelRequested }) } catch {}
+      return { ok: true }
+    } catch {
+      return { ok: false }
+    }
   })
 
   ipcMain.handle('ui-state-save', async (_e, payload) => {
