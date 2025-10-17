@@ -38,6 +38,7 @@ interface Window {
     onUpdateProgress: (cb: (p: { percent?: number }) => void) => () => void
     onUpdateDownloaded: (cb: (info: any) => void) => () => void
     getUpdateChangelog: () => Promise<{ ok: boolean; notes?: string }>
+    getFullChangelog: () => Promise<{ ok: boolean; data?: string }>
     getReadme: () => Promise<{ ok: boolean; data?: string; error?: string }>
     clearStatsCache: () => Promise<{ ok: boolean }>
     relaunchAsAdmin: () => Promise<{ ok: boolean; error?: string }>
@@ -49,6 +50,7 @@ interface Window {
       ensure: (items: { name: string; url: string; sha256?: string }[]) => Promise<{ ok: boolean; dir?: string; error?: string }>
       load: (name: string) => Promise<{ ok: boolean; data?: Uint8Array; error?: string }>
     }
+    invoke?: (channel: string, ...args: any[]) => Promise<any>
     saveBytes: (payload: { data: number[]; defaultPath?: string }) => Promise<{ ok: boolean; path?: string; error?: string }>
     ui: {
       saveState: (data: unknown) => Promise<{ ok: boolean }>

@@ -106,12 +106,18 @@ async function decodeRgba(filePath) {
   return { buf, width, height, stride };
 }
 import_electron.contextBridge.exposeInMainWorld("api", {
+  invoke: (channel, ...args) => import_electron.ipcRenderer.invoke(channel, ...args),
   selectImages: () => import_electron.ipcRenderer.invoke("select-images"),
   selectVideos: () => import_electron.ipcRenderer.invoke("select-videos"),
+  selectVideoDir: () => import_electron.ipcRenderer.invoke("select-video-dir"),
+  expandVideoPaths: (paths) => import_electron.ipcRenderer.invoke("expand-video-paths", paths),
   selectImageDir: () => import_electron.ipcRenderer.invoke("select-image-dir"),
   selectOutputDir: () => import_electron.ipcRenderer.invoke("select-output-dir"),
   processImages: (payload) => import_electron.ipcRenderer.invoke("process-images", payload),
   processVideos: (payload) => import_electron.ipcRenderer.invoke("process-videos", payload),
+  ensureFfmpeg: () => import_electron.ipcRenderer.invoke("ensure-ffmpeg"),
+  probeVideo: (p) => import_electron.ipcRenderer.invoke("probe-video", p),
+  videoThumbnails: (payload) => import_electron.ipcRenderer.invoke("video-thumbnails", payload),
   selectTextFile: () => import_electron.ipcRenderer.invoke("select-text-file"),
   readTextFileByPath: (p) => import_electron.ipcRenderer.invoke("read-text-file-by-path", p),
   saveJson: (payload) => import_electron.ipcRenderer.invoke("save-json", payload),
@@ -142,7 +148,7 @@ import_electron.contextBridge.exposeInMainWorld("api", {
     return () => import_electron.ipcRenderer.removeListener("video-process-progress", listener);
   },
   onVideoComplete: (cb) => {
-    const listener = () => cb();
+    const listener = (_, info) => cb(info);
     import_electron.ipcRenderer.on("video-process-complete", listener);
     return () => import_electron.ipcRenderer.removeListener("video-process-complete", listener);
   },

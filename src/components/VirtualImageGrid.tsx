@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState, memo } from 'react'
 import { DndProvider, useDrag, useDrop } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
 
@@ -25,7 +25,7 @@ function DraggableTile({ index, path, isSel, style, toFileUrl, onToggle, onMove 
   )
 }
 
-export default function VirtualImageGrid({ files, selected, onToggle, onReorder, toFileUrl, columnWidth = 220, rowHeight = 180 }: { files: string[]; selected: Set<number>; onToggle: (index: number, multi?: boolean, rangeFrom?: number) => void; onReorder?: (from: number, to: number) => void; toFileUrl: (p: string) => string; columnWidth?: number; rowHeight?: number }) {
+function VirtualImageGridComp({ files, selected, onToggle, onReorder, toFileUrl, columnWidth = 220, rowHeight = 180 }: { files: string[]; selected: Set<number>; onToggle: (index: number, multi?: boolean, rangeFrom?: number) => void; onReorder?: (from: number, to: number) => void; toFileUrl: (p: string) => string; columnWidth?: number; rowHeight?: number }) {
   const containerRef = useRef<HTMLDivElement|null>(null)
   const [width, setWidth] = useState(() => (typeof window !== 'undefined' ? Math.min(window.innerWidth - 360, 1400) : 1000))
   const [scrollTop, setScrollTop] = useState(0)
@@ -69,3 +69,15 @@ export default function VirtualImageGrid({ files, selected, onToggle, onReorder,
     </div>
   )
 }
+
+const areEqual = (prev: any, next: any) => (
+  prev.files === next.files &&
+  prev.selected === next.selected &&
+  prev.toFileUrl === next.toFileUrl &&
+  prev.columnWidth === next.columnWidth &&
+  prev.rowHeight === next.rowHeight &&
+  prev.onToggle === next.onToggle &&
+  prev.onReorder === next.onReorder
+)
+
+export default memo(VirtualImageGridComp, areEqual)

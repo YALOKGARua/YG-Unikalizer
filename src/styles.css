@@ -378,3 +378,33 @@ body {
 .nav-btn.active {
   @apply bg-white/10;
 }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001s !important;
+    animation-iteration-count: 1 !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+  .btn, .chip, .tile, .neon-glow, .glow-animation, .pulse-animation, .float-animation {
+    animation: none !important;
+  }
+  .btn:hover, .chip:hover, .tile:hover {
+    transform: none !important;
+  }
+}
+
+.reduced-motion *, .reduced-motion *::before, .reduced-motion *::after {
+  transition: none !important;
+  animation: none !important;
+}
+
+.reduced-motion .btn:hover,
+.reduced-motion .chip:hover,
+.reduced-motion .tile:hover {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.reduced-motion .btn::before {
+  display: none !important;
+}

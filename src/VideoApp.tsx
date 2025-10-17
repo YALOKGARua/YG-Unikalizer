@@ -8,7 +8,7 @@ export default function VideoApp() {
   const [files, setFiles] = React.useState<string[]>([])
   const [outputDir, setOutputDir] = React.useState<string>('')
   const [busy, setBusy] = React.useState(false)
-  const [progress, setProgress] = React.useState<{ current: number; total: number; lastFile?: string }>({ current: 0, total: 0 })
+  const [progress, setProgress] = React.useState<{ current: number; total: number; lastFile?: string; error?: string; filePercent?: number; etaSec?: number }>({ current: 0, total: 0 })
   const [mode, setMode] = React.useState<'remux'|'reencode'>('remux')
   const [crf, setCrf] = React.useState<number>(23)
   const [preset, setPreset] = React.useState<string>('veryfast')
@@ -20,8 +20,16 @@ export default function VideoApp() {
   const [faststart, setFaststart] = React.useState<boolean>(true)
 
   React.useEffect(() => {
-    const off1 = (window.api as any).onVideoProgress?.((d: any) => setProgress({ current: Number(d?.current) || 0, total: Number(d?.total) || 0, lastFile: String(d?.lastFile || '') }))
-    const off2 = (window.api as any).onVideoComplete?.(() => { setBusy(false); toast.success('Готово') })
+    const off1 = (window.api as any).onVideoProgress?.((d: any) => setProgress({ current: Number(d?.current) || 0, total: Number(d?.total) || 0, lastFile: String(d?.lastFile || ''), error: d?.error ? String(d.error) : '', filePercent: typeof d?.filePercent === 'number' ? d.filePercent : undefined, etaSec: typeof d?.etaSec === 'number' ? d.etaSec : undefined }))
+    const off2 = (window.api as any).onVideoComplete?.((info: any) => {
+      setBusy(false)
+      const total = Number(info?.total) || progress.total
+      const ok = Number(info?.successCount || 0)
+      const bad = Number(info?.errorCount || 0)
+      if (info?.canceled) toast.warning(`Отменено • ${ok}/${total}`)
+      else if (bad > 0) toast.error(`Готово с ошибками • ${ok}/${total}`)
+      else toast.success(`Готово • ${ok}/${total}`)
+    })
     return () => { try { off1 && (off1 as any)() } catch {} try { off2 && (off2 as any)() } catch {} }
   }, [])
 
@@ -83,6 +91,8 @@ export default function VideoApp() {
     } catch {}
   }
   const onDragOver = (e: React.DragEvent) => { e.preventDefault() }
+
+  
 
   return (
     <div className="p-4 space-y-4" onDrop={onDrop} onDragOver={onDragOver}>
@@ -212,17 +222,29 @@ export default function VideoApp() {
           </label>
         </div>
       </div>
+      
       {busy && (
         <div className="space-y-1">
           <div className="w-full h-2 bg-slate-800 rounded overflow-hidden border border-white/10">
-            <div className="h-2 bg-brand-600 transition-[width]" style={{ width: `${progress.total ? Math.round(100 * progress.current / progress.total) : 0}%` }} />
+            <div className="h-2 bg-brand-600 transition-[width]" style={{ width: `${progress.total ? Math.round(100 * ((progress.current + ((progress.filePercent||0)/100)) / progress.total)) : 0}%` }} />
           </div>
-          <div className="text-[11px] opacity-80">{progress.current}/{progress.total}{progress.lastFile ? ` • ${progress.lastFile}` : ''}</div>
+          <div className="text-[11px] opacity-80">
+            {progress.current}/{progress.total}
+            {typeof progress.filePercent==='number' ? ` • ${Math.max(0, Math.min(100, Math.round(progress.filePercent||0)))}%` : ''}
+            {typeof progress.etaSec==='number' ? ` • осталось ≈ ${String(Math.floor((progress.etaSec||0)/60)).padStart(2,'0')}:${String((progress.etaSec||0)%60).padStart(2,'0')}` : ''}
+            {progress.lastFile ? ` • ${progress.lastFile}` : ''}
+          </div>
+          {typeof progress.filePercent === 'number' && (
+            <div className="w-full h-1.5 bg-slate-800 rounded overflow-hidden border border-white/10/50">
+              <div className="h-1.5 bg-emerald-500 transition-[width]" style={{ width: `${Math.max(0, Math.min(100, progress.filePercent || 0))}%` }} />
+            </div>
+          )}  
+          {!!progress.error && (<div className="text-[11px] text-red-400 truncate">{progress.error}</div>)}
         </div>
       )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
         {files.map((p) => (
-          <div key={p} className="px-2 py-1 text-xs rounded border border-white/10 bg-black/20 truncate" title={p}>{p}</div>
+          <div key={p} className="text-left px-2 py-1 text-xs rounded border truncate border-white/10 bg-black/20" title={p}>{p}</div>
         ))}
       </div>
       <Toaster position="top-right" richColors theme="dark" closeButton expand visibleToasts={5} />

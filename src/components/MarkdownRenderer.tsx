@@ -1,13 +1,45 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useEffect, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import rehypeHighlight from 'rehype-highlight'
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
 interface MarkdownRendererProps {
   content: string
   className?: string
+}
+
+function CodeBlock({ language, value }: { language: string; value: string }) {
+  const [Highlighter, setHighlighter] = useState<any>(null)
+  const [style, setStyle] = useState<any>(null)
+
+  useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      try {
+        const m: any = await import('react-syntax-highlighter')
+        const prism = m?.Prism || m?.default
+        const themeMod: any = await import('react-syntax-highlighter/dist/esm/styles/prism')
+        if (!mounted) return
+        setHighlighter(() => prism)
+        setStyle(themeMod?.oneDark)
+      } catch {}
+    })()
+    return () => { mounted = false }
+  }, [])
+
+  if (!Highlighter || !style) {
+    return (
+      <pre className="rounded-lg !my-4 bg-slate-800/50 p-3 overflow-auto text-xs">
+        <code>{value.replace(/\n$/, '')}</code>
+      </pre>
+    )
+  }
+
+  const H = Highlighter as any
+  return (
+    <H style={style as any} language={language} PreTag="div" className="rounded-lg !my-4">
+      {value.replace(/\n$/, '')}
+    </H>
+  )
 }
 
 export default function MarkdownRenderer({ content, className = '' }: MarkdownRendererProps) {
@@ -35,30 +67,17 @@ export default function MarkdownRenderer({ content, className = '' }: MarkdownRe
     <div className={`prose prose-invert prose-sm max-w-none ${className}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeHighlight]}
         components={{
           code({ node, className, children, ...props }) {
             const match = /language-(\w+)/.exec(className || '')
             const language = match ? match[1] : ''
             const isInline = !className?.includes('language-')
-            
             if (!isInline && language) {
-              return (
-                <SyntaxHighlighter
-                  style={oneDark as any}
-                  language={language}
-                  PreTag="div"
-                  className="rounded-lg !my-4"
-                  {...props}
-                >
-                  {String(children).replace(/\n$/, '')}
-                </SyntaxHighlighter>
-              )
+              return <CodeBlock language={language} value={String(children)} />
             }
-            
             return (
-              <code 
-                className="bg-slate-700/50 text-slate-200 px-1.5 py-0.5 rounded text-sm font-mono" 
+              <code
+                className="bg-slate-700/50 text-slate-200 px-1.5 py-0.5 rounded text-sm font-mono"
                 {...props}
               >
                 {children}

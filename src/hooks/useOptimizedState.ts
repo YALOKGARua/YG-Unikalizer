@@ -24,7 +24,7 @@ export function useOptimizedState<T>(initialValue: T) {
 export function useDebouncedState<T>(initialValue: T, delay: number = 300) {
   const [value, setValue] = useState<T>(initialValue)
   const [debouncedValue, setDebouncedValue] = useState<T>(initialValue)
-  const timeoutRef = useRef<NodeJS.Timeout>()
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const setOptimizedValue = useCallback((newValue: T | ((prev: T) => T)) => {
     setValue((prev) => {
@@ -57,7 +57,7 @@ export function useThrottledState<T>(initialValue: T, delay: number = 300) {
   const [value, setValue] = useState<T>(initialValue)
   const lastUpdate = useRef(Date.now())
   const pending = useRef<T | null>(null)
-  const timeoutRef = useRef<NodeJS.Timeout>()
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const setThrottledValue = useCallback((newValue: T | ((prev: T) => T)) => {
     const now = Date.now()
@@ -116,8 +116,8 @@ export function useMemoizedCallback<T extends (...args: any[]) => any>(
 }
 
 export function useMemoizedValue<T>(factory: () => T, deps: React.DependencyList): T {
-  const valueRef = useRef<T>()
-  const depsRef = useRef<React.DependencyList>()
+  const valueRef = useRef<T | null>(null)
+  const depsRef = useRef<React.DependencyList | null>(null)
 
   if (!depsRef.current || !deps.every((dep, i) => Object.is(dep, depsRef.current![i]))) {
     valueRef.current = factory()
@@ -129,7 +129,7 @@ export function useMemoizedValue<T>(factory: () => T, deps: React.DependencyList
 
 export function useBatchedUpdates() {
   const updates = useRef<(() => void)[]>([])
-  const timeoutRef = useRef<NodeJS.Timeout>()
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const schedule = useCallback((update: () => void) => {
     updates.current.push(update)

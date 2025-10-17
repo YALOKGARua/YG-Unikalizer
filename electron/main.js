@@ -31236,8 +31236,146 @@ var init_electron_store = __esm({
   }
 });
 
-// node_modules/dotenv/package.json
+// node_modules/ffmpeg-static/package.json
 var require_package = __commonJS({
+  "node_modules/ffmpeg-static/package.json"(exports2, module2) {
+    module2.exports = {
+      name: "ffmpeg-static",
+      version: "5.2.0",
+      description: "ffmpeg binaries for macOS, Linux and Windows",
+      scripts: {
+        install: "node install.js",
+        prepublishOnly: "npm run install"
+      },
+      "ffmpeg-static": {
+        "binary-path-env-var": "FFMPEG_BIN",
+        "binary-release-tag-env-var": "FFMPEG_BINARY_RELEASE",
+        "binary-release-tag": "b6.0",
+        "binaries-url-env-var": "FFMPEG_BINARIES_URL",
+        "executable-base-name": "ffmpeg"
+      },
+      repository: {
+        type: "git",
+        url: "https://github.com/eugeneware/ffmpeg-static"
+      },
+      keywords: [
+        "ffmpeg",
+        "static",
+        "binary",
+        "binaries",
+        "mac",
+        "linux",
+        "windows"
+      ],
+      authors: [
+        "Eugene Ware <eugene@noblesamurai.com>",
+        "Jannis R <mail@jannisr.de>"
+      ],
+      contributors: [
+        "Thefrank (https://github.com/Thefrank)",
+        "Emil Sivervik <emil@sivervik.com>"
+      ],
+      license: "GPL-3.0-or-later",
+      bugs: {
+        url: "https://github.com/eugeneware/ffmpeg-static/issues"
+      },
+      engines: {
+        node: ">=16"
+      },
+      dependencies: {
+        "@derhuerst/http-basic": "^8.2.0",
+        "env-paths": "^2.2.0",
+        "https-proxy-agent": "^5.0.0",
+        progress: "^2.0.3"
+      },
+      devDependencies: {
+        "any-shell-escape": "^0.1.1"
+      },
+      main: "index.js",
+      files: [
+        "index.js",
+        "install.js",
+        "example.js",
+        "types"
+      ],
+      types: "types/index.d.ts"
+    };
+  }
+});
+
+// node_modules/ffmpeg-static/index.js
+var require_ffmpeg_static = __commonJS({
+  "node_modules/ffmpeg-static/index.js"(exports2, module2) {
+    "use strict";
+    var pkg = require_package();
+    var {
+      "binary-path-env-var": BINARY_PATH_ENV_VAR,
+      "executable-base-name": executableBaseName
+    } = pkg[pkg.name];
+    if ("string" !== typeof BINARY_PATH_ENV_VAR) {
+      throw new Error(`package.json: invalid/missing ${pkg.name}.binary-path-env-var entry`);
+    }
+    if ("string" !== typeof executableBaseName) {
+      throw new Error(`package.json: invalid/missing ${pkg.name}.executable-base-name entry`);
+    }
+    if (process.env[BINARY_PATH_ENV_VAR]) {
+      module2.exports = process.env[BINARY_PATH_ENV_VAR];
+    } else {
+      os4 = require("os");
+      path7 = require("path");
+      binaries = Object.assign(/* @__PURE__ */ Object.create(null), {
+        darwin: ["x64", "arm64"],
+        freebsd: ["x64"],
+        linux: ["x64", "ia32", "arm64", "arm"],
+        win32: ["x64", "ia32"]
+      });
+      platform = process.env.npm_config_platform || os4.platform();
+      arch = process.env.npm_config_arch || os4.arch();
+      let binaryPath = path7.join(
+        __dirname,
+        executableBaseName + (platform === "win32" ? ".exe" : "")
+      );
+      if (!binaries[platform] || binaries[platform].indexOf(arch) === -1) {
+        binaryPath = null;
+      }
+      module2.exports = binaryPath;
+    }
+    var os4;
+    var path7;
+    var binaries;
+    var platform;
+    var arch;
+  }
+});
+
+// node_modules/ffprobe-static/index.js
+var require_ffprobe_static = __commonJS({
+  "node_modules/ffprobe-static/index.js"(exports2) {
+    var os4 = require("os");
+    var path7 = require("path");
+    var platform = os4.platform();
+    if (platform !== "darwin" && platform !== "linux" && platform !== "win32") {
+      console.error("Unsupported platform.");
+      process.exit(1);
+    }
+    var arch = os4.arch();
+    if (platform === "darwin" && arch !== "x64" && arch !== "arm64") {
+      console.error("Unsupported architecture.");
+      process.exit(1);
+    }
+    var ffprobePath = path7.join(
+      __dirname,
+      "bin",
+      platform,
+      arch,
+      platform === "win32" ? "ffprobe.exe" : "ffprobe"
+    );
+    exports2.path = ffprobePath;
+  }
+});
+
+// node_modules/dotenv/package.json
+var require_package2 = __commonJS({
   "node_modules/dotenv/package.json"(exports2, module2) {
     module2.exports = {
       name: "dotenv",
@@ -31311,7 +31449,7 @@ var require_main3 = __commonJS({
     var path7 = require("path");
     var os4 = require("os");
     var crypto2 = require("crypto");
-    var packageJson = require_package();
+    var packageJson = require_package2();
     var version = packageJson.version;
     var TIPS = [
       "\u{1F510} encrypt with Dotenvx: https://dotenvx.com",
@@ -31644,6 +31782,19 @@ var { randomUUID, createHash } = require("crypto");
 var { autoUpdater } = require_main2();
 var StoreRaw = (init_electron_store(), __toCommonJS(electron_store_exports));
 var { exec, spawn } = require("child_process");
+var ffmpegStaticPath = "";
+var ffprobeStaticPath = "";
+try {
+  const p = require_ffmpeg_static();
+  if (typeof p === "string") ffmpegStaticPath = p;
+} catch {
+}
+try {
+  const m = require_ffprobe_static();
+  const p = m && (m.path || m.ffprobePath) || "";
+  if (typeof p === "string") ffprobeStaticPath = p;
+} catch {
+}
 var https = require("https");
 var http = require("http");
 var { Readable } = require("stream");
@@ -32482,6 +32633,94 @@ function downloadFile(url, target, onProgress) {
     }
   });
 }
+async function ensureFfmpegAvailable() {
+  try {
+    const exeName = process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg";
+    const userDir = app2.getPath("userData");
+    const baseDir = path6.join(userDir, "ffmpeg");
+    const localBin = path6.join(baseDir, "bin");
+    const localExe = path6.join(localBin, exeName);
+    try {
+      if (fs3.existsSync(localExe)) {
+        if (!process.env.PATH?.includes(localBin)) process.env.PATH = `${localBin}${path6.delimiter}${process.env.PATH || ""}`;
+        return localExe;
+      }
+    } catch {
+    }
+    const existsInPath = await new Promise((resolve) => {
+      try {
+        const p = spawn(exeName, ["-version"], { stdio: "ignore" });
+        p.on("error", () => resolve(false));
+        p.on("close", (code) => resolve(code === 0));
+      } catch {
+        resolve(false);
+      }
+    });
+    if (existsInPath) return exeName;
+    const arch = process.arch === "ia32" ? "win32" : "win64";
+    const url = `https://github.com/yt-dlp/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-${arch}-gpl.zip`;
+    try {
+      await fs3.promises.mkdir(baseDir, { recursive: true });
+    } catch {
+    }
+    const zipTarget = path6.join(baseDir, "ffmpeg.zip");
+    await downloadFile(url, zipTarget, () => {
+    });
+    await new Promise((resolve) => {
+      try {
+        const ps = spawn("powershell", ["-NoProfile", "-Command", `Try { Expand-Archive -Path '${zipTarget.replace(/'/g, "''")}' -DestinationPath '${baseDir.replace(/'/g, "''")}' -Force } Catch {}`], { windowsHide: true });
+        ps.on("close", () => resolve());
+        ps.on("error", () => resolve());
+      } catch {
+        resolve();
+      }
+    });
+    const findExe = (dir) => {
+      try {
+        const items = fs3.readdirSync(dir, { withFileTypes: true });
+        for (const it of items) {
+          const p = path6.join(dir, it.name);
+          if (it.isDirectory()) {
+            const nested = findExe(p);
+            if (nested) return nested;
+          } else if (it.isFile() && it.name.toLowerCase() === exeName.toLowerCase()) {
+            return p;
+          }
+        }
+      } catch {
+      }
+      return "";
+    };
+    const resolved = findExe(baseDir);
+    if (resolved) {
+      const binDir = path6.dirname(resolved);
+      if (!process.env.PATH?.includes(binDir)) process.env.PATH = `${binDir}${path6.delimiter}${process.env.PATH || ""}`;
+      return resolved;
+    }
+    return "";
+  } catch {
+    return "";
+  }
+}
+async function resolveFfTool(name) {
+  try {
+    if (name === "ffmpeg" && ffmpegStaticPath && fs3.existsSync(ffmpegStaticPath)) return ffmpegStaticPath;
+    if (name === "ffprobe" && ffprobeStaticPath && fs3.existsSync(ffprobeStaticPath)) return ffprobeStaticPath;
+    const base = await ensureFfmpegAvailable();
+    const exe = process.platform === "win32" ? `${name}.exe` : name;
+    if (base) {
+      const dir = path6.dirname(base);
+      const p = path6.join(dir, exe);
+      try {
+        if (fs3.existsSync(p)) return p;
+      } catch {
+      }
+    }
+    return exe;
+  } catch {
+    return process.platform === "win32" ? `${name}.exe` : name;
+  }
+}
 function toDateString(d) {
   const pad = (n) => String(n).padStart(2, "0");
   return `${d.getFullYear()}:${pad(d.getMonth() + 1)}:${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
@@ -32574,12 +32813,14 @@ async function attemptWriteWithElevation(tempFile, targetFile) {
     }
     const elev = path6.join(process.resourcesPath || "", "elevate.exe");
     if (fs3.existsSync(elev)) {
-      const cmd = `cmd /c copy /Y "${tempFile}" "${targetFile}"`;
       await new Promise((resolve) => {
         try {
-          const p = spawn(elev, cmd.split(" "), { windowsVerbatimArguments: true, detached: true, stdio: "ignore" });
+          const p = spawn(elev, ["cmd", "/c", "copy", "/Y", tempFile, targetFile], { detached: true, stdio: "ignore" });
           p.on("exit", () => resolve());
-          p.unref();
+          try {
+            p.unref();
+          } catch {
+          }
         } catch (_) {
           resolve();
         }
@@ -33447,6 +33688,189 @@ app2.whenReady().then(() => {
     if (res.canceled) return [];
     return res.filePaths;
   });
+  ipcMain2.handle("select-video-dir", async () => {
+    const res = await dialog.showOpenDialog(mainWindow, { properties: ["openDirectory", "createDirectory"] });
+    if (res.canceled) return [];
+    const dir = res.filePaths[0];
+    try {
+      const allowed = /* @__PURE__ */ new Set([".mp4", ".mov", ".mkv", ".avi", ".webm"]);
+      async function walk(d) {
+        const out = [];
+        const items = await fs3.promises.readdir(d, { withFileTypes: true });
+        for (const it of items) {
+          const p = path6.join(d, it.name);
+          if (it.isDirectory()) {
+            const nested = await walk(p);
+            out.push(...nested);
+          } else {
+            const ext = path6.extname(it.name).toLowerCase();
+            if (allowed.has(ext)) out.push(p);
+          }
+        }
+        return out;
+      }
+      return await walk(dir);
+    } catch (_) {
+      return [];
+    }
+  });
+  ipcMain2.handle("expand-video-paths", async (_e, inputs) => {
+    try {
+      if (!Array.isArray(inputs) || !inputs.length) return [];
+      const allowed = /* @__PURE__ */ new Set([".mp4", ".mov", ".mkv", ".avi", ".webm"]);
+      const out = [];
+      const stats = await Promise.all(inputs.map((p) => fs3.promises.stat(p).then((s) => ({ p, s })).catch(() => null)));
+      for (const it of stats) {
+        if (!it) continue;
+        if (it.s.isDirectory()) {
+          try {
+            const list = await fs3.promises.readdir(it.p, { withFileTypes: true });
+            for (const d of list) {
+              const pp = path6.join(it.p, d.name);
+              if (d.isDirectory()) {
+                const nested = await fs3.promises.readdir(pp).catch(() => []);
+                for (const nm of nested) {
+                  const ppp = path6.join(pp, nm);
+                  const ex = path6.extname(ppp).toLowerCase();
+                  if (allowed.has(ex)) out.push(ppp);
+                }
+              } else {
+                const ex = path6.extname(pp).toLowerCase();
+                if (allowed.has(ex)) out.push(pp);
+              }
+            }
+          } catch {
+          }
+        } else {
+          const ex = path6.extname(it.p).toLowerCase();
+          if (allowed.has(ex)) out.push(it.p);
+        }
+      }
+      return out;
+    } catch (_) {
+      return [];
+    }
+  });
+  ipcMain2.handle("ensure-ffmpeg", async () => {
+    try {
+      const p = await resolveFfTool("ffmpeg");
+      return { ok: !!p, path: p || "" };
+    } catch (e) {
+      return { ok: false, error: String(e?.message || e) };
+    }
+  });
+  ipcMain2.handle("probe-video", async (_e, filePath) => {
+    try {
+      const src = typeof filePath === "string" ? filePath : "";
+      if (!src) return { ok: false };
+      const ffprobeExec = await resolveFfTool("ffprobe");
+      return await new Promise((resolve) => {
+        try {
+          const args = ["-v", "error", "-print_format", "json", "-show_format", "-show_streams", src];
+          const p = spawn(ffprobeExec, args, { windowsHide: true });
+          let out = "";
+          let err = "";
+          p.stdout.on("data", (d) => {
+            out += String(d);
+          });
+          p.stderr.on("data", (d) => {
+            err += String(d);
+          });
+          p.on("close", () => {
+            try {
+              const data = JSON.parse(out || "{}");
+              resolve({ ok: true, data });
+            } catch (e) {
+              resolve({ ok: false, error: err || String(e?.message || e) });
+            }
+          });
+          p.on("error", () => resolve({ ok: false, error: err || "spawn" }));
+        } catch (e) {
+          resolve({ ok: false, error: String(e?.message || e) });
+        }
+      });
+    } catch (e) {
+      return { ok: false, error: String(e?.message || e) };
+    }
+  });
+  ipcMain2.handle("video-thumbnails", async (_e, payload) => {
+    try {
+      const src = payload && payload.path ? String(payload.path) : "";
+      if (!src) return { ok: false };
+      const ffmpegExec = await resolveFfTool("ffmpeg");
+      const ffprobeExec = await resolveFfTool("ffprobe");
+      const desired = Math.max(1, Math.min(32, Number(payload && payload.count ? payload.count : 8)));
+      const cols = Math.max(1, Number(payload && payload.cols ? payload.cols : Math.min(desired, 4)));
+      const rows = Math.max(1, Number(payload && payload.rows ? payload.rows : Math.ceil(desired / cols)));
+      const width = Math.max(64, Number(payload && payload.width ? payload.width : cols * 240));
+      const probe = await new Promise((resolve) => {
+        try {
+          const args = ["-v", "error", "-print_format", "json", "-show_format", "-show_streams", src];
+          const p = spawn(ffprobeExec, args, { windowsHide: true });
+          let out = "";
+          p.stdout.on("data", (d) => {
+            out += String(d);
+          });
+          p.on("close", () => {
+            try {
+              resolve(JSON.parse(out || "{}"));
+            } catch {
+              resolve(null);
+            }
+          });
+          p.on("error", () => resolve(null));
+        } catch {
+          resolve(null);
+        }
+      });
+      let duration = 0;
+      if (probe && probe.format && probe.format.duration) duration = Number(probe.format.duration) || 0;
+      let fps = 0;
+      try {
+        const vs = Array.isArray(probe?.streams) ? probe.streams.find((s) => s?.codec_type === "video") : null;
+        const rateStr = vs && (vs.avg_frame_rate || vs.r_frame_rate) || "";
+        if (typeof rateStr === "string" && rateStr.includes("/")) {
+          const [a, b] = rateStr.split("/").map((x) => Number(x) || 0);
+          fps = b ? a / b : Number(rateStr) || 0;
+        } else if (typeof rateStr === "string") {
+          fps = Number(rateStr) || 0;
+        }
+      } catch {
+      }
+      const framesTarget = cols * rows;
+      const totalFrames = duration && fps ? duration * fps : 0;
+      const step = totalFrames ? Math.max(1, Math.floor(totalFrames / framesTarget)) : Math.max(1, Math.floor(100 / framesTarget));
+      const tileW = Math.max(8, Math.floor(width / cols));
+      const tile = `${cols}x${rows}`;
+      const tmpName = `thumbs_${Date.now()}_${Math.random().toString(36).slice(2)}.png`;
+      const outPath = path6.join(app2.getPath("temp"), tmpName);
+      const vf = `select=not(mod(n\\,${step})),scale=${tileW}:-1,tile=${tile}`;
+      await new Promise((resolve) => {
+        try {
+          const args = ["-y", "-i", src, "-vf", vf, "-vsync", "vfr", "-frames:v", "1", outPath];
+          const p = spawn(ffmpegExec, args, { windowsHide: true });
+          p.on("close", () => resolve());
+          p.on("error", () => resolve());
+        } catch {
+          resolve();
+        }
+      });
+      let dataUrl = "";
+      try {
+        const buf = await fs3.promises.readFile(outPath);
+        dataUrl = `data:image/png;base64,${buf.toString("base64")}`;
+      } catch {
+      }
+      try {
+        await fs3.promises.unlink(outPath);
+      } catch {
+      }
+      if (!dataUrl) return { ok: false };
+      return { ok: true, image: dataUrl, cols, rows };
+    } catch (e) {
+      return { ok: false, error: String(e?.message || e) };
+    }
+  });
   ipcMain2.handle("win-minimize", async () => {
     try {
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.minimize();
@@ -33603,48 +34027,225 @@ app2.whenReady().then(() => {
     try {
       const inputFiles = payload && Array.isArray(payload.inputFiles) ? payload.inputFiles : [];
       const outputDir = payload && payload.outputDir ? String(payload.outputDir) : "";
+      const mode = (payload && payload.mode) === "reencode" ? "reencode" : "remux";
+      const crf = Math.max(14, Math.min(32, Number(payload && payload.crf || 23)));
+      const preset = String(payload && payload.preset || "veryfast");
+      const audio = (payload && payload.audio) === "aac" ? "aac" : "copy";
+      const stripMeta = !!(payload && payload.stripMeta);
+      const container = (payload && payload.container) === "mkv" ? "mkv" : "mp4";
+      const faststart = !!(payload && payload.faststart);
+      const addComment = !!(payload && payload.addComment);
+      const suffix = String(payload && payload.suffix || "unik");
       if (!inputFiles.length || !outputDir) return { ok: false };
       try {
         await fs3.promises.mkdir(outputDir, { recursive: true });
       } catch {
       }
-      const hasFfmpeg = await new Promise((resolve) => {
-        try {
-          const p = spawn("ffmpeg", ["-version"], { stdio: "ignore" });
-          p.on("error", () => resolve(false));
-          p.on("close", (code) => resolve(code === 0));
-        } catch {
-          resolve(false);
-        }
-      });
+      const ffmpegExec = await resolveFfTool("ffmpeg");
+      const ffprobeExec = await resolveFfTool("ffprobe");
+      const hasFfmpeg = !!ffmpegExec;
       cancelRequested = false;
       const total = inputFiles.length;
+      const results = [];
+      let successCount = 0;
+      let errorCount = 0;
       for (let i = 0; i < inputFiles.length; i += 1) {
         if (cancelRequested) break;
         const src = String(inputFiles[i]);
         const base = path6.basename(src);
         const name = base.replace(/\.[^.]+$/, "");
-        const ext = path6.extname(base) || ".mp4";
-        const out = path6.join(outputDir, `${name}-unik${ext}`);
+        const out = path6.join(outputDir, `${name}-${suffix}.${container}`);
         if (hasFfmpeg) {
+          let fileSucceeded = false;
+          let fileError = "";
+          let durationMs = 0;
+          let totalFrames = 0;
+          try {
+            durationMs = await new Promise((resolveDur) => {
+              try {
+                const pDur = spawn(ffprobeExec, ["-v", "error", "-print_format", "json", "-show_format", "-show_streams", src], { windowsHide: true });
+                let outDur = "";
+                pDur.stdout.on("data", (d) => {
+                  outDur += String(d || "");
+                });
+                pDur.on("close", () => {
+                  try {
+                    const j = JSON.parse(outDur || "{}");
+                    const dur = Math.round((Number(j?.format?.duration) || 0) * 1e3);
+                    try {
+                      const vs = Array.isArray(j?.streams) ? j.streams.find((s) => s?.codec_type === "video") : null;
+                      if (vs && vs.nb_frames) totalFrames = Number(vs.nb_frames) || 0;
+                    } catch {
+                    }
+                    resolveDur(dur);
+                  } catch {
+                    resolveDur(0);
+                  }
+                });
+                pDur.on("error", () => resolveDur(0));
+              } catch {
+                resolveDur(0);
+              }
+            });
+          } catch {
+          }
           await new Promise((resolve) => {
             try {
               const tag = `YG-${randomUUID ? randomUUID() : Date.now().toString(36)}`;
-              const args = ["-y", "-i", src, "-map", "0", "-c", "copy", "-movflags", "use_metadata_tags", "-metadata", `comment=${tag}`, out];
-              const p = spawn("ffmpeg", args, { windowsHide: true });
-              p.on("close", () => resolve());
-              p.on("error", () => resolve());
+              const args = ["-y", "-v", "info", "-stats_period", "0.5", "-i", src, "-map", "0", "-progress", "pipe:2"];
+              if (mode === "remux") {
+                args.push("-c", "copy");
+              } else {
+                args.push("-c:v", "libx264", "-preset", preset, "-crf", String(crf));
+                if (audio === "copy") args.push("-c:a", "copy");
+                else args.push("-c:a", "aac", "-b:a", "192k");
+              }
+              if (stripMeta) args.push("-map_metadata", "-1");
+              else if (addComment) args.push("-movflags", "use_metadata_tags", "-metadata", `comment=${tag}`);
+              if (container === "mp4" && faststart) args.push("-movflags", "+faststart");
+              args.push(out);
+              let stderr = "";
+              const startedAt = Date.now();
+              let lastOutMs = 0;
+              const sendPartial = (curMs) => {
+                try {
+                  lastOutMs = curMs;
+                  const perc = durationMs > 0 ? Math.max(0, Math.min(99, Math.floor(curMs / durationMs * 100))) : 0;
+                  let etaSec = 0;
+                  const elapsed = Date.now() - startedAt;
+                  if (curMs > 0 && elapsed > 0 && durationMs > 0) {
+                    const rate = curMs / Math.max(1, elapsed);
+                    const remainMs = Math.max(0, durationMs - curMs);
+                    etaSec = Math.max(0, Math.round(remainMs / Math.max(rate, 1e-4) / 1e3));
+                  }
+                  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("video-process-progress", { current: i, total, lastFile: base, filePercent: perc, etaSec });
+                } catch {
+                }
+              };
+              const p = spawn(ffmpegExec, args, { windowsHide: true });
+              const onChunk = (buf) => {
+                const chunk = String(buf || "");
+                stderr += chunk;
+                try {
+                  const lines = chunk.split(/\r?\n/);
+                  for (const line of lines) {
+                    const m = /^out_time_ms=(\d+)/.exec(line);
+                    if (m) {
+                      const cur = Number(m[1] || "0");
+                      sendPartial(cur);
+                    }
+                    const f = /^frame=\s*(\d+)/.exec(line);
+                    if (f && totalFrames > 0) {
+                      const fr = Number(f[1] || "0");
+                      const perc = Math.max(0, Math.min(99, Math.floor(fr / totalFrames * 100)));
+                      try {
+                        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("video-process-progress", { current: i, total, lastFile: base, filePercent: perc });
+                      } catch {
+                      }
+                    }
+                    const t = /time=\s*(\d+):(\d+):(\d+(?:\.\d+)?)/.exec(line);
+                    if (t) {
+                      const hh = Number(t[1] || "0");
+                      const mm = Number(t[2] || "0");
+                      const ss = Number(t[3] || "0");
+                      const cur = Math.max(0, Math.round((hh * 3600 + mm * 60 + ss) * 1e3));
+                      sendPartial(cur);
+                    }
+                  }
+                } catch {
+                }
+              };
+              try {
+                p.stderr.on("data", onChunk);
+              } catch {
+              }
+              try {
+                p.stdout.on("data", onChunk);
+              } catch {
+              }
+              p.on("close", async (code) => {
+                if (code && code !== 0) {
+                  if (mode === "reencode") {
+                    let stderr2 = "";
+                    await new Promise((resolve2) => {
+                      try {
+                        const remuxArgs = ["-y", "-i", src, "-map", "0", "-c", "copy"];
+                        if (stripMeta) remuxArgs.push("-map_metadata", "-1");
+                        else if (addComment) remuxArgs.push("-movflags", "use_metadata_tags", "-metadata", `comment=${tag}`);
+                        if (container === "mp4" && faststart) remuxArgs.push("-movflags", "+faststart");
+                        remuxArgs.push(out);
+                        const p2 = spawn(ffmpegExec, remuxArgs, { windowsHide: true });
+                        try {
+                          p2.stderr.on("data", (d) => {
+                            stderr2 += String(d || "");
+                          });
+                        } catch {
+                        }
+                        p2.on("close", (code2) => {
+                          if (!code2 || code2 === 0) {
+                            fileSucceeded = true;
+                          } else {
+                            fileError = String(stderr2 || "").trim() || String(stderr || "").trim();
+                          }
+                          resolve2();
+                        });
+                        p2.on("error", (err2) => {
+                          fileError = String(err2?.message || err2 || "").trim() || String(stderr || "").trim();
+                          resolve2();
+                        });
+                      } catch {
+                        resolve2();
+                      }
+                    });
+                  } else {
+                    fileError = String(stderr || "").trim();
+                  }
+                } else {
+                  fileSucceeded = true;
+                }
+                resolve();
+              });
+              p.on("error", (err) => {
+                fileError = String(err?.message || err || "").trim();
+                try {
+                  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("video-process-progress", { current: i + 1, total, lastFile: base, error: fileError });
+                } catch {
+                }
+                resolve();
+              });
             } catch {
               resolve();
             }
           });
+          if (!fileSucceeded) {
+            try {
+              await fs3.promises.copyFile(src, out);
+              const pad = Buffer.alloc(64);
+              for (let j = 0; j < pad.length; j += 1) pad[j] = Math.floor(Math.random() * 256);
+              await fs3.promises.appendFile(out, pad);
+              fileSucceeded = true;
+            } catch (e) {
+              fileError = fileError || String(e?.message || e || "").trim();
+            }
+          }
+          if (fileSucceeded) {
+            results.push({ src, out, success: true });
+            successCount += 1;
+          } else {
+            results.push({ src, out, success: false, error: fileError });
+            errorCount += 1;
+          }
         } else {
           try {
             await fs3.promises.copyFile(src, out);
             const pad = Buffer.alloc(64);
             for (let j = 0; j < pad.length; j += 1) pad[j] = Math.floor(Math.random() * 256);
             await fs3.promises.appendFile(out, pad);
-          } catch {
+            results.push({ src, out, success: true });
+            successCount += 1;
+          } catch (e) {
+            results.push({ src, out, success: false, error: String(e?.message || e || "").trim() });
+            errorCount += 1;
           }
         }
         try {
@@ -33653,10 +34254,10 @@ app2.whenReady().then(() => {
         }
       }
       try {
-        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("video-process-complete", { canceled: cancelRequested });
+        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("video-process-complete", { canceled: cancelRequested, total, successCount, errorCount });
       } catch {
       }
-      return { ok: true };
+      return { ok: errorCount === 0, results };
     } catch {
       return { ok: false };
     }

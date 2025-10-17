@@ -80,6 +80,7 @@ async function decodeRgba(filePath: string) {
 }
 
 contextBridge.exposeInMainWorld('api', {
+  invoke: (channel: string, ...args: any[]) => ipcRenderer.invoke(channel, ...args),
   selectImages: () => ipcRenderer.invoke('select-images'),
   selectVideos: () => ipcRenderer.invoke('select-videos'),
   selectVideoDir: () => ipcRenderer.invoke('select-video-dir'),
@@ -89,6 +90,8 @@ contextBridge.exposeInMainWorld('api', {
   processImages: (payload: unknown) => ipcRenderer.invoke('process-images', payload),
   processVideos: (payload: unknown) => ipcRenderer.invoke('process-videos', payload),
   ensureFfmpeg: () => ipcRenderer.invoke('ensure-ffmpeg'),
+  probeVideo: (p: string) => ipcRenderer.invoke('probe-video', p),
+  videoThumbnails: (payload: { path: string; count?: number; cols?: number; rows?: number; width?: number }) => ipcRenderer.invoke('video-thumbnails', payload),
   selectTextFile: () => ipcRenderer.invoke('select-text-file'),
   readTextFileByPath: (p: string) => ipcRenderer.invoke('read-text-file-by-path', p),
   saveJson: (payload: unknown) => ipcRenderer.invoke('save-json', payload),
@@ -118,8 +121,8 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('video-process-progress', listener as any)
     return () => ipcRenderer.removeListener('video-process-progress', listener as any)
   },
-  onVideoComplete: (cb: () => void) => {
-    const listener = () => cb()
+  onVideoComplete: (cb: (info: unknown) => void) => {
+    const listener = (_: unknown, info: unknown) => cb(info)
     ipcRenderer.on('video-process-complete', listener as any)
     return () => ipcRenderer.removeListener('video-process-complete', listener as any)
   },

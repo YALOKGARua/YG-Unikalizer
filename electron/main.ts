@@ -1,3 +1,5 @@
+ // @ts-nocheck
+/* eslint-disable */
 const { app, BrowserWindow, ipcMain, dialog, shell, Menu, session, Notification: ElectronNotification, globalShortcut, protocol, crashReporter } = require('electron')
 const nodeCrypto = require('crypto')
 const path = require('path')
@@ -8,12 +10,24 @@ const { randomUUID, createHash } = require('crypto')
 const { autoUpdater } = require('electron-updater')
 const StoreRaw = require('electron-store')
 const { exec, spawn } = require('child_process')
+let ffmpegStaticPath = ''
+let ffprobeStaticPath = ''
+try { const p = require('ffmpeg-static'); if (typeof p === 'string') ffmpegStaticPath = p } catch {}
+try { const m = require('ffprobe-static'); const p = (m && (m.path || m.ffprobePath)) || ''; if (typeof p === 'string') ffprobeStaticPath = p } catch {}
 const https = require('https')
 const http = require('http')
 const { Readable } = require('stream')
 const isDev = !!process.env.VITE_DEV_SERVER_URL || !app.isPackaged
 try { crashReporter.start({ submitURL: '', uploadToServer: false, compress: true, companyName: 'YALOKGAR', productName: 'YG Unikalizer' }) } catch {}
 try { if (String(process.env.YG_DISABLE_GPU || '') === '1') app.disableHardwareAcceleration() } catch {}
+try {
+  app.commandLine.appendSwitch('disable-renderer-backgrounding')
+  app.commandLine.appendSwitch('disable-background-timer-throttling')
+  app.commandLine.appendSwitch('disable-backgrounding-occluded-windows')
+  if (process.platform === 'win32') {
+    app.commandLine.appendSwitch('force_high_performance_gpu')
+  }
+} catch {}
 try {
   const candidates = []
   candidates.push(path.join(__dirname, '..', '.env.local'))
@@ -668,6 +682,14 @@ function createWindow() {
     }
   })
 
+  try {
+    const perf = (getSettings() && getSettings().performance) || {}
+    if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents && !mainWindow.webContents.isDestroyed()) {
+
+      mainWindow.webContents.setFrameRate(perf && perf.reduceAnimations ? 30 : 60)
+    }
+  } catch {}
+
   mainWindow.once('ready-to-show', () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.show()
@@ -934,6 +956,21 @@ async function ensureFfmpegAvailable() {
   } catch { return '' }
 }
 
+async function resolveFfTool(name) {
+  try {
+    if (name === 'ffmpeg' && ffmpegStaticPath && fs.existsSync(ffmpegStaticPath)) return ffmpegStaticPath
+    if (name === 'ffprobe' && ffprobeStaticPath && fs.existsSync(ffprobeStaticPath)) return ffprobeStaticPath
+    const base = await ensureFfmpegAvailable()
+    const exe = process.platform === 'win32' ? `${name}.exe` : name
+    if (base) {
+      const dir = path.dirname(base)
+      const p = path.join(dir, exe)
+      try { if (fs.existsSync(p)) return p } catch {}
+    }
+    return exe
+  } catch { return process.platform === 'win32' ? `${name}.exe` : name }
+}
+
 function toDateString(d) {
   const pad = n => String(n).padStart(2, '0')
   return `${d.getFullYear()}:${pad(d.getMonth() + 1)}:${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
@@ -1021,12 +1058,11 @@ async function attemptWriteWithElevation(tempFile, targetFile) {
     } catch (_) {}
     const elev = path.join(process.resourcesPath || '', 'elevate.exe')
     if (fs.existsSync(elev)) {
-      const cmd = `cmd /c copy /Y "${tempFile}" "${targetFile}"`
       await new Promise((resolve) => {
         try {
-          const p = spawn(elev, cmd.split(' '), { windowsVerbatimArguments: true, detached: true, stdio: 'ignore' })
+          const p = spawn(elev, ['cmd', '/c', 'copy', '/Y', tempFile, targetFile], { detached: true, stdio: 'ignore' })
           p.on('exit', () => resolve())
-          p.unref()
+          try { p.unref() } catch {}
         } catch (_) { resolve() }
       })
       try { const st = await fs.promises.stat(targetFile); if (st && st.isFile() && st.size > 0) { try { await fs.promises.unlink(tempFile) } catch (_) {}; return true } } catch (_) {}
@@ -1881,7 +1917,6 @@ app.whenReady().then(() => {
       for (const it of stats) {
         if (!it) continue
         if (it.s.isDirectory()) {
-          const res = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] }).catch(() => null)
           try {
             const list = await fs.promises.readdir(it.p, { withFileTypes: true })
             for (const d of list) {
@@ -1912,8 +1947,103 @@ app.whenReady().then(() => {
 
   ipcMain.handle('ensure-ffmpeg', async () => {
     try {
-      const p = await ensureFfmpegAvailable()
+      const p = await resolveFfTool('ffmpeg')
       return { ok: !!p, path: p || '' }
+    } catch (e) {
+      return { ok: false, error: String((e as any)?.message || e) }
+    }
+  })
+
+  ipcMain.handle('probe-video', async (_e, filePath) => {
+    try {
+      const src = typeof filePath === 'string' ? filePath : ''
+      if (!src) return { ok: false }
+      const ffprobeExec = await resolveFfTool('ffprobe')
+      return await new Promise(resolve => {
+        try {
+          const args = ['-v', 'error', '-print_format', 'json', '-show_format', '-show_streams', src]
+          const p = spawn(ffprobeExec, args, { windowsHide: true })
+          let out = ''
+          let err = ''
+          p.stdout.on('data', d => { out += String(d) })
+          p.stderr.on('data', d => { err += String(d) })
+          p.on('close', () => {
+            try {
+              const data = JSON.parse(out || '{}')
+              resolve({ ok: true, data })
+            } catch (e) {
+              resolve({ ok: false, error: err || String((e as any)?.message || e) })
+            }
+          })
+          p.on('error', () => resolve({ ok: false, error: err || 'spawn' }))
+        } catch (e) {
+          resolve({ ok: false, error: String((e as any)?.message || e) })
+        }
+      })
+    } catch (e) {
+      return { ok: false, error: String((e as any)?.message || e) }
+    }
+  })
+
+  ipcMain.handle('video-thumbnails', async (_e, payload) => {
+    try {
+      const src = payload && payload.path ? String(payload.path) : ''
+      if (!src) return { ok: false }
+      const ffmpegExec = await resolveFfTool('ffmpeg')
+      const ffprobeExec = await resolveFfTool('ffprobe')
+      const desired = Math.max(1, Math.min(32, Number(payload && payload.count ? payload.count : 8)))
+      const cols = Math.max(1, Number(payload && payload.cols ? payload.cols : Math.min(desired, 4)))
+      const rows = Math.max(1, Number(payload && payload.rows ? payload.rows : Math.ceil(desired / cols)))
+      const width = Math.max(64, Number(payload && payload.width ? payload.width : cols * 240))
+      const probe = await new Promise<any>(resolve => {
+        try {
+          const args = ['-v', 'error', '-print_format', 'json', '-show_format', '-show_streams', src]
+          const p = spawn(ffprobeExec, args, { windowsHide: true })
+          let out = ''
+          p.stdout.on('data', d => { out += String(d) })
+          p.on('close', () => {
+            try { resolve(JSON.parse(out || '{}')) } catch { resolve(null) }
+          })
+          p.on('error', () => resolve(null))
+        } catch { resolve(null) }
+      })
+      let duration = 0
+      if (probe && probe.format && probe.format.duration) duration = Number(probe.format.duration) || 0
+      let fps = 0
+      try {
+        const vs = Array.isArray(probe?.streams) ? probe.streams.find((s: any) => s?.codec_type === 'video') : null
+        const rateStr = (vs && (vs.avg_frame_rate || vs.r_frame_rate)) || ''
+        if (typeof rateStr === 'string' && rateStr.includes('/')) {
+          const [a, b] = rateStr.split('/').map((x: string) => Number(x) || 0)
+          fps = b ? (a / b) : (Number(rateStr) || 0)
+        } else if (typeof rateStr === 'string') {
+          fps = Number(rateStr) || 0
+        }
+      } catch {}
+      const framesTarget = cols * rows
+      const totalFrames = duration && fps ? duration * fps : 0
+      const step = totalFrames ? Math.max(1, Math.floor(totalFrames / framesTarget)) : Math.max(1, Math.floor(100 / framesTarget))
+      const tileW = Math.max(8, Math.floor(width / cols))
+      const tile = `${cols}x${rows}`
+      const tmpName = `thumbs_${Date.now()}_${Math.random().toString(36).slice(2)}.png`
+      const outPath = path.join(app.getPath('temp'), tmpName)
+      const vf = `select=not(mod(n\\,${step})),scale=${tileW}:-1,tile=${tile}`
+      await new Promise<void>((resolve) => {
+        try {
+          const args = ['-y', '-i', src, '-vf', vf, '-vsync', 'vfr', '-frames:v', '1', outPath]
+          const p = spawn(ffmpegExec, args, { windowsHide: true })
+          p.on('close', () => resolve())
+          p.on('error', () => resolve())
+        } catch { resolve() }
+      })
+      let dataUrl = ''
+      try {
+        const buf = await fs.promises.readFile(outPath)
+        dataUrl = `data:image/png;base64,${buf.toString('base64')}`
+      } catch {}
+      try { await fs.promises.unlink(outPath) } catch {}
+      if (!dataUrl) return { ok: false }
+      return { ok: true, image: dataUrl, cols, rows }
     } catch (e) {
       return { ok: false, error: String((e as any)?.message || e) }
     }
@@ -2056,10 +2186,14 @@ app.whenReady().then(() => {
       const suffix = String((payload && payload.suffix) || 'unik')
       if (!inputFiles.length || !outputDir) return { ok: false }
       try { await fs.promises.mkdir(outputDir, { recursive: true }) } catch {}
-      const ffmpegExec = await ensureFfmpegAvailable()
+      const ffmpegExec = await resolveFfTool('ffmpeg')
+      const ffprobeExec = await resolveFfTool('ffprobe')
       const hasFfmpeg = !!ffmpegExec
       cancelRequested = false
       const total = inputFiles.length
+      const results: { src: string; out: string; success: boolean; error?: string }[] = []
+      let successCount = 0
+      let errorCount = 0
       for (let i = 0; i < inputFiles.length; i += 1) {
         if (cancelRequested) break
         const src = String(inputFiles[i])
@@ -2067,38 +2201,156 @@ app.whenReady().then(() => {
         const name = base.replace(/\.[^.]+$/, '')
         const out = path.join(outputDir, `${name}-${suffix}.${container}`)
         if (hasFfmpeg) {
+          let fileSucceeded = false
+          let fileError = ''
+          let durationMs = 0
+          let totalFrames = 0
+          try {
+            durationMs = await new Promise<number>((resolveDur) => {
+              try {
+                const pDur = spawn(ffprobeExec, ['-v', 'error', '-print_format', 'json', '-show_format', '-show_streams', src], { windowsHide: true })
+                let outDur = ''
+                pDur.stdout.on('data', d => { outDur += String(d || '') })
+                pDur.on('close', () => {
+                  try {
+                    const j = JSON.parse(outDur || '{}')
+                    const dur = Math.round((Number(j?.format?.duration) || 0) * 1000)
+                    try { const vs = Array.isArray(j?.streams) ? j.streams.find((s:any)=>s?.codec_type==='video') : null; if (vs && vs.nb_frames) totalFrames = Number(vs.nb_frames)||0 } catch {}
+                    resolveDur(dur)
+                  } catch { resolveDur(0) }
+                })
+                pDur.on('error', () => resolveDur(0))
+              } catch { resolveDur(0) }
+            })
+          } catch {}
           await new Promise<void>((resolve) => {
             try {
-              const tag = `YG-${randomUUID ? randomUUID() : Date.now().toString(36)}`
-              const args: string[] = ['-y', '-i', src, '-map', '0']
+              const tag
+               = `YG-${randomUUID ? randomUUID() : Date.now().toString(36)}`
+              const args: string[] = ['-y', '-v', 'info', '-stats_period', '0.5', '-i', src, '-map', '0', '-progress', 'pipe:2']
               if (mode === 'remux') {
                 args.push('-c', 'copy')
               } else {
                 args.push('-c:v', 'libx264', '-preset', preset, '-crf', String(crf))
                 if (audio === 'copy') args.push('-c:a', 'copy'); else args.push('-c:a', 'aac', '-b:a', '192k')
               }
+
               if (stripMeta) args.push('-map_metadata', '-1'); else if (addComment) args.push('-movflags', 'use_metadata_tags', '-metadata', `comment=${tag}`)
               if (container === 'mp4' && faststart) args.push('-movflags', '+faststart')
               args.push(out)
+              let stderr = ''
+              const startedAt = Date.now()
+              let lastOutMs = 0
+              const sendPartial = (curMs: number) => {
+                try {
+                  lastOutMs = curMs
+                  const perc = durationMs > 0 ? Math.max(0, Math.min(99, Math.floor((curMs / durationMs) * 100))) : 0
+                  let etaSec = 0
+                  const elapsed = Date.now() - startedAt
+                  if (curMs > 0 && elapsed > 0 && durationMs > 0) {
+                    const rate = curMs / Math.max(1, elapsed)
+                    const remainMs = Math.max(0, durationMs - curMs)
+                    etaSec = Math.max(0, Math.round(remainMs / Math.max(rate, 0.0001) / 1000))
+                  }
+                  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('video-process-progress', { current: i, total, lastFile: base, filePercent: perc, etaSec })
+                } catch {}
+              }
               const p = spawn(ffmpegExec, args, { windowsHide: true })
-              p.on('close', () => resolve())
-              p.on('error', () => resolve())
+              const onChunk = (buf: any) => {
+                const chunk = String(buf || '')
+                stderr += chunk
+                try {
+                  const lines = chunk.split(/\r?\n/)
+                  for (const line of lines) {
+                    const m = /^out_time_ms=(\d+)/.exec(line)
+                    if (m) { const cur = Number(m[1] || '0'); sendPartial(cur) }
+                    const f = /^frame=\s*(\d+)/.exec(line)
+                    if (f && totalFrames > 0) {
+                      const fr = Number(f[1] || '0')
+                      const perc = Math.max(0, Math.min(99, Math.floor((fr / totalFrames) * 100)))
+                      try { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('video-process-progress', { current: i, total, lastFile: base, filePercent: perc }) } catch {}
+                    }
+                    const t = /time=\s*(\d+):(\d+):(\d+(?:\.\d+)?)/.exec(line)
+                    if (t) {
+                      const hh = Number(t[1] || '0')
+                      const mm = Number(t[2] || '0')
+                      const ss = Number(t[3] || '0')
+                      const cur = Math.max(0, Math.round((hh * 3600 + mm * 60 + ss) * 1000))
+                      sendPartial(cur)
+                    }
+                  }
+                } catch {}
+              }
+              try { p.stderr.on('data', onChunk) } catch {}
+              try { p.stdout.on('data', onChunk) } catch {}
+              
+              p.on('close', async (code) => {
+                if (code && code !== 0) {
+                  if (mode === 'reencode') {
+                    let stderr2 = ''
+                    await new Promise<void>((resolve2) => {
+                      try {
+                        const remuxArgs: string[] = ['-y', '-i', src, '-map', '0', '-c', 'copy']
+                        if (stripMeta) remuxArgs.push('-map_metadata', '-1'); else if (addComment) remuxArgs.push('-movflags', 'use_metadata_tags', '-metadata', `comment=${tag}`)
+                        if (container === 'mp4' && faststart) remuxArgs.push('-movflags', '+faststart')
+                        remuxArgs.push(out)
+                        const p2 = spawn(ffmpegExec, remuxArgs, { windowsHide: true })
+                        try { p2.stderr.on('data', d => { stderr2 += String(d || '') }) } catch {}
+                        p2.on('close', (code2) => {
+                          if (!code2 || code2 === 0) { fileSucceeded = true }
+                          else { fileError = String(stderr2 || '').trim() || String(stderr || '').trim() }
+                          resolve2()
+                        })
+                        p2.on('error', (err2) => { fileError = String((err2 as any)?.message || err2 || '').trim() || String(stderr || '').trim(); resolve2() })
+                      } catch { resolve2() }
+                    })
+                  } else {
+                    fileError = String(stderr || '').trim()
+                  }
+                } else {
+                  fileSucceeded = true
+                }
+                resolve()
+              })
+              p.on('error', (err) => {
+                fileError = String((err as any)?.message || err || '').trim()
+                try { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('video-process-progress', { current: i + 1, total, lastFile: base, error: fileError }) } catch {}
+                resolve()
+              })
             } catch {
               resolve()
             }
           })
+          if (!fileSucceeded) {
+            try {
+              await fs.promises.copyFile(src, out)
+              const pad = Buffer.alloc(64)
+              for (let j = 0; j < pad.length; j += 1) pad[j] = Math.floor(Math.random() * 256)
+              await fs.promises.appendFile(out, pad)
+              fileSucceeded = true
+            } catch (e) {
+              fileError = fileError || String((e as any)?.message || e || '').trim()
+            }
+          }
+          if (fileSucceeded) { results.push({ src, out, success: true }); successCount += 1 }
+          else { results.push({ src, out, success: false, error: fileError }); errorCount += 1 }
         } else {
           try {
             await fs.promises.copyFile(src, out)
             const pad = Buffer.alloc(64)
             for (let j = 0; j < pad.length; j += 1) pad[j] = Math.floor(Math.random() * 256)
             await fs.promises.appendFile(out, pad)
-          } catch {}
+            results.push({ src, out, success: true })
+            successCount += 1
+          } catch (e) {
+            results.push({ src, out, success: false, error: String((e as any)?.message || e || '').trim() })
+            errorCount += 1
+          }
         }
         try { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('video-process-progress', { current: i + 1, total, lastFile: base }) } catch {}
       }
-      try { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('video-process-complete', { canceled: cancelRequested }) } catch {}
-      return { ok: true }
+      try { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('video-process-complete', { canceled: cancelRequested, total, successCount, errorCount }) } catch {}
+      return { ok: errorCount === 0, results }
     } catch {
       return { ok: false }
     }

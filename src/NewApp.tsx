@@ -6,6 +6,7 @@ import AnimatedStats from './components/AnimatedStats'
 import EnhancedStats from './components/EnhancedStats'
 import LoadingSpinner from './components/LoadingSpinner'
 import ImageGrid from './components/ImageGrid'
+import VirtualImageGrid from './components/VirtualImageGrid'
 import AnimatedBackground from './components/AnimatedBackground'
 import TemplateManager from './components/TemplateManager'
 import MobileSync from './components/MobileSync'
@@ -424,11 +425,11 @@ export default function NewApp() {
   const [dateStrategy, setDateStrategy] = useState<'now'|'offset'>('now')
   const [showConfetti, setShowConfetti] = useState(false)
   const [perf, setPerf] = useState<{ reduceAnimations: boolean; confettiEnabled: boolean; maxConcurrency?: number; backgroundAnimations?: boolean; lazyLoadImages?: boolean; virtualScrolling?: boolean }>({ 
-    reduceAnimations: false, 
+    reduceAnimations: true, 
     confettiEnabled: false,
     backgroundAnimations: false,
-    lazyLoadImages: false,
-    virtualScrolling: false
+    lazyLoadImages: true,
+    virtualScrolling: true
   })
   useEffect(() => {
     (async () => {
@@ -493,6 +494,9 @@ export default function NewApp() {
   const filesGridRef = useRef<HTMLDivElement>(null)
   const resultsGridRef = useRef<HTMLDivElement>(null)
   
+  const fadeInFiles = perf.reduceAnimations ? ({} as any) : (useSpring({ from: { opacity: 0 }, to: { opacity: 1 } }) as any)
+  const fadeInReady = perf.reduceAnimations ? ({} as any) : (useSpring({ from: { opacity: 0 }, to: { opacity: 1 } }) as any)
+
   const [debouncedQuality, setDebouncedQuality] = useState(quality)
   const [debouncedColorDrift, setDebouncedColorDrift] = useState(colorDrift)
   
@@ -625,10 +629,11 @@ export default function NewApp() {
   }, [])
 
   useEffect(() => {
+    if (perf.reduceAnimations) return
     if (settingsRef.current) autoAnimate(settingsRef.current)
     if (filesGridRef.current) autoAnimate(filesGridRef.current)
     if (resultsGridRef.current) autoAnimate(resultsGridRef.current)
-  }, [])
+  }, [perf.reduceAnimations])
 
   const canStart = useMemo(() => files.length > 0 && outputDir && !busy, [files.length, outputDir, busy])
 
@@ -1900,59 +1905,86 @@ export default function NewApp() {
 
           <section className="col-span-12 lg:col-span-9 xl:col-span-10 p-2 md:p-4 with-gutter">
             {active==='files' && (
-              <animated.div style={useSpring({ from: { opacity: 0 }, to: { opacity: 1 } })} className="space-y-6">
+              <animated.div style={fadeInFiles} className="space-y-6">
                 <div ref={filesGridRef}>
-                  <ImageGrid
-                    items={files.map((path, index) => ({
-                      id: `file-${index}`,
-                      path,
-                      selected: selected.has(index)
-                    }))}
-                  onItemsChange={(items) => {
-                    const newPaths = items.map(item => item.path)
-                    setFiles(newPaths)
-                  }}
-                  onPreview={(item) => {
-                    setPreviewSrc(toFileUrl(item.path))
-                    setPreviewOpen(true)
-                  }}
-                  onRemove={(item) => {
-                    const index = files.indexOf(item.path)
-                    if (index !== -1) {
-                      removeAt(index)
-                      toast.success('🗑️ Файл удален', {
-                        duration: 2000,
-                        style: { background: 'var(--bg-warning)', color: 'var(--text-warning)' }
-                      })
-                    }
-                  }}
-                  onSelectionChange={(selectedItems) => {
-                    const indices = new Set(
-                      selectedItems.map(item => {
-                        const match = item.id.match(/file-(\d+)/)
-                        return match ? parseInt(match[1]) : -1
-                      }).filter(i => i !== -1)
-                    )
-                    setSelected(indices)
-                  }}
-                  onFilesAdded={async (paths) => {
-                    const expanded = await window.api.expandPaths(paths)
-                    if (expanded && expanded.length) {
-                      addFiles(expanded)
-                      toast.success(`📁 Добавлено ${expanded.length} файлов`, {
-                        duration: 3000,
-                        style: { background: 'var(--bg-success)', color: 'var(--text-success)' }
-                      })
-                    }
-                  }}
-                  sortable={true}
-                  />
+                  {perf.virtualScrolling ? (
+                    <VirtualImageGrid
+                      files={files}
+                      selected={selected}
+                      toFileUrl={toFileUrl}
+                      onToggle={(index, multi) => {
+                        setSelected(prev => {
+                          const next = new Set(prev)
+                          if (multi) {
+                            if (next.has(index)) next.delete(index); else next.add(index)
+                          } else {
+                            if (next.size === 1 && next.has(index)) { next.clear() } else { next.clear(); next.add(index) }
+                          }
+                          return next
+                        })
+                      }}
+                      onReorder={(from, to) => {
+                        setFiles(prev => {
+                          const next = prev.slice()
+                          const [m] = next.splice(from, 1)
+                          next.splice(to, 0, m)
+                          return next
+                        })
+                      }}
+                    />
+                  ) : (
+                    <ImageGrid
+                      items={files.map((path, index) => ({
+                        id: `file-${index}`,
+                        path,
+                        selected: selected.has(index)
+                      }))}
+                      onItemsChange={(items) => {
+                        const newPaths = items.map(item => item.path)
+                        setFiles(newPaths)
+                      }}
+                      onPreview={(item) => {
+                        setPreviewSrc(toFileUrl(item.path))
+                        setPreviewOpen(true)
+                      }}
+                      onRemove={(item) => {
+                        const index = files.indexOf(item.path)
+                        if (index !== -1) {
+                          removeAt(index)
+                          toast.success('🗑️ Файл удален', {
+                            duration: 2000,
+                            style: { background: 'var(--bg-warning)', color: 'var(--text-warning)' }
+                          })
+                        }
+                      }}
+                      onSelectionChange={(selectedItems) => {
+                        const indices = new Set(
+                          selectedItems.map(item => {
+                            const match = item.id.match(/file-(\d+)/)
+                            return match ? parseInt(match[1]) : -1
+                          }).filter(i => i !== -1)
+                        )
+                        setSelected(indices)
+                      }}
+                      onFilesAdded={async (paths) => {
+                        const expanded = await window.api.expandPaths(paths)
+                        if (expanded && expanded.length) {
+                          addFiles(expanded)
+                          toast.success(`📁 Добавлено ${expanded.length} файлов`, {
+                            duration: 3000,
+                            style: { background: 'var(--bg-success)', color: 'var(--text-success)' }
+                          })
+                        }
+                      }}
+                      sortable={true}
+                    />
+                  )}
                 </div>
               </animated.div>
             )}
 
             {active==='ready' && (
-              <animated.div style={useSpring({ from: { opacity: 0 }, to: { opacity: 1 } })} className="space-y-4">
+              <animated.div style={fadeInReady} className="space-y-4">
                 {!!results.length && (
                   <div ref={resultsGridRef} className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-3 @container">
                     {results.map((r, i) => (

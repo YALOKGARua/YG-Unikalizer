@@ -146,7 +146,7 @@ export default function CustomSelect({
                   const isSelected = value === option.value
                   return (
                   <motion.button
-                    key={option.value}
+                    key={`${option.value}-${index}`}
                     type="button"
                     onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleSelect(option.value, isLocked) }}
                     onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}

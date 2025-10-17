@@ -14,6 +14,8 @@ declare global {
         status: () => Promise<{ ok: boolean; loggedIn?: boolean }>
         login: () => Promise<{ ok: boolean; loggedIn?: boolean; error?: string }>
       }
+      probeVideo: (path: string) => Promise<{ ok: boolean; data?: any; error?: string }>
+      videoThumbnails: (payload: { path: string; count?: number; cols?: number; rows?: number; width?: number }) => Promise<{ ok: boolean; image?: string; cols?: number; rows?: number; error?: string }>
       system: {
         info: () => Promise<{
           ok: boolean

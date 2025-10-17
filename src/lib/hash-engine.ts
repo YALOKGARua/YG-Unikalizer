@@ -14,16 +14,20 @@ export interface HashResult {
   error?: string
 }
 
-declare global {
-  interface Window {
-    api?: {
-      invoke?: (channel: string, ...args: any[]) => Promise<any>
-    }
+function getInvoker(): ((channel: string, ...args: any[]) => Promise<any>) | undefined {
+  try {
+    const w = (window as any)
+    const inv = w?.api?.invoke
+    return typeof inv === 'function' ? inv.bind(w.api) : undefined
+  } catch {
+    return undefined
   }
 }
 
 export async function hashImages(options: HashEngineOptions): Promise<HashResult> {
   const { backend = 'auto', algorithm = 'phash', paths } = options
+
+  const __inv = getInvoker()
 
   if (!paths || paths.length === 0) {
     return { ok: true, hashes: [] }
@@ -31,7 +35,7 @@ export async function hashImages(options: HashEngineOptions): Promise<HashResult
 
   if (backend === 'rust' || backend === 'auto') {
     try {
-      const rustResult = await window.api?.invoke('rust-ahash-batch', { paths, algorithm })
+      const rustResult = __inv ? await __inv('rust-ahash-batch', { paths, algorithm }) : null
       if (rustResult?.ok) {
         return rustResult
       }
@@ -46,8 +50,8 @@ export async function hashImages(options: HashEngineOptions): Promise<HashResult
   }
 
   try {
-    const cppResult = await window.api?.invoke('native-ahash-batch', { paths })
-    return { ...cppResult, backend: 'cpp' }
+    const cppResult = __inv ? await __inv('native-ahash-batch', { paths }) : null
+    return cppResult && typeof cppResult === 'object' ? { ...(cppResult as any), backend: 'cpp' } : { ok: false, error: 'ipc-unavailable' }
   } catch (error) {
     return { ok: false, error: String(error) }
   }
@@ -55,7 +59,9 @@ export async function hashImages(options: HashEngineOptions): Promise<HashResult
 
 export async function checkRustAvailable(): Promise<boolean> {
   try {
-    const result = await window.api?.invoke('load-rust-module')
+    const __inv2 = getInvoker()
+    if (!__inv2) return false
+    const result = await __inv2('load-rust-module')
     return result !== null && result !== undefined
   } catch {
     return false
