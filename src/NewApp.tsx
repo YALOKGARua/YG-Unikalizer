@@ -409,7 +409,7 @@ const LOCATION_PRESETS = [
 export default function NewApp() {
   const { t } = useTranslation()
   const [active, setActive] = useState<'files'|'ready'>('files')
-  const files = useAppStore(s=>s.files)
+  const files = (useAppStore(s=>s.files) ?? []) as string[]
   const setFiles = useAppStore(s=>s.setFiles)
   const addFiles = useAppStore(s=>s.addFiles)
   const removeAt = useAppStore(s=>s.removeAt)
@@ -494,8 +494,14 @@ export default function NewApp() {
   const filesGridRef = useRef<HTMLDivElement>(null)
   const resultsGridRef = useRef<HTMLDivElement>(null)
   
-  const fadeInFiles = perf.reduceAnimations ? ({} as any) : (useSpring({ from: { opacity: 0 }, to: { opacity: 1 } }) as any)
-  const fadeInReady = perf.reduceAnimations ? ({} as any) : (useSpring({ from: { opacity: 0 }, to: { opacity: 1 } }) as any)
+  const [fadeInFiles] = useSpring(
+    () => ({ from: { opacity: 0 }, to: { opacity: 1 }, immediate: perf.reduceAnimations }),
+    [perf.reduceAnimations]
+  ) as any
+  const [fadeInReady] = useSpring(
+    () => ({ from: { opacity: 0 }, to: { opacity: 1 }, immediate: perf.reduceAnimations }),
+    [perf.reduceAnimations]
+  ) as any
 
   const [debouncedQuality, setDebouncedQuality] = useState(quality)
   const [debouncedColorDrift, setDebouncedColorDrift] = useState(colorDrift)
@@ -635,7 +641,10 @@ export default function NewApp() {
     if (resultsGridRef.current) autoAnimate(resultsGridRef.current)
   }, [perf.reduceAnimations])
 
-  const canStart = useMemo(() => files.length > 0 && outputDir && !busy, [files.length, outputDir, busy])
+  const canStart = useMemo(() => {
+    const count = Array.isArray(files) ? files.length : 0
+    return count > 0 && !!outputDir && !busy
+  }, [files, outputDir, busy])
 
   const selectImages = async () => {
     const paths = await window.api.selectImages()

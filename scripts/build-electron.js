@@ -27,7 +27,7 @@ async function build() {
       bundle: true,
       target: ['node18'],
       sourcemap: process.env.NODE_ENV === 'development',
-      external: ['sharp', 'node-gyp-build', 'photounikalizer_native', 'electron', 'ws', 'electron-unhandled']
+      external: ['sharp', 'node-gyp-build', 'photounikalizer_native', 'electron', 'ws']
     }))
   }
   await Promise.all(tasks)

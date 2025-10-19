@@ -12,8 +12,6 @@ const StoreRaw = require('electron-store')
 const { exec, spawn } = require('child_process')
 let ffmpegStaticPath = ''
 let ffprobeStaticPath = ''
-try { const p = require('ffmpeg-static'); if (typeof p === 'string') ffmpegStaticPath = p } catch {}
-try { const m = require('ffprobe-static'); const p = (m && (m.path || m.ffprobePath)) || ''; if (typeof p === 'string') ffprobeStaticPath = p } catch {}
 const https = require('https')
 const http = require('http')
 const { Readable } = require('stream')
@@ -1378,12 +1376,6 @@ async function processBatch(inputFiles, options) {
 }
 
 app.whenReady().then(() => {
-  try {
-    import('electron-unhandled').then((m: any) => {
-      const fn = (m && (m.default || m))
-      if (typeof fn === 'function') fn({ showDialog: false })
-    }).catch(() => {})
-  } catch {}
   app.setAppUserModelId('com.yalokgaria.yg-unikalizer')
   
   if (!app.requestSingleInstanceLock()) {

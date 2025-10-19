@@ -31236,146 +31236,8 @@ var init_electron_store = __esm({
   }
 });
 
-// node_modules/ffmpeg-static/package.json
-var require_package = __commonJS({
-  "node_modules/ffmpeg-static/package.json"(exports2, module2) {
-    module2.exports = {
-      name: "ffmpeg-static",
-      version: "5.2.0",
-      description: "ffmpeg binaries for macOS, Linux and Windows",
-      scripts: {
-        install: "node install.js",
-        prepublishOnly: "npm run install"
-      },
-      "ffmpeg-static": {
-        "binary-path-env-var": "FFMPEG_BIN",
-        "binary-release-tag-env-var": "FFMPEG_BINARY_RELEASE",
-        "binary-release-tag": "b6.0",
-        "binaries-url-env-var": "FFMPEG_BINARIES_URL",
-        "executable-base-name": "ffmpeg"
-      },
-      repository: {
-        type: "git",
-        url: "https://github.com/eugeneware/ffmpeg-static"
-      },
-      keywords: [
-        "ffmpeg",
-        "static",
-        "binary",
-        "binaries",
-        "mac",
-        "linux",
-        "windows"
-      ],
-      authors: [
-        "Eugene Ware <eugene@noblesamurai.com>",
-        "Jannis R <mail@jannisr.de>"
-      ],
-      contributors: [
-        "Thefrank (https://github.com/Thefrank)",
-        "Emil Sivervik <emil@sivervik.com>"
-      ],
-      license: "GPL-3.0-or-later",
-      bugs: {
-        url: "https://github.com/eugeneware/ffmpeg-static/issues"
-      },
-      engines: {
-        node: ">=16"
-      },
-      dependencies: {
-        "@derhuerst/http-basic": "^8.2.0",
-        "env-paths": "^2.2.0",
-        "https-proxy-agent": "^5.0.0",
-        progress: "^2.0.3"
-      },
-      devDependencies: {
-        "any-shell-escape": "^0.1.1"
-      },
-      main: "index.js",
-      files: [
-        "index.js",
-        "install.js",
-        "example.js",
-        "types"
-      ],
-      types: "types/index.d.ts"
-    };
-  }
-});
-
-// node_modules/ffmpeg-static/index.js
-var require_ffmpeg_static = __commonJS({
-  "node_modules/ffmpeg-static/index.js"(exports2, module2) {
-    "use strict";
-    var pkg = require_package();
-    var {
-      "binary-path-env-var": BINARY_PATH_ENV_VAR,
-      "executable-base-name": executableBaseName
-    } = pkg[pkg.name];
-    if ("string" !== typeof BINARY_PATH_ENV_VAR) {
-      throw new Error(`package.json: invalid/missing ${pkg.name}.binary-path-env-var entry`);
-    }
-    if ("string" !== typeof executableBaseName) {
-      throw new Error(`package.json: invalid/missing ${pkg.name}.executable-base-name entry`);
-    }
-    if (process.env[BINARY_PATH_ENV_VAR]) {
-      module2.exports = process.env[BINARY_PATH_ENV_VAR];
-    } else {
-      os4 = require("os");
-      path7 = require("path");
-      binaries = Object.assign(/* @__PURE__ */ Object.create(null), {
-        darwin: ["x64", "arm64"],
-        freebsd: ["x64"],
-        linux: ["x64", "ia32", "arm64", "arm"],
-        win32: ["x64", "ia32"]
-      });
-      platform = process.env.npm_config_platform || os4.platform();
-      arch = process.env.npm_config_arch || os4.arch();
-      let binaryPath = path7.join(
-        __dirname,
-        executableBaseName + (platform === "win32" ? ".exe" : "")
-      );
-      if (!binaries[platform] || binaries[platform].indexOf(arch) === -1) {
-        binaryPath = null;
-      }
-      module2.exports = binaryPath;
-    }
-    var os4;
-    var path7;
-    var binaries;
-    var platform;
-    var arch;
-  }
-});
-
-// node_modules/ffprobe-static/index.js
-var require_ffprobe_static = __commonJS({
-  "node_modules/ffprobe-static/index.js"(exports2) {
-    var os4 = require("os");
-    var path7 = require("path");
-    var platform = os4.platform();
-    if (platform !== "darwin" && platform !== "linux" && platform !== "win32") {
-      console.error("Unsupported platform.");
-      process.exit(1);
-    }
-    var arch = os4.arch();
-    if (platform === "darwin" && arch !== "x64" && arch !== "arm64") {
-      console.error("Unsupported architecture.");
-      process.exit(1);
-    }
-    var ffprobePath = path7.join(
-      __dirname,
-      "bin",
-      platform,
-      arch,
-      platform === "win32" ? "ffprobe.exe" : "ffprobe"
-    );
-    exports2.path = ffprobePath;
-  }
-});
-
 // node_modules/dotenv/package.json
-var require_package2 = __commonJS({
+var require_package = __commonJS({
   "node_modules/dotenv/package.json"(exports2, module2) {
     module2.exports = {
       name: "dotenv",
@@ -31449,7 +31311,7 @@ var require_main3 = __commonJS({
     var path7 = require("path");
     var os4 = require("os");
     var crypto2 = require("crypto");
-    var packageJson = require_package2();
+    var packageJson = require_package();
     var version = packageJson.version;
     var TIPS = [
       "\u{1F510} encrypt with Dotenvx: https://dotenvx.com",
@@ -31784,17 +31646,6 @@ var StoreRaw = (init_electron_store(), __toCommonJS(electron_store_exports));
 var { exec, spawn } = require("child_process");
 var ffmpegStaticPath = "";
 var ffprobeStaticPath = "";
-try {
-  const p = require_ffmpeg_static();
-  if (typeof p === "string") ffmpegStaticPath = p;
-} catch {
-}
-try {
-  const m = require_ffprobe_static();
-  const p = m && (m.path || m.ffprobePath) || "";
-  if (typeof p === "string") ffprobeStaticPath = p;
-} catch {
-}
 var https = require("https");
 var http = require("http");
 var { Readable } = require("stream");
@@ -31805,6 +31656,15 @@ try {
 }
 try {
   if (String(process.env.YG_DISABLE_GPU || "") === "1") app2.disableHardwareAcceleration();
+} catch {
+}
+try {
+  app2.commandLine.appendSwitch("disable-renderer-backgrounding");
+  app2.commandLine.appendSwitch("disable-background-timer-throttling");
+  app2.commandLine.appendSwitch("disable-backgrounding-occluded-windows");
+  if (process.platform === "win32") {
+    app2.commandLine.appendSwitch("force_high_performance_gpu");
+  }
 } catch {
 }
 try {
@@ -32381,6 +32241,13 @@ function createWindow() {
       backgroundThrottling: !!perf.backgroundThrottling
     }
   });
+  try {
+    const perf2 = getSettings() && getSettings().performance || {};
+    if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents && !mainWindow.webContents.isDestroyed()) {
+      mainWindow.webContents.setFrameRate(perf2 && perf2.reduceAnimations ? 30 : 60);
+    }
+  } catch {
+  }
   mainWindow.once("ready-to-show", () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.show();
@@ -33164,14 +33031,6 @@ async function processBatch(inputFiles, options) {
   }
 }
 app2.whenReady().then(() => {
-  try {
-    import("electron-unhandled").then((m) => {
-      const fn = m && (m.default || m);
-      if (typeof fn === "function") fn({ showDialog: false });
-    }).catch(() => {
-    });
-  } catch {
-  }
   app2.setAppUserModelId("com.yalokgaria.yg-unikalizer");
   if (!app2.requestSingleInstanceLock()) {
     app2.quit();
