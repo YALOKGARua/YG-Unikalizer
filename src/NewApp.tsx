@@ -1009,59 +1009,74 @@ export default function NewApp() {
         <div className="toaster-container" />
       
       <div className="h-full relative">
-        <div className="px-4 py-3 border-b border-white/10 bg-black/10 dark:bg-black/20 backdrop-blur overflow-x-auto with-gutter">
-          <div className="flex items-center gap-2 md:gap-3 flex-wrap">
-            <div className="inline-flex items-center gap-2 bg-white/5 rounded-xl p-1">
-            <ModernButton onClick={selectImages} size="sm" variant="primary" icon={<FaImage className="w-4 h-4" />} tilt>
-              {t('buttons.addFiles')}
-            </ModernButton>
-            <ModernButton onClick={selectFolder} size="sm" variant="success" icon={<FaFolderOpen className="w-4 h-4" />} tilt>
-              {t('buttons.addFolder')}
-            </ModernButton>
-            <ModernButton onClick={() => setMobileSyncOpen(true)} size="sm" variant="primary" icon={<FaQrcode className="w-4 h-4" />} tilt>
-              📱 Mobile
-            </ModernButton>
+        <div className="px-4 py-3 border-b border-white/10 bg-gradient-to-r from-slate-950/90 via-slate-900/90 to-slate-950/90 backdrop-blur-xl overflow-x-auto with-gutter relative">
+          <div className="absolute inset-0 bg-gradient-to-r from-violet-500/5 via-transparent to-blue-500/5" />
+          <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-violet-500/30 to-transparent" />
+          <div className="relative flex items-center gap-3 md:gap-4 flex-wrap">
+            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-slate-800/60 to-slate-700/60 rounded-2xl p-1.5 border border-white/10 shadow-lg">
+              <ModernButton onClick={selectImages} size="sm" variant="primary" icon={<FaImage className="w-4 h-4" />} tilt>
+                {t('buttons.addFiles')}
+              </ModernButton>
+              <ModernButton onClick={selectFolder} size="sm" variant="success" icon={<FaFolderOpen className="w-4 h-4" />} tilt>
+                {t('buttons.addFolder')}
+              </ModernButton>
+              <ModernButton onClick={() => setMobileSyncOpen(true)} size="sm" variant="primary" icon={<FaQrcode className="w-4 h-4" />} tilt>
+                📱 Mobile
+              </ModernButton>
             </div>
-            <div className="inline-flex items-center gap-2 bg-white/5 rounded-xl p-1">
-            <ModernButton onClick={selectOutput} size="sm" variant="warning" icon={<FaFolder className="w-4 h-4" />}>
-              {t('common.pickFolder')}
-            </ModernButton>
-            <ModernButton onClick={clearFiles} size="sm" variant="danger" icon={<FaTrash className="w-4 h-4" />}>
-              {t('buttons.clear')}
-            </ModernButton>
+            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-slate-800/60 to-slate-700/60 rounded-2xl p-1.5 border border-white/10 shadow-lg">
+              <ModernButton onClick={selectOutput} size="sm" variant="warning" icon={<FaFolder className="w-4 h-4" />}>
+                {t('common.pickFolder')}
+              </ModernButton>
+              <ModernButton onClick={clearFiles} size="sm" variant="danger" icon={<FaTrash className="w-4 h-4" />}>
+                {t('buttons.clear')}
+              </ModernButton>
             </div>
             {!!outputDir && (
-              <div className="text-xs opacity-80 truncate max-w-[320px] px-3 py-2 rounded-lg border border-white/10 bg-white/60 text-slate-900 dark:bg-slate-800/60 dark:text-slate-100">📁 {outputDir.split(/[/\\]/).pop()}</div>
+              <div className="text-xs truncate max-w-[320px] px-4 py-2.5 rounded-xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 text-emerald-300 font-medium shadow-lg shadow-emerald-500/10">
+                📁 {outputDir.split(/[/\\]/).pop()}
+              </div>
             )}
-            <div className="inline-flex items-center gap-2 bg-white/5 rounded-xl p-1">
-            {!busy && (
-              <FeatureGateCompact feature="batch_processing" showUpgrade={files.length > 3}>
-                <ModernButton onClick={start} size="sm" variant="primary" icon={<FaPlay className="w-4 h-4" />} disabled={!canStart} loading={busy}>
-                  {t('buttons.start')}
-                  {files.length > 3 && <PremiumBadgeCompact feature="batch_processing" />}
+            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-slate-800/60 to-slate-700/60 rounded-2xl p-1.5 border border-white/10 shadow-lg">
+              {!busy && (
+                <FeatureGateCompact feature="batch_processing" showUpgrade={files.length > 3}>
+                  <ModernButton onClick={start} size="sm" variant="primary" icon={<FaPlay className="w-4 h-4" />} disabled={!canStart} loading={busy}>
+                    {t('buttons.start')}
+                    {files.length > 3 && <PremiumBadgeCompact feature="batch_processing" />}
+                  </ModernButton>
+                </FeatureGateCompact>
+              )}
+              {busy && (
+                <ModernButton onClick={cancel} size="sm" variant="secondary" icon={<FaStop className="w-4 h-4" />}>
+                  {t('buttons.cancel')}
                 </ModernButton>
-              </FeatureGateCompact>
-            )}
-            {busy && (
-              <ModernButton onClick={cancel} size="sm" variant="secondary" icon={<FaStop className="w-4 h-4" />}>
-                {t('buttons.cancel')}
-              </ModernButton>
-            )}
+              )}
             </div>
 
-            <div className="ml-auto inline-flex items-center gap-2 text-[11px] opacity-80">
-              <span className="px-2 py-1 rounded-md border border-white/10 bg-white/5">Файлов: {files.length}</span>
-              <span className="px-2 py-1 rounded-md border border-white/10 bg-white/5">Выбрано: {selected.size}</span>
+            <div className="ml-auto inline-flex items-center gap-3 text-xs">
+              <span className="px-4 py-2 rounded-xl border border-violet-500/30 bg-gradient-to-r from-violet-500/10 to-purple-500/10 text-violet-300 font-semibold shadow-lg shadow-violet-500/10">
+                Файлов: {files.length}
+              </span>
+              <span className="px-4 py-2 rounded-xl border border-blue-500/30 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 text-blue-300 font-semibold shadow-lg shadow-blue-500/10">
+                Выбрано: {selected.size}
+              </span>
             </div>
           </div>
         </div>
 
-        <div className="mt-4 space-y-6" ref={settingsRef}>
-          <div className="glass-card rounded-xl p-4 transition-all duration-300">
-            <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-              <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-              Основные настройки
-            </h3>
+        <div className="mt-4 space-y-6 px-4" ref={settingsRef}>
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900/80 via-slate-800/60 to-slate-900/80 backdrop-blur-xl border border-white/10 shadow-2xl shadow-blue-500/5 transition-all duration-500 hover:shadow-blue-500/10 hover:border-white/20">
+            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMiI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIvPjwvZz48L2c+PC9zdmc+')] opacity-50" />
+            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500/50 to-transparent" />
+            <div className="relative p-5">
+              <h3 className="text-sm font-bold mb-4 flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-gradient-to-br from-blue-500/30 to-cyan-500/30 border border-blue-400/30 shadow-lg shadow-blue-500/20">
+                  <div className="w-3 h-3 bg-gradient-to-br from-blue-400 to-cyan-400 rounded-full animate-pulse" />
+                </div>
+                <span className="bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-400 bg-clip-text text-transparent">
+                  Основные настройки
+                </span>
+              </h3>
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 text-xs">
               <label className="flex flex-col gap-2">
                 <span className="opacity-70 font-medium">Формат</span>
@@ -1164,16 +1179,20 @@ export default function NewApp() {
               </label>
             </div>
           </div>
+          </div>
 
-          <div className="glass-card rounded-xl p-4">
-            <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
-              <div className="p-2.5 rounded-xl bg-gradient-to-r from-emerald-500/30 to-green-500/30 border border-emerald-400/40">
-                <div className="w-3 h-3 bg-gradient-to-r from-emerald-400 to-green-400 rounded-full animate-pulse shadow-lg"></div>
-              </div>
-              <span className="bg-gradient-to-r from-emerald-400 to-green-400 bg-clip-text text-transparent">
-                Метаданные
-              </span>
-            </h3>
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900/80 via-slate-800/60 to-slate-900/80 backdrop-blur-xl border border-white/10 shadow-2xl shadow-emerald-500/5 transition-all duration-500 hover:shadow-emerald-500/10 hover:border-white/20">
+            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMiI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIvPjwvZz48L2c+PC9zdmc+')] opacity-50" />
+            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent" />
+            <div className="relative p-5">
+              <h3 className="text-sm font-bold mb-4 flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-gradient-to-br from-emerald-500/30 to-teal-500/30 border border-emerald-400/30 shadow-lg shadow-emerald-500/20">
+                  <div className="w-3 h-3 bg-gradient-to-br from-emerald-400 to-teal-400 rounded-full animate-pulse" />
+                </div>
+                <span className="bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-400 bg-clip-text text-transparent">
+                  Метаданные
+                </span>
+              </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
               <div className="space-y-3">
                 <label className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-slate-800/40 to-slate-700/40 hover:from-slate-800/60 hover:to-slate-700/60 transition-all cursor-pointer group border border-white/5">
@@ -1310,6 +1329,7 @@ export default function NewApp() {
                 </label>
               </div>
             </div>
+          </div>
           </div>
         </div>
 
@@ -1854,60 +1874,81 @@ export default function NewApp() {
 
 
         <div className="grid grid-cols-12 gap-0">
-          <aside className="hidden lg:block col-span-3 xl:col-span-2 border-r border-white/10 bg-gradient-to-b from-slate-950/60 to-slate-900/60 backdrop-blur-sm">
-            <nav className="p-3 space-y-2">
+          <aside className="hidden lg:block col-span-3 xl:col-span-2 border-r border-white/10 bg-gradient-to-b from-slate-950/80 to-slate-900/80 backdrop-blur-xl relative overflow-hidden">
+            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMiI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIvPjwvZz48L2c+PC9zdmc+')] opacity-30" />
+            <nav className="relative p-4 space-y-3">
               <button
                 onClick={() => setActive('files')}
-                className={`w-full text-left px-3 py-3 rounded-xl transition-all duration-300 flex items-center gap-3 group ${
+                className={`w-full text-left px-4 py-4 rounded-2xl transition-all duration-300 flex items-center gap-4 group relative overflow-hidden ${
                   active === 'files'
-                    ? 'bg-gradient-to-r from-blue-600/20 to-purple-600/20 border border-blue-500/30 shadow-lg'
+                    ? 'bg-gradient-to-r from-violet-600/30 to-blue-600/30 border border-violet-500/40 shadow-xl shadow-violet-500/20'
                     : 'hover:bg-white/5 border border-transparent hover:border-white/10'
                 }`}
               >
-                <div className={`p-2 rounded-lg transition-colors ${
-                  active === 'files' ? 'bg-blue-500/20' : 'bg-slate-800/50 group-hover:bg-slate-700/50'
+                {active === 'files' && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-violet-500/10 to-blue-500/10 animate-pulse" />
+                )}
+                <div className={`relative p-3 rounded-xl transition-all duration-300 ${
+                  active === 'files' 
+                    ? 'bg-gradient-to-br from-violet-500 to-blue-500 shadow-lg shadow-violet-500/30' 
+                    : 'bg-slate-800/60 group-hover:bg-slate-700/60 border border-white/5'
                 }`}>
                   <Icon name="tabler:folders" className={`w-5 h-5 transition-colors ${
-                    active === 'files' ? 'text-blue-400' : 'text-slate-400 group-hover:text-slate-300'
+                    active === 'files' ? 'text-white' : 'text-slate-400 group-hover:text-white'
                   }`} />
                 </div>
-                <div className="flex-1">
-                  <div className={`font-medium transition-colors ${
-                    active === 'files' ? 'text-blue-300' : 'text-slate-300 group-hover:text-white'
+                <div className="relative flex-1">
+                  <div className={`font-semibold transition-colors ${
+                    active === 'files' ? 'text-white' : 'text-slate-300 group-hover:text-white'
                   }`}>
                     {t('tabs.files')}
                   </div>
-                  <div className="text-xs text-slate-500 group-hover:text-slate-400">
+                  <div className={`text-xs mt-0.5 transition-colors ${
+                    active === 'files' ? 'text-violet-300' : 'text-slate-500 group-hover:text-slate-400'
+                  }`}>
                     {files.length} файлов
                   </div>
                 </div>
+                {active === 'files' && (
+                  <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-l-full bg-gradient-to-b from-violet-400 to-blue-400" />
+                )}
               </button>
 
               <button
                 onClick={() => setActive('ready')}
-                className={`w-full text-left px-3 py-3 rounded-xl transition-all duration-300 flex items-center gap-3 group ${
+                className={`w-full text-left px-4 py-4 rounded-2xl transition-all duration-300 flex items-center gap-4 group relative overflow-hidden ${
                   active === 'ready'
-                    ? 'bg-gradient-to-r from-green-600/20 to-emerald-600/20 border border-green-500/30 shadow-lg'
+                    ? 'bg-gradient-to-r from-emerald-600/30 to-teal-600/30 border border-emerald-500/40 shadow-xl shadow-emerald-500/20'
                     : 'hover:bg-white/5 border border-transparent hover:border-white/10'
                 }`}
               >
-                <div className={`p-2 rounded-lg transition-colors ${
-                  active === 'ready' ? 'bg-green-500/20' : 'bg-slate-800/50 group-hover:bg-slate-700/50'
+                {active === 'ready' && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 animate-pulse" />
+                )}
+                <div className={`relative p-3 rounded-xl transition-all duration-300 ${
+                  active === 'ready' 
+                    ? 'bg-gradient-to-br from-emerald-500 to-teal-500 shadow-lg shadow-emerald-500/30' 
+                    : 'bg-slate-800/60 group-hover:bg-slate-700/60 border border-white/5'
                 }`}>
                   <Icon name="tabler:checks" className={`w-5 h-5 transition-colors ${
-                    active === 'ready' ? 'text-green-400' : 'text-slate-400 group-hover:text-slate-300'
+                    active === 'ready' ? 'text-white' : 'text-slate-400 group-hover:text-white'
                   }`} />
                 </div>
-                <div className="flex-1">
-                  <div className={`font-medium transition-colors ${
-                    active === 'ready' ? 'text-green-300' : 'text-slate-300 group-hover:text-white'
+                <div className="relative flex-1">
+                  <div className={`font-semibold transition-colors ${
+                    active === 'ready' ? 'text-white' : 'text-slate-300 group-hover:text-white'
                   }`}>
                     {t('tabs.ready')}
                   </div>
-                  <div className="text-xs text-slate-500 group-hover:text-slate-400">
+                  <div className={`text-xs mt-0.5 transition-colors ${
+                    active === 'ready' ? 'text-emerald-300' : 'text-slate-500 group-hover:text-slate-400'
+                  }`}>
                     {results.length} готово
                   </div>
                 </div>
+                {active === 'ready' && (
+                  <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-l-full bg-gradient-to-b from-emerald-400 to-teal-400" />
+                )}
               </button>
             </nav>
           </aside>
