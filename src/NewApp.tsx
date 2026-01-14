@@ -13,6 +13,7 @@ import MobileSync from './components/MobileSync'
 import LazyModal from './components/LazyModal'
 import { useSpring, animated, useSpringValue, useTrail, config } from '@react-spring/web'
 import { useAppStore } from '../private/src/subscription/store'
+import { useMetaSettingsStore } from './stores/metaSettingsStore'
 import { toast } from 'sonner'
 import FeatureGate, { PremiumBadge } from './components/FeatureGate'
 import FeatureGateFloating, { PremiumBadgeFloating } from './components/FeatureGateFloating'
@@ -421,8 +422,43 @@ export default function NewApp() {
   const [colorDrift, setColorDrift] = useState(2)
   const [resizeDrift, setResizeDrift] = useState(2)
   const [resizeMaxW, setResizeMaxW] = useState(0)
-  const [removeGps, setRemoveGps] = useState(true)
-  const [dateStrategy, setDateStrategy] = useState<'now'|'offset'>('now')
+  
+  const {
+    removeGps, setRemoveGps,
+    uniqueId, setUniqueId,
+    removeAll, setRemoveAll,
+    softwareTag, setSoftwareTag,
+    fake, setFake,
+    fakeProfile, setFakeProfile,
+    fakeMake, setFakeMake,
+    fakeModel, setFakeModel,
+    fakeLens, setFakeLens,
+    fakeSoftware, setFakeSoftware,
+    fakeSerial, setFakeSerial,
+    fakeGps, setFakeGps,
+    fakeLat, setFakeLat,
+    fakeLon, setFakeLon,
+    fakeAltitude, setFakeAltitude,
+    fakeAuto, setFakeAuto,
+    fakePerFile, setFakePerFile,
+    fakeIso, setFakeIso,
+    fakeExposureTime, setFakeExposureTime,
+    fakeFNumber, setFakeFNumber,
+    fakeFocalLength, setFakeFocalLength,
+    fakeExposureProgram, setFakeExposureProgram,
+    fakeMeteringMode, setFakeMeteringMode,
+    fakeFlash, setFakeFlash,
+    fakeWhiteBalance, setFakeWhiteBalance,
+    fakeColorSpace, setFakeColorSpace,
+    fakeRating, setFakeRating,
+    fakeLabel, setFakeLabel,
+    fakeTitle, setFakeTitle,
+    fakeCity, setFakeCity,
+    fakeState, setFakeState,
+    fakeCountry, setFakeCountry,
+    dateStrategy, setDateStrategy,
+    dateOffsetMinutes, setDateOffsetMinutes
+  } = useMetaSettingsStore()
   const [showConfetti, setShowConfetti] = useState(false)
   const [perf, setPerf] = useState<{ reduceAnimations: boolean; confettiEnabled: boolean; maxConcurrency?: number; backgroundAnimations?: boolean; lazyLoadImages?: boolean; virtualScrolling?: boolean }>({ 
     reduceAnimations: true, 
@@ -437,39 +473,7 @@ export default function NewApp() {
     })()
   }, [])
   const { width, height } = useWindowSize()
-  const [dateOffsetMinutes, setDateOffsetMinutes] = useState(0)
-  const [uniqueId, setUniqueId] = useState(true)
-  const [removeAll, setRemoveAll] = useState(false)
-  const [softwareTag, setSoftwareTag] = useState(true)
-  const [fake, setFake] = useState(false)
-  const [fakeProfile, setFakeProfile] = useState<ProfileKind>('camera')
-  const [fakeMake, setFakeMake] = useState('')
-  const [fakeModel, setFakeModel] = useState('')
-  const [fakeLens, setFakeLens] = useState('')
-  const [fakeSoftware, setFakeSoftware] = useState('')
-  const [fakeSerial, setFakeSerial] = useState('')
-  const [fakeGps, setFakeGps] = useState(false)
-  const [fakeLat, setFakeLat] = useState('')
-  const [fakeLon, setFakeLon] = useState('')
-  const [fakeAltitude, setFakeAltitude] = useState('')
-  const [fakeAuto, setFakeAuto] = useState(true)
-  const [fakePerFile, setFakePerFile] = useState(true)
   const [onlineAuto, setOnlineAuto] = useState(true)
-  const [fakeIso, setFakeIso] = useState<number|''>('')
-  const [fakeExposureTime, setFakeExposureTime] = useState('')
-  const [fakeFNumber, setFakeFNumber] = useState<number|''>('')
-  const [fakeFocalLength, setFakeFocalLength] = useState<number|''>('')
-  const [fakeExposureProgram, setFakeExposureProgram] = useState<number|''>('')
-  const [fakeMeteringMode, setFakeMeteringMode] = useState<number|''>('')
-  const [fakeFlash, setFakeFlash] = useState<number|''>('')
-  const [fakeWhiteBalance, setFakeWhiteBalance] = useState<number|''>('')
-  const [fakeColorSpace, setFakeColorSpace] = useState('')
-  const [fakeRating, setFakeRating] = useState<number|''>('')
-  const [fakeLabel, setFakeLabel] = useState('')
-  const [fakeTitle, setFakeTitle] = useState('')
-  const [fakeCity, setFakeCity] = useState('')
-  const [fakeState, setFakeState] = useState('')
-  const [fakeCountry, setFakeCountry] = useState('')
   const [locationPreset, setLocationPreset] = useState('none')
   const [author, setAuthor] = useState('')
   const [description, setDescription] = useState('')
@@ -1195,87 +1199,120 @@ export default function NewApp() {
               </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
               <div className="space-y-3">
-                <label className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-slate-800/40 to-slate-700/40 hover:from-slate-800/60 hover:to-slate-700/60 transition-all cursor-pointer group border border-white/5">
-                  <input 
-                    type="checkbox" 
-                    checked={removeGps} 
-                    onChange={e=>setRemoveGps(e.target.checked)} 
-                    className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500" 
-                  />
-                  <div className="flex-1">
-                    <span className="text-sm text-white group-hover:text-blue-300 transition-colors inline-flex items-center gap-2">
-                      <Icon name="tabler:gps" className="w-4 h-4 text-blue-400" />
+                <button
+                  type="button"
+                  onClick={() => setRemoveGps(!removeGps)}
+                  className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-300 group border ${
+                    removeGps 
+                      ? 'bg-gradient-to-r from-blue-600/30 to-cyan-600/30 border-blue-500/40 shadow-lg shadow-blue-500/10' 
+                      : 'bg-slate-800/40 border-white/5 hover:bg-slate-800/60 hover:border-white/10'
+                  }`}
+                >
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 ${
+                    removeGps 
+                      ? 'bg-gradient-to-br from-blue-500 to-cyan-500 shadow-lg shadow-blue-500/30' 
+                      : 'bg-slate-700/50'
+                  }`}>
+                    <Icon name="tabler:gps" className={`w-5 h-5 transition-colors ${removeGps ? 'text-white' : 'text-slate-400'}`} />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <span className={`text-sm font-medium transition-colors ${removeGps ? 'text-white' : 'text-slate-300'}`}>
                       Удалить GPS данные
-                      {removeGps && <span className="ml-1 px-2 py-0.5 text-[10px] rounded-full bg-emerald-600/30 text-emerald-300 border border-emerald-500/30">Активно</span>}
                     </span>
                     <p className="text-[10px] text-slate-500 mt-0.5">Удаляет координаты и геолокацию</p>
                   </div>
-                </label>
-                <label className={`flex items-center gap-3 p-3 rounded-lg transition-all cursor-pointer group border ${
-                    removeAll ? 'bg-slate-800/30 opacity-50 cursor-not-allowed border-slate-700/30' : 'bg-gradient-to-r from-slate-800/40 to-slate-700/40 hover:from-slate-800/60 hover:to-slate-700/60 border-white/5'
+                  {removeGps && <span className="px-2 py-1 text-[10px] rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-medium">Активно</span>}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => !removeAll && setUniqueId(!uniqueId)}
+                  disabled={removeAll}
+                  className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-300 group border ${
+                    removeAll 
+                      ? 'bg-slate-800/20 opacity-50 cursor-not-allowed border-slate-700/30'
+                      : uniqueId 
+                        ? 'bg-gradient-to-r from-violet-600/30 to-purple-600/30 border-violet-500/40 shadow-lg shadow-violet-500/10' 
+                        : 'bg-slate-800/40 border-white/5 hover:bg-slate-800/60 hover:border-white/10'
+                  }`}
+                >
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 ${
+                    uniqueId && !removeAll
+                      ? 'bg-gradient-to-br from-violet-500 to-purple-500 shadow-lg shadow-violet-500/30' 
+                      : 'bg-slate-700/50'
                   }`}>
-                  <input 
-                    type="checkbox" 
-                    checked={uniqueId} 
-                    onChange={e=>setUniqueId(e.target.checked)}
-                    disabled={removeAll}
-                    className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 disabled:opacity-50" 
-                  />
-                  <div className="flex-1">
-                    <span className="text-sm text-white group-hover:text-blue-300 transition-colors inline-flex items-center gap-2">
-                      <Icon name="tabler:key" className="w-4 h-4 text-blue-400" />
+                    <Icon name="tabler:key" className={`w-5 h-5 transition-colors ${uniqueId && !removeAll ? 'text-white' : 'text-slate-400'}`} />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <span className={`text-sm font-medium transition-colors ${uniqueId && !removeAll ? 'text-white' : 'text-slate-300'}`}>
                       Уникальный ID
-                      {uniqueId && !removeAll && <span className="ml-1 px-2 py-0.5 text-[10px] rounded-full bg-emerald-600/30 text-emerald-300 border border-emerald-500/30">Активно</span>}
                     </span>
                     <p className="text-[10px] text-slate-500 mt-0.5">Генерирует уникальный идентификатор</p>
                   </div>
-                </label>
-                <label className={`flex items-center gap-3 p-3 rounded-lg transition-all cursor-pointer group border ${
-                    fake ? 'bg-slate-700/20 opacity-50 cursor-not-allowed border-slate-700/30' : 'bg-gradient-to-r from-rose-900/30 to-red-900/30 hover:from-rose-900/40 hover:to-red-900/40 border-rose-500/20'
+                  {uniqueId && !removeAll && <span className="px-2 py-1 text-[10px] rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-medium">Активно</span>}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!fake) {
+                      setRemoveAll(!removeAll)
+                      if (!removeAll) setFake(false)
+                    }
+                  }}
+                  disabled={fake}
+                  className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-300 group border ${
+                    fake 
+                      ? 'bg-slate-800/20 opacity-50 cursor-not-allowed border-slate-700/30'
+                      : removeAll 
+                        ? 'bg-gradient-to-r from-rose-600/30 to-red-600/30 border-rose-500/40 shadow-lg shadow-rose-500/10' 
+                        : 'bg-slate-800/40 border-white/5 hover:bg-slate-800/60 hover:border-white/10'
+                  }`}
+                >
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 ${
+                    removeAll && !fake
+                      ? 'bg-gradient-to-br from-rose-500 to-red-500 shadow-lg shadow-rose-500/30' 
+                      : 'bg-slate-700/50'
                   }`}>
-                  <input 
-                    type="checkbox" 
-                    checked={removeAll} 
-                    onChange={e => {
-                      if (!fake) {
-                        setRemoveAll(e.target.checked)
-                        if (e.target.checked) {
-                          setFake(false)
-                        }
-                      }
-                    }} 
-                    disabled={fake}
-                    className="w-4 h-4 text-rose-600 bg-gray-700 border-gray-600 rounded focus:ring-rose-500 disabled:opacity-50" 
-                  />
-                  <div className="flex-1">
-                    <span className={`text-sm font-medium transition-colors ${fake ? 'text-slate-600' : 'text-white group-hover:text-rose-300'}`}>
-                      <FaTrash className="inline w-3 h-3 mr-1" />
+                    <FaTrash className={`w-4 h-4 transition-colors ${removeAll && !fake ? 'text-white' : 'text-slate-400'}`} />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <span className={`text-sm font-medium transition-colors ${removeAll && !fake ? 'text-white' : 'text-slate-300'}`}>
                       Удалить все метаданные
                     </span>
                     <p className="text-[10px] text-slate-500 mt-0.5">
-                      {fake ? '⚠️ Недоступно при фейковых метаданных' : 'Полная очистка EXIF, IPTC, XMP'}
+                      {fake ? '⚠️ Недоступно при фейковых' : 'Полная очистка EXIF, IPTC, XMP'}
                     </p>
                   </div>
-                </label>
-                <label className={`flex items-center gap-3 p-3 rounded-lg transition-all cursor-pointer group border ${
-                    removeAll ? 'bg-slate-800/30 opacity-50 cursor-not-allowed border-slate-700/30' : 'bg-gradient-to-r from-slate-800/40 to-slate-700/40 hover:from-slate-800/60 hover:to-slate-700/60 border-white/5'
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => !removeAll && setSoftwareTag(!softwareTag)}
+                  disabled={removeAll}
+                  className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-300 group border ${
+                    removeAll 
+                      ? 'bg-slate-800/20 opacity-50 cursor-not-allowed border-slate-700/30'
+                      : softwareTag 
+                        ? 'bg-gradient-to-r from-amber-600/30 to-orange-600/30 border-amber-500/40 shadow-lg shadow-amber-500/10' 
+                        : 'bg-slate-800/40 border-white/5 hover:bg-slate-800/60 hover:border-white/10'
+                  }`}
+                >
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 ${
+                    softwareTag && !removeAll
+                      ? 'bg-gradient-to-br from-amber-500 to-orange-500 shadow-lg shadow-amber-500/30' 
+                      : 'bg-slate-700/50'
                   }`}>
-                  <input 
-                    type="checkbox" 
-                    checked={softwareTag} 
-                    onChange={e=>setSoftwareTag(e.target.checked)}
-                    disabled={removeAll}
-                    className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 disabled:opacity-50" 
-                  />
-                  <div className="flex-1">
-                    <span className="text-sm text-white group-hover:text-blue-300 transition-colors inline-flex items-center gap-2">
-                      <Icon name="tabler:tags" className="w-4 h-4 text-blue-400" />
+                    <Icon name="tabler:tags" className={`w-5 h-5 transition-colors ${softwareTag && !removeAll ? 'text-white' : 'text-slate-400'}`} />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <span className={`text-sm font-medium transition-colors ${softwareTag && !removeAll ? 'text-white' : 'text-slate-300'}`}>
                       Добавить тег Software
-                      {softwareTag && !removeAll && <span className="ml-1 px-2 py-0.5 text-[10px] rounded-full bg-emerald-600/30 text-emerald-300 border border-emerald-500/30">Активно</span>}
                     </span>
                     <p className="text-[10px] text-slate-500 mt-0.5">Добавляет информацию о программе</p>
                   </div>
-                </label>
+                  {softwareTag && !removeAll && <span className="px-2 py-1 text-[10px] rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-medium">Активно</span>}
+                </button>
               </div>
               <div className="space-y-3">
                   <label className="flex flex-col gap-2">
@@ -1298,35 +1335,40 @@ export default function NewApp() {
                   </label>
                 )}
                 <div className="border-t border-white/10 my-3"></div>
-                <label className={`flex items-center gap-3 p-3 rounded-lg transition-all cursor-pointer group border ${
-                    removeAll ? 'bg-slate-700/20 opacity-50 cursor-not-allowed border-slate-700/30' : 'bg-gradient-to-r from-purple-900/30 to-indigo-900/30 hover:from-purple-900/40 hover:to-indigo-900/40 border-purple-500/20'
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!removeAll) {
+                      setFake(!fake)
+                      if (!fake) setRemoveAll(false)
+                    }
+                  }}
+                  disabled={removeAll}
+                  className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-300 group border ${
+                    removeAll 
+                      ? 'bg-slate-800/20 opacity-50 cursor-not-allowed border-slate-700/30'
+                      : fake 
+                        ? 'bg-gradient-to-r from-purple-600/30 to-indigo-600/30 border-purple-500/40 shadow-lg shadow-purple-500/10' 
+                        : 'bg-slate-800/40 border-white/5 hover:bg-slate-800/60 hover:border-white/10'
+                  }`}
+                >
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 ${
+                    fake && !removeAll
+                      ? 'bg-gradient-to-br from-purple-500 to-indigo-500 shadow-lg shadow-purple-500/30' 
+                      : 'bg-slate-700/50'
                   }`}>
-                  <input 
-                    type="checkbox" 
-                    checked={fake} 
-                    onChange={e => {
-                      if (!removeAll) {
-                        setFake(e.target.checked)
-                        if (e.target.checked) {
-                          setRemoveAll(false)
-                        }
-                      }
-                    }} 
-                    disabled={removeAll}
-                    className="w-4 h-4 text-purple-600 bg-gray-700 border-gray-600 rounded focus:ring-purple-500 disabled:opacity-50" 
-                  />
-                  <div className="flex-1">
-                    <span className={`text-sm font-medium transition-colors ${
-                      removeAll ? 'text-slate-600' : 'text-white group-hover:text-purple-300'
-                    }`}>
-                      <FaMagic className="inline w-3 h-3 mr-1" />
+                    <FaMagic className={`w-4 h-4 transition-colors ${fake && !removeAll ? 'text-white' : 'text-slate-400'}`} />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <span className={`text-sm font-medium transition-colors ${fake && !removeAll ? 'text-white' : 'text-slate-300'}`}>
                       Фейковые метаданные
                     </span>
                     <p className="text-[10px] text-slate-500 mt-0.5">
-                      {removeAll ? '⚠️ Недоступно при удалении метаданных' : 'Генерирует реалистичные EXIF данные'}
+                      {removeAll ? '⚠️ Недоступно при удалении' : 'Генерирует реалистичные EXIF'}
                     </p>
                   </div>
-                </label>
+                  {fake && !removeAll && <span className="px-2 py-1 text-[10px] rounded-lg bg-purple-500/20 text-purple-400 border border-purple-500/30 font-medium">Активно</span>}
+                </button>
               </div>
             </div>
           </div>
